@@ -1,0 +1,177 @@
+name: Deploy Auto-Generated Hub to GitHub Pages
+
+on:
+  push:
+    branches: ["main"] # 如果你的主分支是 master，請改成 master
+  workflow_dispatch:   # 允許手動在 GitHub 後台觸發
+
+# 設定部署權限
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # 使用 Node.js 掃描所有資料夾並產生漂亮的首頁 index.html
+      - name: Build Index Page
+        run: |
+          node -e '
+            const fs = require("fs");
+            const path = require("path");
+
+            // 1. 取得所有包含 index.html 的子資料夾（忽略 .git、.github 等隱藏資料夾）
+            const directories = fs.readdirSync(".", { withFileTypes: true })
+              .filter(d => d.isDirectory() && !d.name.startsWith("."))
+              .filter(d => fs.existsSync(path.join(d.name, "index.html")));
+
+            // 2. 整理每個專案的資料
+            const projects = directories.map(dir => {
+              const folderName = dir.name;
+              let meta = {
+                title: folderName.replace(/[-_]/g, " "),
+                description: "點擊進入查看互動效果。",
+                tags: ["Web"],
+                date: ""
+              };
+
+              // 讀取自訂的 meta.json
+              const metaFile = path.join(folderName, "meta.json");
+              if (fs.existsSync(metaFile)) {
+                try {
+                  meta = { ...meta, ...JSON.parse(fs.readFileSync(metaFile, "utf8")) };
+                } catch (e) {
+                  console.error("解析 meta.json 失敗:", metaFile);
+                }
+              }
+
+              // 檢查是否有預覽圖
+              const hasPreview = fs.existsSync(path.join(folderName, "preview.png"));
+              const previewImg = hasPreview ? `./${folderName}/preview.png` : "";
+
+              return { ...meta, folder: folderName, previewImg };
+            });
+
+            // 3. 生成卡片 HTML
+            const cardsHtml = projects.map(p => `
+              <a href="./${p.folder}/" class="card">
+                ${p.previewImg ? `<div class="card-img" style="background-image: url(\x27${p.previewImg}\x27);"></div>` : `<div class="card-placeholder">🚀</div>`}
+                <div class="card-content">
+                  <div class="tags">${(p.tags || []).map(t => `<span class="tag">${t}</span>`).join("")}</div>
+                  <h2 class="card-title">${p.title}</h2>
+                  <p class="card-desc">${p.description}</p>
+                  <span class="card-link">進入體驗 &rarr;</span>
+                </div>
+              </a>
+            `).join("\n");
+
+            // 4. 生成完整的首頁 index.html
+            const fullHtml = `<!DOCTYPE html>
+            <html lang="zh-TW">
+            <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>互動網頁作品集</title>
+              <link rel="preconnect" href="https://fonts.googleapis.com">
+              <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+              <style>
+                * { box-sizing: border-box; margin: 0; padding: 0; }
+                body {
+                  font-family: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+                  background-color: #0f172a;
+                  color: #e2e8f0;
+                  min-height: 100vh;
+                  padding: 3rem 1.5rem;
+                }
+                .container { max-width: 1200px; margin: 0 auto; }
+                header { margin-bottom: 3.5rem; text-align: center; }
+                h1 { font-size: 2.5rem; font-weight: 700; color: #f8fafc; margin-bottom: 0.75rem; letter-spacing: -0.02em; }
+                .subtitle { color: #94a3b8; font-size: 1.1rem; }
+                .grid {
+                  display: grid;
+                  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+                  gap: 2rem;
+                }
+                .card {
+                  background: #1e293b;
+                  border-radius: 16px;
+                  overflow: hidden;
+                  border: 1px solid #334155;
+                  text-decoration: none;
+                  color: inherit;
+                  display: flex;
+                  flex-direction: column;
+                  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                }
+                .card:hover {
+                  transform: translateY(-4px);
+                  border-color: #38bdf8;
+                  box-shadow: 0 12px 24px -10px rgba(56, 189, 248, 0.25);
+                }
+                .card-img {
+                  width: 100%;
+                  height: 180px;
+                  background-size: cover;
+                  background-position: center;
+                  background-repeat: no-repeat;
+                  border-bottom: 1px solid #334155;
+                }
+                .card-placeholder {
+                  width: 100%;
+                  height: 140px;
+                  background: #1e293b;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  font-size: 3rem;
+                  border-bottom: 1px solid #334155;
+                }
+                .card-content { padding: 1.5rem; display: flex; flex-direction: column; flex-grow: 1; }
+                .tags { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
+                .tag { font-size: 0.75rem; background: #334155; color: #38bdf8; padding: 0.25rem 0.6rem; border-radius: 9999px; font-weight: 600; }
+                .card-title { font-size: 1.25rem; font-weight: 700; color: #f8fafc; margin-bottom: 0.5rem; }
+                .card-desc { font-size: 0.925rem; color: #94a3b8; line-height: 1.5; margin-bottom: 1.5rem; flex-grow: 1; }
+                .card-link { font-size: 0.9rem; font-weight: 600; color: #38bdf8; display: inline-flex; align-items: center; }
+              </style>
+            </head>
+            <body>
+              <div class="container">
+                <header>
+                  <h1>我的互動實驗室 ✨</h1>
+                  <p class="subtitle">共收錄 ${projects.length} 個單頁式互動作品</p>
+                </header>
+                <main class="grid">${cardsHtml}</main>
+              </div>
+            </body>
+            </html>`;
+
+            fs.writeFileSync("index.html", fullHtml);
+            console.log("首頁 index.html 生成成功！共掃描到 " + projects.length + " 個專案。");
+          '
+
+      # 設定 GitHub Pages
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      # 上傳全站靜態資源
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+
+      # 正式部署到 GitHub Pages
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
