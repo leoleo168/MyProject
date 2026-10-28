@@ -1,0 +1,1738 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DIY 創客車體互動工作坊 (含3D風力車展示)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<!-- Three.js 與 OrbitControls -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<style>
+  body {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .canvas-container {
+    background: radial-gradient(#cbd5e1 1px, transparent 1px);
+    background-size: 18px 18px;
+  }
+  .step-active {
+    border-color: #3b82f6;
+    background-color: #eff6ff;
+    font-weight: bold;
+  }
+</style>
+</head>
+<body class="bg-slate-100 text-slate-800 h-screen flex flex-col font-sans overflow-hidden">
+
+<!-- 頂部標題導覽列 (已精簡移除副標文字) -->
+<header class="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between shadow-sm z-10 shrink-0">
+  <div class="flex items-center space-x-3">
+    <span class="text-2xl">🏎️</span>
+    <h1 class="text-lg font-black text-slate-800 tracking-tight leading-tight">Maker DIY：風力反作用力小車互動工作坊</h1>
+  </div>
+
+  <!-- 中間模式與板材切換器 -->
+  <div class="flex items-center space-x-3">
+    <div class="flex items-center space-x-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200">
+      <span class="text-xs font-bold text-slate-500 pl-2">底板:</span>
+      <button id="btn-size-a4" class="px-2.5 py-1 text-xs font-bold rounded-lg transition bg-blue-600 text-white shadow-sm">A4</button>
+      <button id="btn-size-a5" class="px-2.5 py-1 text-xs font-semibold rounded-lg text-slate-600 hover:text-slate-900 transition">A5</button>
+    </div>
+
+    <div class="flex items-center space-x-1 bg-amber-50 border border-amber-200 p-1 rounded-xl">
+      <button id="btn-view-2d" class="px-3 py-1 text-xs font-bold rounded-lg transition bg-amber-500 text-white shadow-sm">2D 工作區</button>
+      <button id="btn-view-3d" class="px-3 py-1 text-xs font-bold rounded-lg text-amber-800 hover:bg-amber-100 transition">✨ 3D 模型檢視</button>
+    </div>
+  </div>
+
+  <div class="flex items-center space-x-3">
+    <span id="zoom-badge" class="hidden text-xs bg-amber-100 text-amber-800 font-bold px-2.5 py-1 rounded-full border border-amber-300 animate-pulse">
+      🔍 特寫放大教學中 (2.2x)
+    </span>
+    <button id="btn-reset" class="px-3 py-1.5 text-xs font-semibold text-rose-600 bg-rose-50 border border-rose-200 rounded-lg hover:bg-rose-100 transition">
+      重新開始
+    </button>
+  </div>
+</header>
+
+<!-- 主工作區 -->
+<div class="flex-1 flex overflow-hidden">
+  
+  <!-- 左側步驟與控制面板 -->
+  <aside class="w-84 bg-white border-r border-slate-200 flex flex-col justify-between shrink-0 shadow-sm z-10">
+    <div class="p-4 overflow-y-auto space-y-4">
+      
+      <!-- 當前步驟說明提示卡 -->
+      <div class="bg-blue-50 border border-blue-200 rounded-xl p-3.5">
+        <div class="text-xs font-bold text-blue-600 uppercase tracking-wider mb-1">當前任務指引</div>
+        <div id="step-instruction" class="text-sm text-slate-700 leading-snug font-medium">步驟載入中...</div>
+      </div>
+
+      <!-- 輔助開關與工具切換區 -->
+      <div class="space-y-3 pt-1">
+        <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider">工坊工具箱</h2>
+
+        <!-- 開關：中央對稱線 -->
+        <label class="flex items-center justify-between p-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
+          <span class="text-xs font-semibold text-slate-700">顯示中央對稱線</span>
+          <input type="checkbox" id="toggle-center-line" checked class="w-4 h-4 text-blue-600 rounded">
+        </label>
+
+        <!-- 開關：左右對稱 -->
+        <label id="symmetry-cut-label" class="flex items-center justify-between p-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
+          <div>
+            <span class="text-xs font-semibold text-slate-700 block">左右鏡射對稱</span>
+            <span class="text-[10px] text-slate-400">拉動一側，對側自動同步</span>
+          </div>
+          <input type="checkbox" id="toggle-symmetry-cut" checked class="w-4 h-4 text-blue-600 rounded">
+        </label>
+
+        <!-- 動態步驟動作按鈕群 -->
+        <div id="action-buttons-container" class="space-y-2 pt-1"></div>
+      </div>
+
+      <!-- 步驟清單進度 -->
+      <div class="pt-2">
+        <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">製作進度全覽 (10個階段)</h2>
+        <div id="steps-list" class="space-y-1 text-xs"></div>
+      </div>
+    </div>
+
+    <!-- 底部前進/後退控制 -->
+    <div class="p-3 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
+      <button id="btn-prev-step" class="px-3 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-100 disabled:opacity-40">
+        上一步
+      </button>
+      <span id="step-indicator" class="text-xs font-bold text-slate-500">步驟 1 / 10</span>
+      <button id="btn-next-step" class="px-4 py-1.5 text-xs font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-40 shadow-sm">
+        下一步
+      </button>
+    </div>
+  </aside>
+
+  <!-- 中央主要展示區 (2D Canvas 與 3D WebGL Canvas) -->
+  <main class="flex-1 canvas-container relative flex items-center justify-center p-4 overflow-hidden">
+    
+    <!-- 尺規標註 -->
+    <div id="scale-badge" class="absolute top-3 left-4 bg-white/90 backdrop-blur border border-slate-200 rounded px-2.5 py-1 text-[11px] font-mono text-slate-600 shadow-sm pointer-events-none z-10">
+      縮放比例：1 cm = 18 px
+    </div>
+
+    <!-- 教學防呆浮動提示 -->
+    <div id="clearance-hint" class="hidden absolute top-3 right-4 bg-white/95 backdrop-blur border rounded-lg px-3.5 py-2.5 text-xs shadow-md transition-all z-10"></div>
+
+    <!-- 3D 模式操作提示 -->
+    <div id="hint-3d" class="hidden absolute bottom-6 bg-slate-900/85 backdrop-blur text-white text-xs px-5 py-2 rounded-full shadow-lg pointer-events-none z-10">
+      🖱️ 3D 模式已啟動：按住滑鼠左鍵可 360° 旋轉視角 ｜ 滾輪可縮放檢視
+    </div>
+
+    <!-- 操作浮動工具提示 (2D) -->
+    <div id="canvas-hint" class="absolute bottom-6 bg-slate-900/80 backdrop-blur text-white text-xs px-4 py-2 rounded-full shadow-lg pointer-events-none transition-opacity duration-200 z-10">
+      滑鼠直接按住圓形控制點拖曳
+    </div>
+
+    <!-- 2D 畫布 -->
+    <canvas id="mainCanvas" class="shadow-2xl rounded-sm bg-transparent"></canvas>
+
+    <!-- 3D 渲染容器 (Three.js) -->
+    <div id="threejs-container" class="hidden absolute inset-0 w-full h-full bg-slate-900 z-0"></div>
+  </main>
+
+</div>
+
+<script>
+  // --- 基準參數 ---
+  const SCALE = 18; // 1 cm = 18 px
+  const CANVAS_WIDTH = 640;
+  const CANVAS_HEIGHT = 680;
+
+  const PAPER_SPECS = {
+    A4: { name: 'A4', widthCm: 21.0, heightCm: 29.7 },
+    A5: { name: 'A5', widthCm: 14.8, heightCm: 21.0 }
+  };
+
+  const POINT_COUNT = 7;
+  const POINT_RADIUS = 7;
+
+  // 狀態管理
+  const state = {
+    paperSize: 'A4',
+    viewMode: '2d',
+    step: 1,
+    showCenterLine: true,
+    symmetryCut: true,
+    zoomTarget: 'front',
+
+    isFlipped: false,
+    isMotorRunning: false,
+
+    // 幾何座標
+    boardW: 0,
+    boardH: 0,
+    boardX: 0,
+    boardY: 0,
+    centerX: CANVAS_WIDTH / 2,
+
+    // 前後軸 Y 軸位置 (公分基準)
+    frontDistTopCm: 5.0,
+    rearDistBottomCm: 5.0,
+
+    leftPoints: [],
+    rightPoints: [],
+
+    // 吸管端點 (半長度 px)
+    straws: {
+      installed: false,
+      frontHalfLenPx: (20 * SCALE) / 2,
+      rearHalfLenPx: (20 * SCALE) / 2
+    },
+
+    // 竹籤 (半長度 px)
+    skewers: {
+      installed: false,
+      frontHalfLenPx: (23 * SCALE) / 2,
+      rearHalfLenPx: (23 * SCALE) / 2
+    },
+
+    // 車輪
+    wheelsInstalled: false,
+    wheelThicknessPx: 10,
+    wheelDiameterCm: 4.5,
+
+    // 轉動檢測
+    isSpinningTest: false,
+    spinAngle: 0,
+
+    // 熱熔膠
+    glueApplied: false,
+
+    dragging: null
+  };
+
+  function getAxisY(axis) {
+    if (axis === 'front') {
+      return state.boardY + (state.frontDistTopCm * SCALE);
+    } else {
+      return state.boardY + state.boardH - (state.rearDistBottomCm * SCALE);
+    }
+  }
+
+  function updatePaperMetrics() {
+    const spec = PAPER_SPECS[state.paperSize];
+    state.boardW = spec.widthCm * SCALE;
+    state.boardH = spec.heightCm * SCALE;
+    state.boardX = (CANVAS_WIDTH - state.boardW) / 2;
+    state.boardY = (CANVAS_HEIGHT - state.boardH) / 2;
+    state.centerX = CANVAS_WIDTH / 2;
+  }
+
+  function initControlPoints() {
+    updatePaperMetrics();
+    state.leftPoints = [];
+    state.rightPoints = [];
+    for (let i = 0; i < POINT_COUNT; i++) {
+      state.leftPoints.push(state.boardX);
+      state.rightPoints.push(state.boardX + state.boardW);
+    }
+  }
+
+  function setPaperSize(sizeKey) {
+    if (state.paperSize === sizeKey) return;
+    state.paperSize = sizeKey;
+    
+    const btnA4 = document.getElementById("btn-size-a4");
+    const btnA5 = document.getElementById("btn-size-a5");
+    if (sizeKey === 'A4') {
+      btnA4.className = "px-2.5 py-1 text-xs font-bold rounded-lg transition bg-blue-600 text-white shadow-sm";
+      btnA5.className = "px-2.5 py-1 text-xs font-semibold rounded-lg text-slate-600 hover:text-slate-900 transition";
+    } else {
+      btnA5.className = "px-2.5 py-1 text-xs font-bold rounded-lg transition bg-blue-600 text-white shadow-sm";
+      btnA4.className = "px-2.5 py-1 text-xs font-semibold rounded-lg text-slate-600 hover:text-slate-900 transition";
+    }
+
+    initControlPoints();
+    updateUI();
+    render();
+    if (state.viewMode === '3d') update3DScene();
+  }
+
+  const STEPS = [
+    { id: 1, title: "底板選擇與自由切割", instruction: "可選用 A4 或 A5 直式底板。兩側各有 7 個藍色點，滑鼠按住往內拖曳來切割車型！", hint: "按住兩側藍色點往內拖曳進行裁切" },
+    { id: 2, title: "安裝並微調前後吸管", instruction: "安裝 20cm 吸管。中央紫色滑塊可垂直拖曳微調「距頂端」與「距底端」位置！", hint: "拖曳中央紫色圓點可前後微調輪軸位置" },
+    { id: 3, title: "修剪吸管 (放大教學)", instruction: "【吸管只要留 1cm 以上都好！】拖曳端點修剪，確保吸管突出車體 1cm 以上，作為隔套避免輪胎摩擦！", hint: "拖曳端點修剪，突出車體 1cm 以上即可" },
+    { id: 4, title: "穿入竹籤輪軸", instruction: "將 23cm 竹籤輪軸穿過吸管，兩端預留伸出足夠空間安裝車輪。", hint: "點擊「穿入竹籤輪軸」" },
+    { id: 5, title: "安裝四個車輪", instruction: "將四個車輪套入竹籤，緊靠吸管外側端面。", hint: "點擊「安裝前後輪」" },
+    { id: 6, title: "轉動檢測 (品質確認)", instruction: "【上膠前關鍵一步！】點擊「撥動輪子」進行轉動檢測，確認輪軸順暢旋轉且不咬死！", hint: "點擊下方按鈕測試輪子旋轉順暢度" },
+    { id: 7, title: "熱熔膠固定 (放大教學)", instruction: "【特寫放大】熱熔膠「只能塗在輪子外側」與竹籤接觸點！嚴禁流入吸管內！", hint: "點擊輪子外側塗上熱熔膠" },
+    { id: 8, title: "剪除多餘竹籤 (放大教學)", instruction: "【特寫放大】拖曳綠色剪刀把手修剪切齊竹籤！可點擊按鈕切換「前軸」或「後軸」特寫檢視！", hint: "拖曳綠色剪刀控制點修剪竹籤，可切換前後軸" },
+    { id: 9, title: "底盤全貌檢視", instruction: "🎉 輪軸底盤修剪完畢！鏡頭拉回全貌，請檢視整體四輪底盤配置是否工整平順。", hint: "點擊「翻面進行電控組裝」進入動力模組！" },
+    { id: 10, title: "翻面黏上馬達與電池盒 (3D完工)", instruction: "車身翻面至正面！雙節電池盒【直立縱放，電池平躺臥置】於正中央；130 馬達【墊高抬升】，使 4 葉黃色大風扇不碰底板，朝車尾吹氣推進！", hint: "點擊閘刀開關啟動風扇馬達！可切換 3D 模型檢視" }
+  ];
+
+  const canvas = document.getElementById("mainCanvas");
+  const ctx = canvas.getContext("2d");
+  canvas.width = CANVAS_WIDTH;
+  canvas.height = CANVAS_HEIGHT;
+
+  // DOM 元素
+  const centerLineCheckbox = document.getElementById("toggle-center-line");
+  const symmetryCutCheckbox = document.getElementById("toggle-symmetry-cut");
+  const stepInstruction = document.getElementById("step-instruction");
+  const stepIndicator = document.getElementById("step-indicator");
+  const canvasHint = document.getElementById("canvas-hint");
+  const stepsListContainer = document.getElementById("steps-list");
+  const actionButtonsContainer = document.getElementById("action-buttons-container");
+  const btnNext = document.getElementById("btn-next-step");
+  const btnPrev = document.getElementById("btn-prev-step");
+  const btnReset = document.getElementById("btn-reset");
+  const zoomBadge = document.getElementById("zoom-badge");
+  const clearanceHint = document.getElementById("clearance-hint");
+  const scaleBadge = document.getElementById("scale-badge");
+  const btnSizeA4 = document.getElementById("btn-size-a4");
+  const btnSizeA5 = document.getElementById("btn-size-a5");
+  const btnView2D = document.getElementById("btn-view-2d");
+  const btnView3D = document.getElementById("btn-view-3d");
+  const threeContainer = document.getElementById("threejs-container");
+  const hint3D = document.getElementById("hint-3d");
+
+  btnSizeA4.addEventListener("click", () => setPaperSize('A4'));
+  btnSizeA5.addEventListener("click", () => setPaperSize('A5'));
+
+  btnView2D.addEventListener("click", () => setViewMode('2d'));
+  btnView3D.addEventListener("click", () => setViewMode('3d'));
+
+  function setViewMode(mode) {
+    state.viewMode = mode;
+    if (mode === '3d') {
+      btnView3D.className = "px-3 py-1 text-xs font-bold rounded-lg transition bg-amber-500 text-white shadow-sm";
+      btnView2D.className = "px-3 py-1 text-xs font-bold rounded-lg text-amber-800 hover:bg-amber-100 transition";
+      canvas.classList.add('hidden');
+      threeContainer.classList.remove('hidden');
+      hint3D.classList.remove('hidden');
+      initThreeJS();
+      update3DScene();
+    } else {
+      btnView2D.className = "px-3 py-1 text-xs font-bold rounded-lg transition bg-amber-500 text-white shadow-sm";
+      btnView3D.className = "px-3 py-1 text-xs font-bold rounded-lg text-amber-800 hover:bg-amber-100 transition";
+      threeContainer.classList.add('hidden');
+      canvas.classList.remove('hidden');
+      hint3D.classList.add('hidden');
+      render();
+    }
+  }
+
+  centerLineCheckbox.addEventListener("change", (e) => {
+    state.showCenterLine = e.target.checked;
+    render();
+  });
+
+  symmetryCutCheckbox.addEventListener("change", (e) => {
+    state.symmetryCut = e.target.checked;
+    render();
+  });
+
+  btnReset.addEventListener("click", () => {
+    if (confirm("確定要重設所有進度回到第一步嗎？")) resetState();
+  });
+
+  btnNext.addEventListener("click", () => {
+    if (state.step < STEPS.length) goToStep(state.step + 1);
+  });
+
+  btnPrev.addEventListener("click", () => {
+    if (state.step > 1) goToStep(state.step - 1);
+  });
+
+  function resetState() {
+    initControlPoints();
+    state.step = 1;
+    state.frontDistTopCm = 5.0;
+    state.rearDistBottomCm = 5.0;
+    state.isFlipped = false;
+    state.isMotorRunning = false;
+    state.straws = {
+      installed: false,
+      frontHalfLenPx: (20 * SCALE) / 2,
+      rearHalfLenPx: (20 * SCALE) / 2
+    };
+    state.skewers = {
+      installed: false,
+      frontHalfLenPx: (23 * SCALE) / 2,
+      rearHalfLenPx: (23 * SCALE) / 2
+    };
+    state.wheelsInstalled = false;
+    state.isSpinningTest = false;
+    state.glueApplied = false;
+    setViewMode('2d');
+    goToStep(1);
+  }
+
+  function goToStep(targetStep) {
+    state.step = targetStep;
+    
+    if (state.step >= 2) state.straws.installed = true;
+    if (state.step >= 4) state.skewers.installed = true;
+    if (state.step >= 5) state.wheelsInstalled = true;
+    if (state.step >= 7) state.glueApplied = true;
+
+    if (state.step >= 8) {
+      state.skewers.frontHalfLenPx = state.straws.frontHalfLenPx + state.wheelThicknessPx + 10;
+      state.skewers.rearHalfLenPx = state.straws.rearHalfLenPx + state.wheelThicknessPx + 10;
+    }
+
+    if (state.step === 9) {
+      state.isFlipped = false;
+    }
+
+    if (state.step === 10) {
+      state.isFlipped = true;
+    }
+
+    updateUI();
+    render();
+    if (state.viewMode === '3d') update3DScene();
+  }
+
+  function getPointY(index) {
+    const stepY = state.boardH / (POINT_COUNT - 1);
+    return state.boardY + index * stepY;
+  }
+
+  function getBoardWidthAtY(targetY) {
+    const stepY = state.boardH / (POINT_COUNT - 1);
+    const ratio = (targetY - state.boardY) / stepY;
+    const idx = Math.floor(ratio);
+    const t = ratio - idx;
+
+    if (idx < 0) return { left: state.leftPoints[0], right: state.rightPoints[0] };
+    if (idx >= POINT_COUNT - 1) return { left: state.leftPoints[POINT_COUNT - 1], right: state.rightPoints[POINT_COUNT - 1] };
+
+    const left = state.leftPoints[idx] * (1 - t) + state.leftPoints[idx + 1] * t;
+    const right = state.rightPoints[idx] * (1 - t) + state.rightPoints[idx + 1] * t;
+    return { left, right };
+  }
+
+  function isZoomMode() {
+    return state.step === 3 || state.step === 7 || state.step === 8;
+  }
+
+  function getTransform() {
+    if (isZoomMode()) {
+      const targetY = getAxisY(state.zoomTarget);
+      const boardEdge = getBoardWidthAtY(targetY).left;
+      const zoom = 2.2;
+      const ox = (CANVAS_WIDTH / 2) - (boardEdge - 15) * zoom;
+      const oy = (CANVAS_HEIGHT / 2) - targetY * zoom;
+      return { zoom, ox, oy };
+    }
+    return { zoom: 1, ox: 0, oy: 0 };
+  }
+
+  function screenToWorld(sx, sy) {
+    const { zoom, ox, oy } = getTransform();
+    return {
+      x: (sx - ox) / zoom,
+      y: (sy - oy) / zoom
+    };
+  }
+
+  function getCanvasCoords(e) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const sx = (e.clientX - rect.left) * scaleX;
+    const sy = (e.clientY - rect.top) * scaleY;
+    return screenToWorld(sx, sy);
+  }
+
+  canvas.addEventListener("mousedown", (e) => {
+    const pos = getCanvasCoords(e);
+
+    if (state.step === 1) {
+      for (let i = 0; i < POINT_COUNT; i++) {
+        const py = getPointY(i);
+        if (Math.hypot(pos.x - state.leftPoints[i], pos.y - py) <= POINT_RADIUS + 5) {
+          state.dragging = { type: 'board', side: 'left', index: i };
+          return;
+        }
+        if (Math.hypot(pos.x - state.rightPoints[i], pos.y - py) <= POINT_RADIUS + 5) {
+          state.dragging = { type: 'board', side: 'right', index: i };
+          return;
+        }
+      }
+    }
+
+    if (state.step === 2) {
+      const fY = getAxisY('front');
+      const rY = getAxisY('rear');
+      if (Math.hypot(pos.x - state.centerX, pos.y - fY) <= 14) {
+        state.dragging = { type: 'strawPos', axis: 'front' };
+        return;
+      }
+      if (Math.hypot(pos.x - state.centerX, pos.y - rY) <= 14) {
+        state.dragging = { type: 'strawPos', axis: 'rear' };
+        return;
+      }
+    }
+
+    if (state.step === 3) {
+      const axes = ['front', 'rear'];
+      for (let ax of axes) {
+        const py = getAxisY(ax);
+        const halfLen = ax === 'front' ? state.straws.frontHalfLenPx : state.straws.rearHalfLenPx;
+        const lx = state.centerX - halfLen;
+        const rx = state.centerX + halfLen;
+
+        if (Math.hypot(pos.x - lx, pos.y - py) <= 12) {
+          state.dragging = { type: 'straw', axis: ax, side: 'left' };
+          return;
+        }
+        if (Math.hypot(pos.x - rx, pos.y - py) <= 12) {
+          state.dragging = { type: 'straw', axis: ax, side: 'right' };
+          return;
+        }
+      }
+    }
+
+    if (state.step === 7 && !state.glueApplied) {
+      state.glueApplied = true;
+      render();
+      updateUI();
+    }
+
+    if (state.step === 8) {
+      const axes = ['front', 'rear'];
+      for (let ax of axes) {
+        const py = getAxisY(ax);
+        const halfLen = ax === 'front' ? state.skewers.frontHalfLenPx : state.skewers.rearHalfLenPx;
+        const lx = state.centerX - halfLen;
+        const rx = state.centerX + halfLen;
+
+        if (Math.hypot(pos.x - lx, pos.y - py) <= 14) {
+          state.dragging = { type: 'skewer', axis: ax, side: 'left' };
+          return;
+        }
+        if (Math.hypot(pos.x - rx, pos.y - py) <= 14) {
+          state.dragging = { type: 'skewer', axis: ax, side: 'right' };
+          return;
+        }
+      }
+    }
+
+    // 步驟 10: 點擊直立放置的雙 AA 電池盒上的金屬閘刀開關
+    if (state.step === 10) {
+      const fY = getAxisY('front');
+      const rY = getAxisY('rear');
+      const midY = (fY + rY) / 2;
+      if (Math.hypot(pos.x - (state.centerX + 26), pos.y - (midY - 32)) <= 24) {
+        state.isMotorRunning = !state.isMotorRunning;
+        updateUI();
+        render();
+      }
+    }
+  });
+
+  window.addEventListener("mousemove", (e) => {
+    const pos = getCanvasCoords(e);
+
+    if (!state.dragging) {
+      canvas.style.cursor = 'default';
+      if (state.step === 1) {
+        for (let i = 0; i < POINT_COUNT; i++) {
+          const py = getPointY(i);
+          if (Math.hypot(pos.x - state.leftPoints[i], pos.y - py) <= POINT_RADIUS + 4 ||
+              Math.hypot(pos.x - state.rightPoints[i], pos.y - py) <= POINT_RADIUS + 4) {
+            canvas.style.cursor = 'ew-resize';
+            break;
+          }
+        }
+      } else if (state.step === 2) {
+        const fY = getAxisY('front');
+        const rY = getAxisY('rear');
+        if (Math.hypot(pos.x - state.centerX, pos.y - fY) <= 14 || Math.hypot(pos.x - state.centerX, pos.y - rY) <= 14) {
+          canvas.style.cursor = 'ns-resize';
+        }
+      } else if (state.step === 3 || state.step === 8) {
+        canvas.style.cursor = 'ew-resize';
+      } else if (state.step === 7) {
+        canvas.style.cursor = 'pointer';
+      } else if (state.step === 10) {
+        const fY = getAxisY('front');
+        const rY = getAxisY('rear');
+        const midY = (fY + rY) / 2;
+        if (Math.hypot(pos.x - (state.centerX + 26), pos.y - (midY - 32)) <= 24) {
+          canvas.style.cursor = 'pointer';
+        }
+      }
+      return;
+    }
+
+    if (state.dragging.type === 'board') {
+      const idx = state.dragging.index;
+      const minMargin = 12;
+      if (state.dragging.side === 'left') {
+        let newX = Math.max(state.boardX, Math.min(pos.x, state.centerX - minMargin));
+        state.leftPoints[idx] = newX;
+        if (state.symmetryCut) {
+          state.rightPoints[idx] = (state.boardX + state.boardW) - (newX - state.boardX);
+        }
+      } else {
+        let newX = Math.min(state.boardX + state.boardW, Math.max(pos.x, state.centerX + minMargin));
+        state.rightPoints[idx] = newX;
+        if (state.symmetryCut) {
+          state.leftPoints[idx] = state.boardX + ((state.boardX + state.boardW) - newX);
+        }
+      }
+    }
+
+    if (state.dragging.type === 'strawPos') {
+      const ax = state.dragging.axis;
+      if (ax === 'front') {
+        const cm = (pos.y - state.boardY) / SCALE;
+        state.frontDistTopCm = Math.max(3.0, Math.min(8.0, Math.round(cm * 10) / 10));
+      } else {
+        const cm = (state.boardY + state.boardH - pos.y) / SCALE;
+        state.rearDistBottomCm = Math.max(3.0, Math.min(8.0, Math.round(cm * 10) / 10));
+      }
+    }
+
+    if (state.dragging.type === 'straw') {
+      const ax = state.dragging.axis;
+      const newHalfLen = Math.abs(pos.x - state.centerX);
+      const clampedHalfLen = Math.max(3.5 * SCALE, Math.min(newHalfLen, (20 * SCALE) / 2));
+      if (ax === 'front') state.straws.frontHalfLenPx = clampedHalfLen;
+      else state.straws.rearHalfLenPx = clampedHalfLen;
+    }
+
+    if (state.dragging.type === 'skewer') {
+      const ax = state.dragging.axis;
+      const strawHalf = ax === 'front' ? state.straws.frontHalfLenPx : state.straws.rearHalfLenPx;
+      const minHalf = strawHalf + state.wheelThicknessPx + 7;
+      const maxHalf = (23 * SCALE) / 2;
+      const newHalfLen = Math.max(minHalf, Math.min(Math.abs(pos.x - state.centerX), maxHalf));
+
+      if (ax === 'front') state.skewers.frontHalfLenPx = newHalfLen;
+      else state.skewers.rearHalfLenPx = newHalfLen;
+    }
+
+    render();
+  });
+
+  window.addEventListener("mouseup", () => {
+    state.dragging = null;
+  });
+
+  function applyPreset(presetType) {
+    const spec = PAPER_SPECS[state.paperSize];
+    const scaleFactor = spec.widthCm / 21.0;
+
+    if (presetType === 'rectangle') {
+      initControlPoints();
+    } else if (presetType === 'f1') {
+      const leftOffsets = [4.5, 3.8, 1.2, 2.5, 2.2, 0.5, 1.8];
+      for (let i = 0; i < POINT_COUNT; i++) {
+        const offset = leftOffsets[i] * scaleFactor * SCALE;
+        state.leftPoints[i] = state.boardX + offset;
+        state.rightPoints[i] = (state.boardX + state.boardW) - offset;
+      }
+    } else if (presetType === 'rocket') {
+      const leftOffsets = [5.5, 4.2, 2.0, 1.2, 1.2, 2.5, 4.0];
+      for (let i = 0; i < POINT_COUNT; i++) {
+        const offset = leftOffsets[i] * scaleFactor * SCALE;
+        state.leftPoints[i] = state.boardX + offset;
+        state.rightPoints[i] = (state.boardX + state.boardW) - offset;
+      }
+    }
+    render();
+  }
+
+  let spinAnimId = null;
+  function triggerSpinTest() {
+    state.isSpinningTest = true;
+    let start = null;
+    function animate(time) {
+      if (!start) start = time;
+      const progress = (time - start) / 1000;
+      state.spinAngle = progress * Math.PI * 4;
+      render();
+
+      if (progress < 2.5) {
+        spinAnimId = requestAnimationFrame(animate);
+      } else {
+        state.isSpinningTest = false;
+        render();
+      }
+    }
+    cancelAnimationFrame(spinAnimId);
+    spinAnimId = requestAnimationFrame(animate);
+  }
+
+  function updateUI() {
+    const cur = STEPS[state.step - 1];
+    stepInstruction.textContent = cur.instruction;
+    canvasHint.textContent = cur.hint;
+    stepIndicator.textContent = `步驟 ${state.step} / ${STEPS.length}`;
+
+    btnPrev.disabled = state.step === 1;
+    btnNext.disabled = state.step === STEPS.length;
+
+    const spec = PAPER_SPECS[state.paperSize];
+    if (isZoomMode()) {
+      zoomBadge.classList.remove('hidden');
+      clearanceHint.classList.remove('hidden');
+      scaleBadge.innerHTML = '🔍 放大特寫模式 (2.2x) ｜ 軸端細節已放大';
+    } else {
+      zoomBadge.classList.add('hidden');
+      clearanceHint.classList.add('hidden');
+      scaleBadge.innerHTML = `縮放比例：1 cm = 18 px ｜ 直式 ${spec.name} 板：${spec.widthCm} × ${spec.heightCm} cm`;
+    }
+
+    stepsListContainer.innerHTML = STEPS.map((s) => {
+      const isActive = s.id === state.step;
+      const isPast = s.id < state.step;
+      return `
+        <div class="flex items-center px-2 py-1 rounded transition ${isActive ? 'step-active' : isPast ? 'text-slate-400' : 'text-slate-500'}">
+          <span class="w-4 h-4 flex items-center justify-center rounded-full text-[9px] mr-1.5 ${isActive ? 'bg-blue-600 text-white font-bold' : isPast ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-600'}">
+            ${isPast ? '✓' : s.id}
+          </span>
+          <span class="truncate">${s.title}</span>
+        </div>
+      `;
+    }).join('');
+
+    renderActionButtons();
+  }
+
+  function renderActionButtons() {
+    actionButtonsContainer.innerHTML = '';
+
+    if (state.step === 1) {
+      actionButtonsContainer.innerHTML = `
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-bold text-slate-500">外觀版型快速套用：</span>
+            <span class="text-[10px] text-blue-600 font-bold">${state.paperSize}規格</span>
+          </div>
+          <div class="grid grid-cols-3 gap-1">
+            <button id="p-f1" class="px-2 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded text-xs font-semibold">🏎️ 梭型</button>
+            <button id="p-rocket" class="px-2 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded text-xs font-semibold">🚀 流線</button>
+            <button id="p-rect" class="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded text-xs font-semibold">📄 矩形</button>
+          </div>
+        </div>
+      `;
+      document.getElementById("p-f1").addEventListener("click", () => applyPreset('f1'));
+      document.getElementById("p-rocket").addEventListener("click", () => applyPreset('rocket'));
+      document.getElementById("p-rect").addEventListener("click", () => applyPreset('rectangle'));
+
+    } else if (state.step === 2) {
+      actionButtonsContainer.innerHTML = `
+        <div class="space-y-2">
+          <div class="p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs space-y-1">
+            <div class="flex justify-between"><span>前軸距頂:</span><span class="font-bold text-purple-700">${state.frontDistTopCm.toFixed(1)} cm</span></div>
+            <div class="flex justify-between"><span>後軸距底:</span><span class="font-bold text-purple-700">${state.rearDistBottomCm.toFixed(1)} cm</span></div>
+          </div>
+          <button id="btn-install-straws" class="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white rounded font-bold text-xs shadow-sm transition">
+            確認安裝 20cm 吸管 ➔
+          </button>
+        </div>
+      `;
+      document.getElementById("btn-install-straws").addEventListener("click", () => {
+        state.straws.installed = true;
+        goToStep(3);
+      });
+
+    } else if (state.step === 3) {
+      actionButtonsContainer.innerHTML = `
+        <div class="space-y-2">
+          <div class="grid grid-cols-2 gap-1.5">
+            <button id="btn-zoom-front" class="py-1.5 ${state.zoomTarget === 'front' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700'} rounded text-xs font-bold transition">檢視前軸特寫</button>
+            <button id="btn-zoom-rear" class="py-1.5 ${state.zoomTarget === 'rear' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700'} rounded text-xs font-bold transition">檢視後軸特寫</button>
+          </div>
+          <button id="btn-ideal-front" class="w-full py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded text-xs font-bold transition">前軸修剪至突出 1.2cm</button>
+          <button id="btn-ideal-rear" class="w-full py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded text-xs font-bold transition">後軸修剪至突出 1.2cm</button>
+        </div>
+      `;
+      document.getElementById("btn-zoom-front").addEventListener("click", () => { state.zoomTarget = 'front'; updateUI(); render(); });
+      document.getElementById("btn-zoom-rear").addEventListener("click", () => { state.zoomTarget = 'rear'; updateUI(); render(); });
+      document.getElementById("btn-ideal-front").addEventListener("click", () => {
+        const fY = getAxisY('front');
+        const fEdge = getBoardWidthAtY(fY).left;
+        state.straws.frontHalfLenPx = (state.centerX - fEdge) + (1.2 * SCALE);
+        render();
+      });
+      document.getElementById("btn-ideal-rear").addEventListener("click", () => {
+        const rY = getAxisY('rear');
+        const rEdge = getBoardWidthAtY(rY).left;
+        state.straws.rearHalfLenPx = (state.centerX - rEdge) + (1.2 * SCALE);
+        render();
+      });
+
+    } else if (state.step === 4) {
+      actionButtonsContainer.innerHTML = `
+        <button id="btn-insert-skewer" class="w-full py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded font-bold text-xs shadow-sm transition">
+          🥢 穿入前後竹籤輪軸 (長度 23 cm)
+        </button>
+      `;
+      document.getElementById("btn-insert-skewer").addEventListener("click", () => {
+        state.skewers.installed = true;
+        goToStep(5);
+      });
+
+    } else if (state.step === 5) {
+      actionButtonsContainer.innerHTML = `
+        <button id="btn-install-wheels" class="w-full py-2 bg-slate-800 hover:bg-black text-white rounded font-bold text-xs shadow-sm transition">
+          🛞 安裝四個車輪 (外徑 4.5 cm)
+        </button>
+      `;
+      document.getElementById("btn-install-wheels").addEventListener("click", () => {
+        state.wheelsInstalled = true;
+        goToStep(6);
+      });
+
+    } else if (state.step === 6) {
+      actionButtonsContainer.innerHTML = `
+        <div class="space-y-2">
+          <button id="btn-test-spin" class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-xs shadow-sm transition">
+            🎡 撥動測試輪子旋轉
+          </button>
+          <button id="btn-pass-spin" class="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs shadow-sm transition">
+            轉動順暢合格，準備上膠 ➔
+          </button>
+        </div>
+      `;
+      document.getElementById("btn-test-spin").addEventListener("click", triggerSpinTest);
+      document.getElementById("btn-pass-spin").addEventListener("click", () => goToStep(7));
+
+    } else if (state.step === 7) {
+      actionButtonsContainer.innerHTML = `
+        <div class="space-y-2">
+          <div class="grid grid-cols-2 gap-1.5 pb-1">
+            <button id="btn-zoom-front-7" class="py-1.5 ${state.zoomTarget === 'front' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700'} rounded text-xs font-bold transition">檢視前軸特寫</button>
+            <button id="btn-zoom-rear-7" class="py-1.5 ${state.zoomTarget === 'rear' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700'} rounded text-xs font-bold transition">檢視後軸特寫</button>
+          </div>
+          <div class="p-2 bg-rose-50 border border-rose-200 rounded text-xs text-rose-800 font-medium">
+            ⚠️ 僅上在<b>輪子外側</b>接觸點！內側不可沾膠
+          </div>
+          <button id="btn-apply-glue" class="w-full py-2 bg-amber-400 hover:bg-amber-500 text-slate-900 rounded-lg font-bold text-xs shadow-sm transition">
+            🔫 注入熱熔膠固定
+          </button>
+        </div>
+      `;
+      document.getElementById("btn-zoom-front-7").addEventListener("click", () => { state.zoomTarget = 'front'; updateUI(); render(); });
+      document.getElementById("btn-zoom-rear-7").addEventListener("click", () => { state.zoomTarget = 'rear'; updateUI(); render(); });
+      document.getElementById("btn-apply-glue").addEventListener("click", () => {
+        state.glueApplied = true;
+        goToStep(8);
+      });
+
+    } else if (state.step === 8) {
+      actionButtonsContainer.innerHTML = `
+        <div class="space-y-2">
+          <div class="grid grid-cols-2 gap-1.5">
+            <button id="btn-zoom-front-8" class="py-1.5 ${state.zoomTarget === 'front' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700'} rounded text-xs font-bold transition">檢視前軸特寫</button>
+            <button id="btn-zoom-rear-8" class="py-1.5 ${state.zoomTarget === 'rear' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700'} rounded text-xs font-bold transition">檢視後軸特寫</button>
+          </div>
+          <button id="btn-trim-skewer-auto" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs shadow-sm transition">
+            ✂️ 剪齊多餘竹籤，檢視全貌 ➔
+          </button>
+        </div>
+      `;
+      document.getElementById("btn-zoom-front-8").addEventListener("click", () => { state.zoomTarget = 'front'; updateUI(); render(); });
+      document.getElementById("btn-zoom-rear-8").addEventListener("click", () => { state.zoomTarget = 'rear'; updateUI(); render(); });
+      document.getElementById("btn-trim-skewer-auto").addEventListener("click", () => {
+        state.skewers.frontHalfLenPx = state.straws.frontHalfLenPx + state.wheelThicknessPx + 10;
+        state.skewers.rearHalfLenPx = state.straws.rearHalfLenPx + state.wheelThicknessPx + 10;
+        goToStep(9);
+      });
+
+    } else if (state.step === 9) {
+      actionButtonsContainer.innerHTML = `
+        <div class="space-y-2.5">
+          <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-900">
+            <b>✅ 底盤組裝完工！</b> 輪軸平整、輪胎運轉自如且不摩擦車身。
+          </div>
+          <button id="btn-go-step10" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-xs shadow-md transition">
+            🔄 翻面安裝馬達與電池盒 ➔
+          </button>
+        </div>
+      `;
+      document.getElementById("btn-go-step10").addEventListener("click", () => goToStep(10));
+
+    } else if (state.step === 10) {
+      actionButtonsContainer.innerHTML = `
+        <div class="space-y-2">
+          <div class="p-2.5 bg-purple-50 border border-purple-200 rounded-lg text-xs text-purple-900 leading-snug">
+            <b>🚀 風力小車優化細節：</b><br>
+            • <b>雙節 3 號電池盒【直立縱放，平躺臥置】</b>：置於前後軸正中央，平衡重心。<br>
+            • <b>130 馬達【墊高抬升】</b>：加裝升高座，4葉黃色大風扇完全不碰撞主板！
+          </div>
+
+          <button id="btn-toggle-switch" class="w-full py-2.5 ${state.isMotorRunning ? 'bg-rose-600 hover:bg-rose-700' : 'bg-emerald-600 hover:bg-emerald-700'} text-white rounded-lg font-bold text-xs shadow-sm flex items-center justify-center space-x-2 transition">
+            <span>${state.isMotorRunning ? '🔴 扳起閘刀開關 (斷路停止)' : '🟢 壓下金屬閘刀 (通路啟動風扇)'}</span>
+          </button>
+
+          <button id="btn-open-3d" class="w-full py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-lg font-bold text-xs shadow-md transition">
+            ✨ 進入 3D 立體全景互動檢視
+          </button>
+        </div>
+      `;
+      document.getElementById("btn-toggle-switch").addEventListener("click", () => {
+        state.isMotorRunning = !state.isMotorRunning;
+        updateUI();
+        render();
+        if (state.viewMode === '3d') update3DScene();
+      });
+      document.getElementById("btn-open-3d").addEventListener("click", () => setViewMode('3d'));
+    }
+  }
+
+  // --- 2D 繪圖核心 ---
+  function render() {
+    ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+    const { zoom, ox, oy } = getTransform();
+    const fY = getAxisY('front');
+    const rY = getAxisY('rear');
+
+    ctx.save();
+    ctx.translate(ox, oy);
+    ctx.scale(zoom, zoom);
+
+    drawGuides(fY, rY);
+    drawCustomBoard();
+
+    if (state.showCenterLine && state.step < 10) {
+      drawCenterLine();
+    }
+
+    if (state.step === 1) {
+      drawBoardControlHandles();
+    }
+
+    if (!state.isFlipped) {
+      if (state.straws.installed) {
+        drawStrawAxis(fY, state.straws.frontHalfLenPx, "前吸管");
+        drawStrawAxis(rY, state.straws.rearHalfLenPx, "後吸管");
+        if (state.step === 2) {
+          drawAxisPositionHandle(fY, 'front');
+          drawAxisPositionHandle(rY, 'rear');
+        }
+        if (state.step === 3) drawStep3ClearanceAnnotation();
+      }
+
+      if (state.skewers.installed) {
+        drawSkewerAxis(fY, state.skewers.frontHalfLenPx);
+        drawSkewerAxis(rY, state.skewers.rearHalfLenPx);
+      }
+
+      if (state.wheelsInstalled) {
+        drawWheelsAxis(fY, state.straws.frontHalfLenPx);
+        drawWheelsAxis(rY, state.straws.rearHalfLenPx);
+      }
+
+      if (state.glueApplied) {
+        drawGlueAxis(fY, state.straws.frontHalfLenPx);
+        drawGlueAxis(rY, state.straws.rearHalfLenPx);
+      }
+
+      if (state.step === 7) drawStep7GlueAnnotation();
+      if (state.step === 8) drawStep8CutAnnotation();
+    } else {
+      drawWheelsAxis(fY, state.straws.frontHalfLenPx);
+      drawWheelsAxis(rY, state.straws.rearHalfLenPx);
+      drawPowerAssembly(fY, rY);
+    }
+
+    ctx.restore();
+  }
+
+  function drawGuides(fY, rY) {
+    ctx.save();
+    ctx.strokeStyle = "rgba(203, 213, 225, 0.7)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(state.boardX, state.boardY, state.boardW, state.boardH);
+
+    if (state.step < 9) {
+      ctx.strokeStyle = "rgba(147, 51, 234, 0.45)";
+      ctx.lineWidth = 1.2;
+      ctx.setLineDash([4, 4]);
+
+      ctx.beginPath();
+      ctx.moveTo(state.boardX - 45, fY);
+      ctx.lineTo(state.boardX + state.boardW + 45, fY);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(state.boardX - 45, rY);
+      ctx.lineTo(state.boardX + state.boardW + 45, rY);
+      ctx.stroke();
+
+      if (!isZoomMode()) {
+        ctx.fillStyle = "#7e22ce";
+        ctx.font = "10px sans-serif";
+        ctx.fillText(`距頂端 ${state.frontDistTopCm.toFixed(1)} cm`, state.boardX + state.boardW + 6, fY + 3);
+        ctx.fillText(`距底端 ${state.rearDistBottomCm.toFixed(1)} cm`, state.boardX + state.boardW + 6, rY + 3);
+      }
+    }
+    ctx.restore();
+  }
+
+  function drawAxisPositionHandle(y, axis) {
+    ctx.save();
+    ctx.fillStyle = "#9333ea";
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(state.centerX, y, 7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "8px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("↕", state.centerX, y);
+    ctx.restore();
+  }
+
+  function drawCenterLine() {
+    ctx.save();
+    ctx.strokeStyle = "#ef4444";
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([6, 4]);
+    ctx.beginPath();
+    ctx.moveTo(state.centerX, state.boardY - 20);
+    ctx.lineTo(state.centerX, state.boardY + state.boardH + 20);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawCustomBoard() {
+    ctx.save();
+    ctx.fillStyle = state.isFlipped ? "#f8fafc" : "#e2e8f0";
+    ctx.strokeStyle = "#475569";
+    ctx.lineWidth = 2.5;
+
+    ctx.beginPath();
+    ctx.moveTo(state.leftPoints[0], getPointY(0));
+    ctx.lineTo(state.rightPoints[0], getPointY(0));
+
+    for (let i = 1; i < POINT_COUNT; i++) {
+      ctx.lineTo(state.rightPoints[i], getPointY(i));
+    }
+    ctx.lineTo(state.leftPoints[POINT_COUNT - 1], getPointY(POINT_COUNT - 1));
+    for (let i = POINT_COUNT - 2; i >= 0; i--) {
+      ctx.lineTo(state.leftPoints[i], getPointY(i));
+    }
+
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    if (!isZoomMode() && state.step < 10) {
+      ctx.fillStyle = "rgba(100, 116, 139, 0.3)";
+      ctx.font = "12px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(`直式 ${state.paperSize} (${state.isFlipped ? '正面' : '底面輪軸視圖'})`, state.centerX, state.boardY + state.boardH / 2);
+    }
+    ctx.restore();
+  }
+
+  function drawBoardControlHandles() {
+    ctx.save();
+    for (let i = 0; i < POINT_COUNT; i++) {
+      const py = getPointY(i);
+      [state.leftPoints[i], state.rightPoints[i]].forEach((px) => {
+        ctx.fillStyle = "#2563eb";
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(px, py, POINT_RADIUS, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      });
+    }
+    ctx.restore();
+  }
+
+  function drawStrawAxis(y, halfLen, label) {
+    const x = state.centerX - halfLen;
+    const lengthPx = halfLen * 2;
+    const strawHeight = 10;
+
+    ctx.save();
+    ctx.fillStyle = "#f59e0b";
+    ctx.strokeStyle = "#d97706";
+    ctx.lineWidth = 1.5;
+    ctx.fillRect(x, y - strawHeight / 2, lengthPx, strawHeight);
+    ctx.strokeRect(x, y - strawHeight / 2, lengthPx, strawHeight);
+
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.75)";
+    ctx.lineWidth = 2;
+    for (let sx = x + 6; sx < x + lengthPx - 4; sx += 14) {
+      ctx.beginPath();
+      ctx.moveTo(sx, y - strawHeight / 2);
+      ctx.lineTo(sx + 7, y + strawHeight / 2);
+      ctx.stroke();
+    }
+
+    if (!isZoomMode() && state.step < 9) {
+      ctx.fillStyle = "#92400e";
+      ctx.font = "10px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(`${label} (${((halfLen * 2) / SCALE).toFixed(1)} cm)`, state.centerX, y - 10);
+    }
+    ctx.restore();
+  }
+
+  function drawStep3ClearanceAnnotation() {
+    const targetY = getAxisY(state.zoomTarget);
+    const halfLen = state.zoomTarget === 'front' ? state.straws.frontHalfLenPx : state.straws.rearHalfLenPx;
+    const strawLeftX = state.centerX - halfLen;
+    const strawRightX = state.centerX + halfLen;
+
+    const boardLeftX = getBoardWidthAtY(targetY).left;
+    const clearancePx = boardLeftX - strawLeftX;
+    const clearanceCm = clearancePx / SCALE;
+
+    ctx.save();
+    const safeStart = boardLeftX - (3.5 * SCALE);
+    const safeWidth = 2.5 * SCALE;
+    ctx.fillStyle = "rgba(34, 197, 94, 0.2)";
+    ctx.strokeStyle = "rgba(34, 197, 94, 0.8)";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([2, 2]);
+    ctx.fillRect(safeStart, targetY - 22, safeWidth, 44);
+    ctx.strokeRect(safeStart, targetY - 22, safeWidth, 44);
+
+    ctx.setLineDash([]);
+    const isQualified = clearanceCm >= 0.95;
+    ctx.strokeStyle = isQualified ? "#16a34a" : "#dc2626";
+    ctx.lineWidth = 1.5;
+
+    ctx.beginPath();
+    ctx.moveTo(boardLeftX, targetY + 14);
+    ctx.lineTo(strawLeftX, targetY + 14);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(boardLeftX, targetY + 10);
+    ctx.lineTo(boardLeftX, targetY + 18);
+    ctx.moveTo(strawLeftX, targetY + 10);
+    ctx.lineTo(strawLeftX, targetY + 18);
+    ctx.stroke();
+
+    ctx.fillStyle = ctx.strokeStyle;
+    ctx.font = "bold 9px monospace";
+    ctx.textAlign = "center";
+    ctx.fillText(`突出 ${clearanceCm.toFixed(1)} cm`, (boardLeftX + strawLeftX) / 2, targetY + 26);
+
+    [strawLeftX, strawRightX].forEach((hx) => {
+      ctx.fillStyle = "#f59e0b";
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(hx, targetY, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    });
+
+    ctx.restore();
+
+    const axisName = state.zoomTarget === 'front' ? '前軸' : '後軸';
+    if (clearanceCm < 0.95) {
+      clearanceHint.className = "absolute top-3 right-4 bg-rose-50 border-rose-300 text-rose-700 border rounded-lg px-3.5 py-2 text-xs shadow-md font-bold z-10";
+      clearanceHint.innerHTML = `⚠️ ${axisName}突出太短 (${clearanceCm.toFixed(1)} cm)：吸管需留 1cm 以上！`;
+    } else {
+      clearanceHint.className = "absolute top-3 right-4 bg-emerald-50 border-emerald-300 text-emerald-800 border rounded-lg px-3.5 py-2 text-xs shadow-md font-bold z-10";
+      clearanceHint.innerHTML = `✅ ${axisName}間隙合格 (${clearanceCm.toFixed(1)} cm)：吸管突出超過 1cm，成功防磨！`;
+    }
+  }
+
+  function drawStep7GlueAnnotation() {
+    const targetY = getAxisY(state.zoomTarget);
+    const halfLen = state.zoomTarget === 'front' ? state.straws.frontHalfLenPx : state.straws.rearHalfLenPx;
+    const wheelW = state.wheelThicknessPx;
+    const leftWheelX = state.centerX - halfLen - wheelW - 1;
+
+    ctx.save();
+    ctx.fillStyle = "#b45309";
+    ctx.font = "bold 9px sans-serif";
+    ctx.textAlign = "right";
+    ctx.fillText("👈 僅在輪子外側上膠", leftWheelX - 8, targetY - 14);
+
+    ctx.strokeStyle = "rgba(239, 68, 68, 0.7)";
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([2, 2]);
+    ctx.strokeRect(leftWheelX + wheelW, targetY - 12, 10, 24);
+
+    ctx.fillStyle = "#dc2626";
+    ctx.font = "8px sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText("❌ 內側嚴禁沾膠", leftWheelX + wheelW + 12, targetY - 6);
+    ctx.restore();
+
+    const axisName = state.zoomTarget === 'front' ? '前軸' : '後軸';
+    clearanceHint.className = "absolute top-3 right-4 bg-amber-50 border-amber-300 text-amber-900 border rounded-lg px-3.5 py-2.5 text-xs shadow-md z-10";
+    clearanceHint.innerHTML = `<b>🔫 ${axisName}熱熔膠施工：</b> 點擊輪子外側加固！千萬不可流入吸管內`;
+  }
+
+  function drawStep8CutAnnotation() {
+    const targetY = getAxisY(state.zoomTarget);
+    const skewerHalf = state.zoomTarget === 'front' ? state.skewers.frontHalfLenPx : state.skewers.rearHalfLenPx;
+    const skewerLeftX = state.centerX - skewerHalf;
+
+    ctx.save();
+    ctx.fillStyle = "#047857";
+    ctx.font = "bold 9px sans-serif";
+    ctx.textAlign = "right";
+    ctx.fillText("✂️ 拖曳剪齊竹籤", skewerLeftX - 6, targetY + 16);
+    ctx.restore();
+
+    const axisName = state.zoomTarget === 'front' ? '前軸' : '後軸';
+    clearanceHint.className = "absolute top-3 right-4 bg-emerald-50 border-emerald-300 text-emerald-900 border rounded-lg px-3.5 py-2.5 text-xs shadow-md z-10";
+    clearanceHint.innerHTML = `<b>✂️ 修剪${axisName}竹籤：</b> 拖曳綠色剪刀手把剪齊竹籤（可切換檢視前/後軸）`;
+  }
+
+  function drawSkewerAxis(y, halfLen) {
+    const lengthPx = halfLen * 2;
+    const x = state.centerX - halfLen;
+    const skewerThickness = 4.5;
+
+    ctx.save();
+    ctx.fillStyle = "#d4a373";
+    ctx.strokeStyle = "#a97142";
+    ctx.lineWidth = 1;
+    ctx.fillRect(x, y - skewerThickness / 2, lengthPx, skewerThickness);
+    ctx.strokeRect(x, y - skewerThickness / 2, lengthPx, skewerThickness);
+
+    if (state.step === 8) {
+      [x, x + lengthPx].forEach((kx) => {
+        ctx.fillStyle = "#10b981";
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(kx, y, 7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = "#065f46";
+        ctx.font = "9px sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("✂️", kx, y - 9);
+      });
+    }
+    ctx.restore();
+  }
+
+  function drawWheelsAxis(y, strawHalfLen) {
+    const wheelW = state.wheelThicknessPx;
+    const wheelH = state.wheelDiameterCm * SCALE;
+    const leftWheelX = state.centerX - strawHalfLen - wheelW - 1;
+    const rightWheelX = state.centerX + strawHalfLen + 1;
+
+    ctx.save();
+    [leftWheelX, rightWheelX].forEach((wx) => {
+      ctx.fillStyle = "#1e293b";
+      ctx.strokeStyle = "#0f172a";
+      ctx.lineWidth = 1.5;
+
+      ctx.beginPath();
+      ctx.roundRect(wx, y - wheelH / 2, wheelW, wheelH, 3);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.strokeStyle = "#475569";
+      ctx.lineWidth = 1;
+      const offset = state.isSpinningTest ? (state.spinAngle * 8) % 8 : 0;
+      for (let wy = y - wheelH / 2 + 5; wy < y + wheelH / 2 - 4; wy += 7) {
+        const shiftedY = wy + offset;
+        if (shiftedY > y - wheelH / 2 + 2 && shiftedY < y + wheelH / 2 - 2) {
+          ctx.beginPath();
+          ctx.moveTo(wx + 1, shiftedY);
+          ctx.lineTo(wx + wheelW - 1, shiftedY);
+          ctx.stroke();
+        }
+      }
+
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.arc(wx + wheelW / 2, y, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    if (state.isSpinningTest) {
+      ctx.fillStyle = "#2563eb";
+      ctx.font = "bold 9px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("🔄 旋轉檢驗中...", leftWheelX - 25, y);
+    }
+
+    ctx.restore();
+  }
+
+  function drawGlueAxis(y, strawHalfLen) {
+    const wheelW = state.wheelThicknessPx;
+    const leftGlueX = state.centerX - strawHalfLen - wheelW - 2;
+    const rightGlueX = state.centerX + strawHalfLen + wheelW + 2;
+
+    ctx.save();
+    ctx.fillStyle = "rgba(254, 240, 138, 0.95)";
+    ctx.strokeStyle = "rgba(234, 179, 8, 0.95)";
+    ctx.lineWidth = 1.2;
+
+    [leftGlueX, rightGlueX].forEach((gx) => {
+      ctx.beginPath();
+      ctx.arc(gx, y, 5.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+      ctx.beginPath();
+      ctx.arc(gx - 1.5, y - 1.5, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.restore();
+  }
+
+  function drawPowerAssembly(fY, rY) {
+    ctx.save();
+    const cx = state.centerX;
+
+    // 1. 雙 3 號電池盒【直立縱向放置】：放在前後軸正中央
+    const midAxisY = (fY + rY) / 2;
+    const batW = 52;
+    const batH = 92;
+    const batX = cx - batW / 2;
+    const batY = midAxisY - batH / 2;
+
+    ctx.fillStyle = "#1e293b";
+    ctx.strokeStyle = "#475569";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(batX, batY, batW, batH, 4);
+    ctx.fill();
+    ctx.stroke();
+
+    // 內部兩顆縱放的 AA 電池
+    ctx.strokeStyle = "#334155";
+    ctx.strokeRect(batX + 5, batY + 6, batW / 2 - 6, batH - 12);
+    ctx.strokeRect(batX + batW / 2 + 1, batY + 6, batW / 2 - 6, batH - 12);
+
+    ctx.fillStyle = "#94a3b8";
+    ctx.font = "8px sans-serif";
+    ctx.textAlign = "center";
+    ctx.save();
+    ctx.translate(batX + 16, midAxisY);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText("1.5V AA [1]", 0, 0);
+    ctx.restore();
+
+    ctx.save();
+    ctx.translate(batX + 38, midAxisY);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText("1.5V AA [2]", 0, 0);
+    ctx.restore();
+
+    // 閘刀開關位於電池盒頂端右側
+    const swBaseX = batX + batW - 8;
+    const swBaseY = batY + 12;
+    ctx.fillStyle = "#b45309";
+    ctx.fillRect(swBaseX - 3, swBaseY - 3, 6, 26);
+
+    ctx.strokeStyle = "#cbd5e1";
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(swBaseX, swBaseY + 20);
+    if (state.isMotorRunning) {
+      ctx.lineTo(swBaseX, swBaseY);
+      ctx.stroke();
+      ctx.fillStyle = "#22c55e";
+      ctx.beginPath();
+      ctx.arc(swBaseX, swBaseY, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.lineTo(swBaseX + 11, swBaseY - 6);
+      ctx.stroke();
+      ctx.fillStyle = "#ef4444";
+      ctx.beginPath();
+      ctx.arc(swBaseX + 11, swBaseY - 6, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.fillStyle = state.isMotorRunning ? "#22c55e" : "#ef4444";
+    ctx.font = "bold 8px sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText(state.isMotorRunning ? "閘刀ON" : "閘刀OFF", swBaseX + 6, swBaseY + 12);
+
+    // 2. 130 直流馬達：安裝在「後軸 rY」上方，配有專用架高座標籤
+    const motorW = 38;
+    const motorH = 46;
+    const motorX = cx - motorW / 2;
+    const motorY = rY - motorH / 2;
+
+    // 馬達架高底座
+    ctx.fillStyle = "#fbbf24";
+    ctx.strokeStyle = "#d97706";
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(motorX - 4, motorY - 4, motorW + 8, motorH + 8);
+    ctx.fillStyle = "rgba(254, 240, 138, 0.85)";
+    ctx.fillRect(motorX - 4, motorY - 4, motorW + 8, motorH + 8);
+
+    // 130 馬達本體
+    ctx.fillStyle = "#cbd5e1";
+    ctx.strokeStyle = "#64748b";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.roundRect(motorX, motorY, motorW, motorH - 8, 4);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = "#334155";
+    ctx.font = "bold 7px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("馬達架高墊片", cx, motorY + 12);
+
+    // 3. 黃色 4 葉大風扇葉片：向後吹
+    const fanCenterY = motorY + motorH + 18;
+    ctx.save();
+    ctx.translate(cx, fanCenterY);
+
+    if (state.isMotorRunning) {
+      ctx.rotate(Date.now() / 45);
+    }
+
+    ctx.fillStyle = "#fbbf24";
+    ctx.strokeStyle = "#d97706";
+    ctx.lineWidth = 1;
+
+    for (let i = 0; i < 4; i++) {
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.bezierCurveTo(-16, 14, -26, 30, -12, 38);
+      ctx.bezierCurveTo(0, 42, 16, 32, 8, 14);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.rotate(Math.PI / 2);
+    }
+
+    ctx.fillStyle = "#f59e0b";
+    ctx.strokeStyle = "#b45309";
+    ctx.beginPath();
+    ctx.arc(0, 0, 8.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+
+    // 4. 紅黑導線連線
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "#dc2626";
+    ctx.beginPath();
+    ctx.moveTo(swBaseX, swBaseY + 24);
+    ctx.bezierCurveTo(swBaseX + 15, batY + batH + 10, cx + 20, motorY, cx + 8, motorY + motorH - 4);
+    ctx.stroke();
+
+    ctx.strokeStyle = "#0f172a";
+    ctx.beginPath();
+    ctx.moveTo(batX + 15, batY + batH);
+    ctx.bezierCurveTo(batX - 10, batY + batH + 15, cx - 20, motorY, cx - 8, motorY + motorH - 4);
+    ctx.stroke();
+
+    // 5. 氣流動態線
+    if (state.isMotorRunning) {
+      ctx.save();
+      ctx.strokeStyle = "rgba(56, 189, 248, 0.75)";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5, 6]);
+
+      const streamStart = fanCenterY + 34;
+      for (let sx = cx - 32; sx <= cx + 32; sx += 16) {
+        ctx.beginPath();
+        ctx.moveTo(sx, streamStart);
+        ctx.lineTo(sx, streamStart + 40);
+        ctx.stroke();
+      }
+
+      ctx.fillStyle = "#0284c7";
+      ctx.font = "bold 9px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("💨 風向朝後吹 (產生向前推力)", cx, streamStart + 54);
+      ctx.restore();
+    }
+
+    ctx.restore();
+  }
+
+  // ==========================================
+  // --- Three.js 3D 擬真模型實作 ---
+  // ==========================================
+  let scene, camera, renderer, controls, carGroup, propellerMesh;
+
+  function initThreeJS() {
+    if (renderer) return;
+
+    const container = document.getElementById("threejs-container");
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0f172a);
+
+    camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+    camera.position.set(0, 240, 360);
+
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.shadowMap.enabled = true;
+    container.appendChild(renderer.domElement);
+
+    controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.95);
+    scene.add(ambientLight);
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.3);
+    dirLight.position.set(120, 260, 180);
+    dirLight.castShadow = true;
+    scene.add(dirLight);
+
+    const grid = new THREE.GridHelper(500, 50, 0x334155, 0x1e293b);
+    grid.position.y = -25;
+    scene.add(grid);
+
+    carGroup = new THREE.Group();
+    scene.add(carGroup);
+
+    window.addEventListener('resize', () => {
+      if (!container.clientWidth) return;
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    });
+
+    function animate3D() {
+      requestAnimationFrame(animate3D);
+      controls.update();
+
+      if (state.isMotorRunning && propellerMesh) {
+        propellerMesh.rotation.z += 0.45;
+      }
+
+      renderer.render(scene, camera);
+    }
+    animate3D();
+  }
+
+  function update3DScene() {
+    if (!scene || !carGroup) return;
+
+    while (carGroup.children.length > 0) {
+      carGroup.remove(carGroup.children[0]);
+    }
+
+    // 1. 車身板 (根據 14 點 Extrude)
+    const shape = new THREE.Shape();
+    const points2D = [];
+    for (let i = 0; i < POINT_COUNT; i++) {
+      points2D.push({ x: state.leftPoints[i] - state.centerX, y: -(getPointY(i) - (state.boardY + state.boardH / 2)) });
+    }
+    for (let i = POINT_COUNT - 1; i >= 0; i--) {
+      points2D.push({ x: state.rightPoints[i] - state.centerX, y: -(getPointY(i) - (state.boardY + state.boardH / 2)) });
+    }
+
+    shape.moveTo(points2D[0].x, points2D[0].y);
+    for (let i = 1; i < points2D.length; i++) {
+      shape.lineTo(points2D[i].x, points2D[i].y);
+    }
+    shape.closePath();
+
+    const extrudeSettings = { depth: 3.5, bevelEnabled: true, bevelSegments: 2, steps: 1, bevelSize: 0.8, bevelThickness: 0.8 };
+    const boardGeo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+    boardGeo.rotateX(Math.PI / 2);
+    const boardMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.5 });
+    const boardMesh = new THREE.Mesh(boardGeo, boardMat);
+    carGroup.add(boardMesh);
+
+    // 2. 前後軸系統 (底面吸管、竹籤、車輪、外側熱熔膠)
+    const axesData = [
+      { key: 'front', z: (getAxisY('front') - (state.boardY + state.boardH / 2)), halfLen: state.straws.frontHalfLenPx, skewerHalf: state.skewers.frontHalfLenPx },
+      { key: 'rear', z: (getAxisY('rear') - (state.boardY + state.boardH / 2)), halfLen: state.straws.rearHalfLenPx, skewerHalf: state.skewers.rearHalfLenPx }
+    ];
+
+    axesData.forEach((ax) => {
+      const strawLen = ax.halfLen * 2;
+      const skewerLen = ax.skewerHalf * 2;
+      const axisY = -6.5;
+
+      // 吸管
+      const strawGeo = new THREE.CylinderGeometry(4, 4, strawLen, 16);
+      strawGeo.rotateZ(Math.PI / 2);
+      const strawMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.3 });
+      const strawMesh = new THREE.Mesh(strawGeo, strawMat);
+      strawMesh.position.set(0, axisY, ax.z);
+      carGroup.add(strawMesh);
+
+      // 竹籤
+      const skewerGeo = new THREE.CylinderGeometry(1.8, 1.8, skewerLen, 12);
+      skewerGeo.rotateZ(Math.PI / 2);
+      const skewerMat = new THREE.MeshStandardMaterial({ color: 0xd4a373, roughness: 0.6 });
+      const skewerMesh = new THREE.Mesh(skewerGeo, skewerMat);
+      skewerMesh.position.set(0, axisY, ax.z);
+      carGroup.add(skewerMesh);
+
+      // 車輪
+      const wheelR = (state.wheelDiameterCm * SCALE) / 2;
+      const wheelW = state.wheelThicknessPx;
+      const wheelGeo = new THREE.CylinderGeometry(wheelR, wheelR, wheelW, 24);
+      wheelGeo.rotateZ(Math.PI / 2);
+      const wheelMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.7 });
+
+      [-ax.halfLen - wheelW / 2 - 1, ax.halfLen + wheelW / 2 + 1].forEach((wx) => {
+        const wheel = new THREE.Mesh(wheelGeo, wheelMat);
+        wheel.position.set(wx, axisY, ax.z);
+        carGroup.add(wheel);
+
+        // 輪子外側熱熔膠
+        const glueX = wx > 0 ? wx + wheelW / 2 + 1.8 : wx - wheelW / 2 - 1.8;
+        const glueGeo = new THREE.SphereGeometry(3.5, 12, 12);
+        const glueMat = new THREE.MeshStandardMaterial({ color: 0xfef08a, transparent: true, opacity: 0.85 });
+        const glueMesh = new THREE.Mesh(glueGeo, glueMat);
+        glueMesh.position.set(glueX, axisY, ax.z);
+        carGroup.add(glueMesh);
+      });
+    });
+
+    // 3. 雙 3 號電池盒（帶金屬閘刀開關，水平平躺躺平）
+    const midZ = (axesData[0].z + axesData[1].z) / 2;
+    const batGroup = new THREE.Group();
+
+    const batBoxGeo = new THREE.BoxGeometry(62, 18, 108);
+    const batBoxMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.5 });
+    const batBox = new THREE.Mesh(batBoxGeo, batBoxMat);
+    batBox.position.y = 9;
+    batGroup.add(batBox);
+
+    // 電池旋轉 X 軸 90 度，確保完全平躺臥置
+    const cellGeo = new THREE.CylinderGeometry(8.5, 8.5, 80, 20);
+    cellGeo.rotateX(Math.PI / 2);
+
+    const cellMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, metalness: 0.45, roughness: 0.3 });
+
+    const cell1 = new THREE.Mesh(cellGeo, cellMat);
+    cell1.position.set(-15, 11, 0);
+    const cell2 = new THREE.Mesh(cellGeo, cellMat);
+    cell2.position.set(15, 11, 0);
+    batGroup.add(cell1);
+    batGroup.add(cell2);
+
+    // 正極端子頭
+    const nippleGeo = new THREE.CylinderGeometry(3, 3, 4, 16);
+    nippleGeo.rotateX(Math.PI / 2);
+    const nippleMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.9 });
+    const n1 = new THREE.Mesh(nippleGeo, nippleMat);
+    n1.position.set(-15, 11, -41);
+    const n2 = new THREE.Mesh(nippleGeo, nippleMat);
+    n2.position.set(15, 11, -41);
+    batGroup.add(n1);
+    batGroup.add(n2);
+
+    // 金屬閘刀開關底座
+    const swBaseGeo = new THREE.BoxGeometry(10, 6, 28);
+    const swBaseMat = new THREE.MeshStandardMaterial({ color: 0xb45309, metalness: 0.85 });
+    const swBase = new THREE.Mesh(swBaseGeo, swBaseMat);
+    swBase.position.set(26, 19, -32);
+    batGroup.add(swBase);
+
+    // 閘刀連桿
+    const swBladeGeo = new THREE.BoxGeometry(3, 24, 4);
+    const swBladeMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.95, roughness: 0.2 });
+    const swBlade = new THREE.Mesh(swBladeGeo, swBladeMat);
+    if (state.isMotorRunning) {
+      swBlade.rotation.x = Math.PI / 2;
+      swBlade.position.set(26, 22, -32);
+    } else {
+      swBlade.rotation.x = -Math.PI / 4;
+      swBlade.position.set(26, 27, -37);
+    }
+    batGroup.add(swBlade);
+
+    batGroup.position.set(0, 0, midZ);
+    carGroup.add(batGroup);
+
+    // 4. 架高馬達座＋130 直流馬達
+    const rearZ = axesData[1].z;
+    const motorGroup = new THREE.Group();
+
+    const mBaseFloor1Geo = new THREE.BoxGeometry(46, 16, 46);
+    const mBaseFloor1Mat = new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.4 });
+    const mBaseFloor1 = new THREE.Mesh(mBaseFloor1Geo, mBaseFloor1Mat);
+    mBaseFloor1.position.y = 8;
+    motorGroup.add(mBaseFloor1);
+
+    const mBaseFloor2Geo = new THREE.BoxGeometry(40, 18, 42);
+    const mBaseFloor2Mat = new THREE.MeshStandardMaterial({ color: 0xfef08a, transparent: true, opacity: 0.9 });
+    const mBaseFloor2 = new THREE.Mesh(mBaseFloor2Geo, mBaseFloor2Mat);
+    mBaseFloor2.position.y = 25;
+    motorGroup.add(mBaseFloor2);
+
+    const MOTOR_CENTER_Y = 52;
+
+    const mBodyGeo = new THREE.CylinderGeometry(16, 16, 46, 20);
+    mBodyGeo.rotateX(Math.PI / 2);
+    const mBodyMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.85, roughness: 0.25 });
+    const mBody = new THREE.Mesh(mBodyGeo, mBodyMat);
+    mBody.position.y = MOTOR_CENTER_Y;
+    motorGroup.add(mBody);
+
+    const mCapGeo = new THREE.CylinderGeometry(15, 15, 10, 20);
+    mCapGeo.rotateX(Math.PI / 2);
+    const mCapMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4 });
+    const mCap = new THREE.Mesh(mCapGeo, mCapMat);
+    mCap.position.set(0, MOTOR_CENTER_Y, -24);
+    motorGroup.add(mCap);
+
+    const shaftGeo = new THREE.CylinderGeometry(2, 2, 16, 12);
+    shaftGeo.rotateX(Math.PI / 2);
+    const shaftMat = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.9 });
+    const shaft = new THREE.Mesh(shaftGeo, shaftMat);
+    shaft.position.set(0, MOTOR_CENTER_Y, 28);
+    motorGroup.add(shaft);
+
+    motorGroup.position.set(0, 0, rearZ);
+    carGroup.add(motorGroup);
+
+    // 5. 4 葉亮黃色風扇大葉片
+    propellerMesh = new THREE.Group();
+    const bladeMat = new THREE.MeshStandardMaterial({ color: 0xfbbf24, roughness: 0.25, metalness: 0.1 });
+
+    for (let i = 0; i < 4; i++) {
+      const bGeo = new THREE.BoxGeometry(18, 54, 2.2);
+      const b = new THREE.Mesh(bGeo, bladeMat);
+      b.position.y = 26;
+      b.rotation.y = 0.22;
+
+      const bPivot = new THREE.Group();
+      bPivot.rotation.z = (Math.PI / 2) * i;
+      bPivot.add(b);
+      propellerMesh.add(bPivot);
+    }
+
+    const hubGeo = new THREE.SphereGeometry(10, 20, 20);
+    const hubMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.2 });
+    const hub = new THREE.Mesh(hubGeo, hubMat);
+    hub.scale.set(1, 1, 1.4);
+    propellerMesh.add(hub);
+
+    propellerMesh.position.set(0, MOTOR_CENTER_Y, rearZ + 36);
+    carGroup.add(propellerMesh);
+  }
+
+  // 初始化啟動
+  initControlPoints();
+  goToStep(1);
+</script>
+</body>
+</html>
