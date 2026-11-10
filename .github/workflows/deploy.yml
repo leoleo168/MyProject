@@ -199,7 +199,7 @@ jobs:
             <body>
               <div class="container">
                 <header>
-                  <h1>我的一頁式實驗室 ✨</h1>
+                  <h1>我的單頁實驗室 ✨</h1>
                   <p class="subtitle">共收錄 ${projects.length} 個單頁式互動作品</p>
                 </header>
                 
