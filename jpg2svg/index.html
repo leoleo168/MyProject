@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>純前端 JPG 轉 SVG (黑白專用版 + 分類預設集)</title>
+    <title>純前端 JPG 轉 SVG (黑白專用版 + Tinkercad 去背)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/gh/jankovicsandras/imagetracerjs@master/imagetracer_v1.2.6.js"></script>
     <style>
@@ -11,10 +11,20 @@
             max-width: 100%;
             height: auto;
         }
-        /* 自訂捲軸樣式讓左側選單在小螢幕好滑動 */
+        /* 自訂捲軸樣式 */
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; rounded: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 8px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 8px; }
+        
+        /* 透明棋盤格背景，用來辨識是否成功去背 */
+        .checkerboard {
+            background-color: #ffffff;
+            background-image: 
+                linear-gradient(45deg, #e5e7eb 25%, transparent 25%, transparent 75%, #e5e7eb 75%, #e5e7eb),
+                linear-gradient(45deg, #e5e7eb 25%, transparent 25%, transparent 75%, #e5e7eb 75%, #e5e7eb);
+            background-size: 20px 20px;
+            background-position: 0 0, 10px 10px;
+        }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen p-4 md:p-8">
@@ -24,7 +34,7 @@
 
         <div class="grid grid-cols-1 xl:grid-cols-12 gap-6 mb-6">
             <!-- 左側：控制面板 -->
-            <div class="xl:col-span-4 space-y-5 bg-gray-50 p-5 rounded-lg border max-h-[80vh] overflow-y-auto custom-scrollbar">
+            <div class="xl:col-span-4 space-y-5 bg-gray-50 p-5 rounded-lg border max-h-[85vh] overflow-y-auto custom-scrollbar relative">
                 <!-- 上傳區塊 -->
                 <div class="sticky top-0 bg-gray-50 pt-1 pb-3 z-10 border-b border-gray-200">
                     <label class="block mb-2 text-sm font-bold text-gray-900">1. 選擇圖片</label>
@@ -37,7 +47,6 @@
                     <label class="block mb-3 text-sm font-bold text-gray-900">2. 情境預設集 (點擊自動套用)</label>
                     
                     <div class="space-y-4">
-                        <!-- 種類 1: 線稿與草圖 -->
                         <div class="bg-blue-50 p-3 rounded-lg border border-blue-100">
                             <h4 class="text-xs font-bold text-blue-800 mb-2 flex items-center">✏️ 線稿與草圖 (保留細節)</h4>
                             <div class="grid grid-cols-2 gap-2">
@@ -48,7 +57,6 @@
                             </div>
                         </div>
 
-                        <!-- 種類 2: 標誌與圖示 -->
                         <div class="bg-emerald-50 p-3 rounded-lg border border-emerald-100">
                             <h4 class="text-xs font-bold text-emerald-800 mb-2 flex items-center">💠 標誌與圖示 (幾何與邊緣)</h4>
                             <div class="grid grid-cols-2 gap-2">
@@ -59,7 +67,6 @@
                             </div>
                         </div>
 
-                        <!-- 種類 3: 剪影與大色塊 -->
                         <div class="bg-purple-50 p-3 rounded-lg border border-purple-100">
                             <h4 class="text-xs font-bold text-purple-800 mb-2 flex items-center">👤 剪影與大色塊 (強力融合)</h4>
                             <div class="grid grid-cols-2 gap-2">
@@ -70,7 +77,6 @@
                             </div>
                         </div>
 
-                        <!-- 種類 4: 雜訊去除 -->
                         <div class="bg-orange-50 p-3 rounded-lg border border-orange-100">
                             <h4 class="text-xs font-bold text-orange-800 mb-2 flex items-center">🧹 雜訊去除 (掃描檔/粗糙圖)</h4>
                             <div class="grid grid-cols-2 gap-2">
@@ -91,7 +97,7 @@
                     
                     <div class="mt-3">
                         <div class="flex justify-between">
-                            <span class="text-xs font-semibold text-gray-700">模糊融合度 (Blur) <span class="text-gray-400 font-normal">0~10</span></span>
+                            <span class="text-xs font-semibold text-gray-700">模糊融合度 (Blur)</span>
                             <span class="text-xs text-blue-600 font-bold" id="blur-val">2</span>
                         </div>
                         <input type="range" id="blur" min="0" max="10" step="1" value="2" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer mt-1">
@@ -99,7 +105,7 @@
 
                     <div class="mt-3">
                         <div class="flex justify-between">
-                            <span class="text-xs font-semibold text-gray-700">忽略微小碎塊 (Omit) <span class="text-gray-400 font-normal">0~100</span></span>
+                            <span class="text-xs font-semibold text-gray-700">忽略微小碎塊 (Omit)</span>
                             <span class="text-xs text-blue-600 font-bold" id="omit-val">8</span>
                         </div>
                         <input type="range" id="omit" min="0" max="100" step="1" value="8" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer mt-1">
@@ -107,11 +113,25 @@
 
                     <div class="mt-3">
                         <div class="flex justify-between">
-                            <span class="text-xs font-semibold text-gray-700">邊緣平滑度 (Tolerance) <span class="text-gray-400 font-normal">0.1~5.0</span></span>
+                            <span class="text-xs font-semibold text-gray-700">邊緣平滑度 (Tolerance)</span>
                             <span class="text-xs text-blue-600 font-bold" id="tolerance-val">1.0</span>
                         </div>
                         <input type="range" id="tolerance" min="0.1" max="5" step="0.1" value="1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer mt-1">
                     </div>
+                </div>
+
+                <hr class="border-gray-300">
+
+                <!-- Tinkercad 專用設定 -->
+                <div class="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
+                    <label class="block mb-2 text-sm font-bold text-gray-900">4. 3D 列印 / Tinkercad 設定</label>
+                    <label class="flex items-start space-x-2 cursor-pointer">
+                        <input type="checkbox" id="remove-white" checked class="mt-1 w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
+                        <div>
+                            <span class="text-sm font-bold text-gray-800">移除白色背景 (僅保留黑色塊)</span>
+                            <p class="text-xs text-gray-600 mt-1">匯入 Tinkercad 若出現「反向擠出」或變成一塊大方塊，請務必勾選此項。右側預覽若呈現棋盤格，代表去背成功。</p>
+                        </div>
+                    </label>
                 </div>
 
                 <button id="recalculate" class="w-full bg-gray-800 hover:bg-gray-900 text-white font-bold py-2 px-4 rounded transition duration-200 sticky bottom-0">
@@ -127,10 +147,11 @@
                     <span id="preview-text" class="text-gray-400">尚未選擇圖片</span>
                 </div>
 
-                <div class="border rounded-lg p-4 bg-gray-50 flex flex-col items-center justify-center min-h-[400px] relative">
-                    <h3 class="text-sm font-semibold mb-2 text-gray-700 w-full text-left">SVG 黑白轉換結果</h3>
+                <!-- 這裡加入了 checkerboard 類別，用來顯示透明背景 -->
+                <div class="border rounded-lg p-4 checkerboard flex flex-col items-center justify-center min-h-[400px] relative shadow-inner">
+                    <h3 class="text-sm font-semibold mb-2 text-gray-700 w-full text-left bg-white/80 p-1 rounded">SVG 黑白轉換結果</h3>
                     <div id="svg-container" class="w-full flex justify-center items-center">
-                        <span id="svg-text" class="text-gray-400">等待轉換...</span>
+                        <span id="svg-text" class="text-gray-400 bg-white/80 p-1 rounded">等待轉換...</span>
                     </div>
                 </div>
             </div>
@@ -151,16 +172,15 @@
         const downloadBtn = document.getElementById('download');
         const recalculateBtn = document.getElementById('recalculate');
         
-        // 滑桿元素與數值顯示
         const blurInput = document.getElementById('blur');
         const omitInput = document.getElementById('omit');
         const toleranceInput = document.getElementById('tolerance');
+        const removeWhiteCheckbox = document.getElementById('remove-white');
         
         const blurVal = document.getElementById('blur-val');
         const omitVal = document.getElementById('omit-val');
         const toleranceVal = document.getElementById('tolerance-val');
 
-        // 更新數值顯示的函數
         function updateDisplayValues() {
             blurVal.innerText = blurInput.value;
             omitVal.innerText = omitInput.value;
@@ -174,35 +194,32 @@
         let currentSvgString = '';
         let currentImageSrc = '';
 
-        // 處理預設集按鈕點擊
         document.querySelectorAll('.preset-btn').forEach(btn => {
             btn.addEventListener('click', function() {
-                // 移除所有按鈕的 active 狀態 (視覺回饋)
                 document.querySelectorAll('.preset-btn').forEach(b => {
                     b.classList.remove('ring-2', 'ring-offset-1', 'ring-gray-400');
                 });
-                // 為當前點擊的按鈕加上 active 狀態
                 this.classList.add('ring-2', 'ring-offset-1', 'ring-gray-400');
 
-                // 讀取按鈕上的 data 屬性並更新滑桿
                 blurInput.value = this.dataset.blur;
                 omitInput.value = this.dataset.omit;
                 toleranceInput.value = this.dataset.tolerance;
                 
-                // 更新介面上的數字
                 updateDisplayValues();
                 
-                // 如果已經有圖片，自動重新運算
-                if (currentImageSrc) {
-                    convertToSVG();
-                }
+                if (currentImageSrc) convertToSVG();
             });
+        });
+
+        // 監聽去背選項改變
+        removeWhiteCheckbox.addEventListener('change', function() {
+            if (currentImageSrc) convertToSVG();
         });
 
         function convertToSVG() {
             if (!currentImageSrc) return;
 
-            svgContainer.innerHTML = '<span class="text-blue-500 font-bold animate-pulse">正在進行黑白向量化運算中...</span>';
+            svgContainer.innerHTML = '<span class="text-blue-500 font-bold animate-pulse bg-white/80 p-1 rounded">正在進行黑白向量化運算中...</span>';
             downloadBtn.classList.add('hidden');
             
             const customOptions = {
@@ -224,8 +241,31 @@
                 ImageTracer.imageToSVG(
                     currentImageSrc,
                     function(svgstr) {
-                        currentSvgString = svgstr;
-                        svgContainer.innerHTML = svgstr;
+                        let finalSvgStr = svgstr;
+
+                        // 如果勾選了「移除白色背景」
+                        if (removeWhiteCheckbox.checked) {
+                            // 將 SVG 字串解析為 DOM 以便操作
+                            const parser = new DOMParser();
+                            const doc = parser.parseFromString(finalSvgStr, "image/svg+xml");
+                            
+                            // 尋找所有帶有 fill 屬性的元素 (通常是 <path> 或 <g>)
+                            const elements = doc.querySelectorAll('[fill]');
+                            elements.forEach(el => {
+                                const fillValue = el.getAttribute('fill').replace(/\s/g, '').toLowerCase();
+                                // 如果填色是純白，就將該節點從 SVG 中刪除
+                                if (fillValue === 'rgb(255,255,255)' || fillValue === '#ffffff') {
+                                    el.remove();
+                                }
+                            });
+                            
+                            // 將處理後的 DOM 轉回字串
+                            const serializer = new XMLSerializer();
+                            finalSvgStr = serializer.serializeToString(doc);
+                        }
+
+                        currentSvgString = finalSvgStr;
+                        svgContainer.innerHTML = finalSvgStr;
                         downloadBtn.classList.remove('hidden');
                     },
                     customOptions
@@ -243,7 +283,6 @@
                 preview.classList.remove('hidden');
                 previewText.classList.add('hidden');
                 
-                // 重置按鈕視覺狀態
                 document.querySelectorAll('.preset-btn').forEach(b => {
                     b.classList.remove('ring-2', 'ring-offset-1', 'ring-gray-400');
                 });
@@ -254,7 +293,6 @@
         });
 
         recalculateBtn.addEventListener('click', function() {
-            // 手動調整時移除預設按鈕的 active 狀態
             document.querySelectorAll('.preset-btn').forEach(b => {
                 b.classList.remove('ring-2', 'ring-offset-1', 'ring-gray-400');
             });
