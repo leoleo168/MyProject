@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3D 列印成本計算機</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --border: #e5e7eb;
+      --success: #16a34a;
+      --warning: #f59e0b;
+      --danger: #dc2626;
+      --soft-blue: #eff6ff;
+      --soft-green: #ecfdf5;
+      --soft-orange: #fff7ed;
+      --shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+      background: linear-gradient(135deg, #e0f2fe 0%, #f8fafc 45%, #eef2ff 100%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .container {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 32px 0 48px;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, #1d4ed8, #0f766e);
+      color: white;
+      border-radius: 28px;
+      padding: 32px;
+      box-shadow: var(--shadow);
+      margin-bottom: 24px;
+    }
+
+    .hero h1 {
+      margin: 0 0 10px;
+      font-size: clamp(28px, 5vw, 46px);
+      letter-spacing: -0.04em;
+    }
+
+    .hero p {
+      margin: 0;
+      color: rgba(255, 255, 255, 0.9);
+      line-height: 1.7;
+    }
+
+    .status-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin: 20px 0 24px;
+    }
+
+    .status-card {
+      background: rgba(255, 255, 255, 0.96);
+      border: 1px solid rgba(255, 255, 255, 0.6);
+      border-radius: 20px;
+      padding: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .status-card .label {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .status-card .value {
+      font-size: 20px;
+      font-weight: 800;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 24px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 24px;
+      box-shadow: var(--shadow);
+    }
+
+    .card + .card {
+      margin-top: 20px;
+    }
+
+    .card h2 {
+      margin: 0 0 18px;
+      font-size: 22px;
+      letter-spacing: -0.02em;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      background: var(--soft-blue);
+      color: var(--primary-dark);
+      white-space: nowrap;
+    }
+
+    .badge.success {
+      background: var(--soft-green);
+      color: var(--success);
+    }
+
+    .badge.warning {
+      background: var(--soft-orange);
+      color: #b45309;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+
+    label {
+      display: block;
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .hint {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 6px;
+      line-height: 1.5;
+    }
+
+    input,
+    select {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px 14px;
+      font-size: 16px;
+      outline: none;
+      transition: border 0.2s, box-shadow 0.2s;
+      background: white;
+    }
+
+    input:focus,
+    select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+    }
+
+    .input-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .unit {
+      color: var(--muted);
+      font-size: 14px;
+      min-width: 50px;
+    }
+
+    .buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    button {
+      border: none;
+      border-radius: 14px;
+      padding: 12px 16px;
+      font-weight: 800;
+      font-size: 14px;
+      cursor: pointer;
+      transition: transform 0.15s, background 0.2s;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-dark);
+    }
+
+    .btn-secondary {
+      background: #f3f4f6;
+      color: #374151;
+    }
+
+    .btn-danger {
+      background: #fee2e2;
+      color: var(--danger);
+    }
+
+    .result-card {
+      background: linear-gradient(180deg, #ffffff, #f8fafc);
+      position: sticky;
+      top: 20px;
+    }
+
+    .total {
+      background: linear-gradient(135deg, #2563eb, #0f766e);
+      color: white;
+      border-radius: 22px;
+      padding: 22px;
+      margin-bottom: 18px;
+    }
+
+    .total .label {
+      opacity: 0.85;
+      font-size: 14px;
+      margin-bottom: 6px;
+    }
+
+    .total .amount {
+      font-size: 42px;
+      font-weight: 900;
+      letter-spacing: -0.04em;
+    }
+
+    .result-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .result-item {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 0;
+      border-bottom: 1px dashed var(--border);
+    }
+
+    .result-item:last-child {
+      border-bottom: none;
+    }
+
+    .result-item span:first-child {
+      color: var(--muted);
+    }
+
+    .result-item strong {
+      font-size: 18px;
+      text-align: right;
+    }
+
+    .notice {
+      border-radius: 18px;
+      padding: 16px;
+      background: #fffbeb;
+      color: #92400e;
+      line-height: 1.7;
+      font-size: 14px;
+      margin-top: 18px;
+    }
+
+    .source {
+      border-radius: 18px;
+      padding: 16px;
+      background: #f8fafc;
+      color: #475569;
+      line-height: 1.7;
+      font-size: 14px;
+      margin-top: 18px;
+    }
+
+    a {
+      color: var(--primary);
+      font-weight: 700;
+    }
+
+    .small {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .footer {
+      text-align: center;
+      margin-top: 28px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    @media (max-width: 900px) {
+      .grid,
+      .status-row,
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .hero {
+        padding: 24px;
+      }
+
+      .result-card {
+        position: static;
+      }
+
+      .total .amount {
+        font-size: 34px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <section class="hero">
+      <h1>3D 列印成本計算機</h1>
+      <p>
+        適用台灣住宅用電情境。可計算原料、列印時間、電費、失敗率、後處理與利潤報價。
+        固定設定會自動儲存在本機瀏覽器；本次列印重量與列印時間不會被記錄。
+      </p>
+    </section>
+
+    <section class="status-row">
+      <div class="status-card">
+        <div class="label">目前採用電價</div>
+        <div class="value"><span id="statusPowerPrice">-</span> 元 / 度</div>
+      </div>
+      <div class="status-card">
+        <div class="label">電價資料來源</div>
+        <div class="value" id="statusSource">載入中</div>
+      </div>
+      <div class="status-card">
+        <div class="label">資料更新時間</div>
+        <div class="value" id="statusUpdated">-</div>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div>
+        <section class="card">
+          <div class="section-title">
+            <h2>原料設定</h2>
+            <span class="badge success">會記錄</span>
+          </div>
+
+          <div class="form-grid">
+            <div>
+              <label for="materialName">原料名稱</label>
+              <input id="materialName" type="text" placeholder="例如：PLA+、PETG、ABS" />
+            </div>
+
+            <div>
+              <label for="materialPriceKg">原料價格</label>
+              <div class="input-row">
+                <input id="materialPriceKg" type="number" min="0" step="1" />
+                <span class="unit">元/kg</span>
+              </div>
+            </div>
+
+            <div>
+              <label for="materialWeightG">本次使用重量</label>
+              <div class="input-row">
+                <input id="materialWeightG" type="number" min="0" step="0.1" placeholder="不記錄" />
+                <span class="unit">g</span>
+              </div>
+              <div class="hint">此欄位不會記錄，下次開頁會清空。</div>
+            </div>
+
+            <div>
+              <label for="wastePercent">材料損耗率</label>
+              <div class="input-row">
+                <input id="wastePercent" type="number" min="0" step="0.1" />
+                <span class="unit">%</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="section-title">
+            <h2>列印時間與機器成本</h2>
+            <span class="badge">拓竹完整 Preset</span>
+          </div>
+
+          <div class="form-grid">
+            <div>
+              <label for="printerPreset">印表機機型</label>
+              <select id="printerPreset">
+                <option value="custom">自訂機型</option>
+
+                <optgroup label="Bambu Lab H 系列">
+                  <option value="h3c">Bambu Lab H3C</option>
+                  <option value="h2d">Bambu Lab H2D</option>
+                  <option value="h2s">Bambu Lab H2S</option>
+                  <option value="h2c">Bambu Lab H2C</option>
+                </optgroup>
+
+                <optgroup label="Bambu Lab X 系列">
+                  <option value="x2d">Bambu Lab X2D</option>
+                  <option value="x1c">Bambu Lab X1 Carbon</option>
+                  <option value="x1e">Bambu Lab X1E</option>
+                </optgroup>
+
+                <optgroup label="Bambu Lab P 系列">
+                  <option value="p2s">Bambu Lab P2S</option>
+                  <option value="p1s">Bambu Lab P1S</option>
+                  <option value="p1p">Bambu Lab P1P</option>
+                </optgroup>
+
+                <optgroup label="Bambu Lab A 系列">
+                  <option value="a2l">Bambu Lab A2L</option>
+                  <option value="a1">Bambu Lab A1</option>
+                  <option value="a1-mini">Bambu Lab A1 mini</option>
+                </optgroup>
+              </select>
+            </div>
+
+            <div>
+              <label for="materialPowerMode">列印材料功耗模式</label>
+              <select id="materialPowerMode">
+                <option value="pla">PLA / 低溫材料</option>
+                <option value="petg">PETG / 中溫材料</option>
+                <option value="pc">PC / ABS / 高溫材料</option>
+                <option value="custom">手動自訂瓦數</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="printerWatt">印表機平均功率</label>
+              <div class="input-row">
+                <input id="printerWatt" type="number" min="0" step="1" />
+                <span class="unit">W</span>
+              </div>
+              <div class="hint">
+                此為平均列印功耗估算。手動修改此欄位將自動切換為「手動自訂瓦數」。
+              </div>
+            </div>
+
+            <div>
+              <label for="machineCostPerMinute">機器時間成本</label>
+              <div class="input-row">
+                <input id="machineCostPerMinute" type="number" min="0" step="0.01" />
+                <span class="unit">元/分</span>
+              </div>
+            </div>
+
+            <div>
+              <label for="printHours">列印時間，小時</label>
+              <input id="printHours" type="number" min="0" step="1" placeholder="不記錄" />
+              <div class="hint">此欄位不會記錄。</div>
+            </div>
+
+            <div>
+              <label for="printMinutes">列印時間，分鐘</label>
+              <input id="printMinutes" type="number" min="0" max="59" step="1" placeholder="不記錄" />
+              <div class="hint">此欄位不會記錄。</div>
+            </div>
+
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="section-title">
+            <h2>台灣住宅用電設定</h2>
+            <span class="badge warning">開頁自動嘗試取得</span>
+          </div>
+
+          <div class="form-grid">
+            <div>
+              <label for="seasonMode">電價季節</label>
+              <select id="seasonMode">
+                <option value="auto">自動判斷，6-9 月為夏月</option>
+                <option value="summer">夏月，6-9 月</option>
+                <option value="normal">非夏月，10-5 月</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="monthlyKwh">預估當月總用電級距</label>
+              <select id="monthlyKwh">
+                <option value="120">120 度以下</option>
+                <option value="330">121 - 330 度</option>
+                <option value="500">331 - 500 度</option>
+                <option value="700">501 - 700 度</option>
+                <option value="1000">701 - 1000 度</option>
+                <option value="1001">1001 度以上</option>
+                <option value="custom">手動輸入單一電價</option>
+              </select>
+              <div class="hint">住宅電價是累進級距。此工具用「邊際級距電價」估算 3D 列印新增用電成本。</div>
+            </div>
+
+            <div>
+              <label for="powerPrice">每度電費</label>
+              <div class="input-row">
+                <input id="powerPrice" type="number" min="0" step="0.01" />
+                <span class="unit">元/kWh</span>
+              </div>
+            </div>
+
+            <div>
+              <label for="tariffJsonUrl">自動電價 JSON URL，選填</label>
+              <input id="tariffJsonUrl" type="url" placeholder="例如：https://example.com/taiwan-residential-tariff.json" />
+              <div class="hint">
+                若你有自己的電價 JSON，開頁會自動抓取。抓取失敗時會使用內建台灣住宅電價級距。
+              </div>
+            </div>
+          </div>
+
+          <div class="buttons">
+            <button class="btn-primary" id="refreshTariffBtn">重新取得電價</button>
+            <button class="btn-secondary" id="useBuiltInTariffBtn">使用內建台灣住宅電價</button>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="section-title">
+            <h2>報價設定</h2>
+            <span class="badge success">會記錄</span>
+          </div>
+
+          <div class="form-grid">
+            <div>
+              <label for="failurePercent">失敗率 / 風險加成</label>
+              <div class="input-row">
+                <input id="failurePercent" type="number" min="0" step="0.1" />
+                <span class="unit">%</span>
+              </div>
+            </div>
+
+            <div>
+              <label for="profitMultiplier">利潤倍率</label>
+              <input id="profitMultiplier" type="number" min="0" step="0.01" />
+            </div>
+
+            <div>
+              <label for="postProcessFee">後處理費</label>
+              <div class="input-row">
+                <input id="postProcessFee" type="number" min="0" step="1" />
+                <span class="unit">元</span>
+              </div>
+            </div>
+
+            <div>
+              <label for="otherFee">其他固定費用</label>
+              <div class="input-row">
+                <input id="otherFee" type="number" min="0" step="1" />
+                <span class="unit">元</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="buttons">
+            <button class="btn-secondary" id="saveSettingsBtn">手動儲存設定</button>
+            <button class="btn-danger" id="resetSettingsBtn">清除已儲存設定</button>
+          </div>
+        </section>
+      </div>
+
+      <aside>
+        <section class="card result-card">
+          <h2>計算結果</h2>
+
+          <div class="total">
+            <div class="label">建議報價</div>
+            <div class="amount" id="quotePrice">NT$ 0</div>
+          </div>
+
+          <div class="result-list">
+            <div class="result-item">
+              <span>原料成本</span>
+              <strong id="materialCost">NT$ 0</strong>
+            </div>
+            <div class="result-item">
+              <span>列印時間成本</span>
+              <strong id="timeCost">NT$ 0</strong>
+            </div>
+            <div class="result-item">
+              <span>電費成本</span>
+              <strong id="electricityCost">NT$ 0</strong>
+            </div>
+            <div class="result-item">
+              <span>後處理費</span>
+              <strong id="postCost">NT$ 0</strong>
+            </div>
+            <div class="result-item">
+              <span>其他固定費用</span>
+              <strong id="otherCost">NT$ 0</strong>
+            </div>
+            <div class="result-item">
+              <span>成本小計</span>
+              <strong id="subtotalCost">NT$ 0</strong>
+            </div>
+            <div class="result-item">
+              <span>加入失敗率後</span>
+              <strong id="riskAdjustedCost">NT$ 0</strong>
+            </div>
+            <div class="result-item">
+              <span>總列印時間</span>
+              <strong id="totalMinutes">0 分鐘</strong>
+            </div>
+            <div class="result-item">
+              <span>預估用電量</span>
+              <strong id="kwhUsed">0 kWh</strong>
+            </div>
+            <div class="result-item">
+              <span>目前機型</span>
+              <strong id="currentPrinter">自訂機型</strong>
+            </div>
+            <div class="result-item">
+              <span>目前平均瓦數</span>
+              <strong id="currentWatt">0 W</strong>
+            </div>
+          </div>
+
+          <div class="notice">
+            <strong>提醒：</strong>
+            住宅用電是級距累進制，本工具以你選擇的級距作為「新增一件列印案件」的邊際電價估算。
+            印表機瓦數為平均列印功耗估算，若有實測值請以實測值為準。
+          </div>
+
+          <div class="source">
+            <strong>資料參考：</strong><br />
+            <a href="https://www.taipower.com.tw/2289/2290/46940/" target="_blank" rel="noopener">台灣電力公司電價表</a><br />
+            <a href="https://wiki.bambulab.com/en/general/power-consumption" target="_blank" rel="noopener">Bambu Lab Power Consumption Wiki</a><br />
+            <span class="small">若台電公告調整電價，請更新內建資料或提供自己的 JSON URL。</span>
+          </div>
+        </section>
+      </aside>
+    </section>
+
+    <div class="footer">
+      本工具資料儲存在你的瀏覽器 localStorage，不會上傳到伺服器。
+    </div>
+  </main>
+
+  <script>
+    const STORAGE_KEY = "threeDPrintCostCalculatorSettings.v3";
+
+    const builtInTariff = {
+      type: "taiwan_residential",
+      source: "內建台灣住宅用電級距，請依台電最新公告確認",
+      updatedAt: "2026-11-10",
+      summer: {
+        "120": 1.78, "330": 2.45, "500": 3.70, "700": 5.04, "1000": 6.24, "1001": 8.86
+      },
+      normal: {
+        "120": 1.78, "330": 2.18, "500": 3.00, "700": 4.16, "1000": 5.03, "1001": 7.03
+      }
+    };
+
+    // 拓竹官方機型平均功耗資料 (W)
+    const printerPowerData = {
+      "h3c": { name: "Bambu Lab H3C", pla: 240, petg: 320, pc: 540 },
+      "h2d": { name: "Bambu Lab H2D", pla: 197, petg: 150, pc: 395 },
+      "h2s": { name: "Bambu Lab H2S", pla: 200, petg: 180, pc: 330 },
+      "h2c": { name: "Bambu Lab H2C", pla: 200, petg: 193, pc: 294 },
+      "x2d": { name: "Bambu Lab X2D", pla: 250, petg: 330, pc: 550 },
+      "x1c": { name: "Bambu Lab X1 Carbon", pla: 170, petg: 210, pc: 350 },
+      "x1e": { name: "Bambu Lab X1E", pla: 190, petg: 240, pc: 400 },
+      "p2s": { name: "Bambu Lab P2S", pla: 180, petg: 220, pc: 350 },
+      "p1s": { name: "Bambu Lab P1S", pla: 160, petg: 200, pc: 330 },
+      "p1p": { name: "Bambu Lab P1P", pla: 140, petg: 180, pc: 280 },
+      "a2l": { name: "Bambu Lab A2L", pla: 180, petg: 220, pc: 300 },
+      "a1": { name: "Bambu Lab A1", pla: 120, petg: 150, pc: 220 },
+      "a1-mini": { name: "Bambu Lab A1 mini", pla: 90, petg: 110, pc: 150 }
+    };
+
+    const defaultSettings = {
+      materialName: "PLA",
+      materialPriceKg: 500,
+      wastePercent: 5,
+      printerPreset: "custom",
+      materialPowerMode: "pla",
+      machineCostPerMinute: 1,
+      printerWatt: 250,
+      seasonMode: "auto",
+      monthlyKwh: "330",
+      powerPrice: 2.45,
+      tariffJsonUrl: "",
+      failurePercent: 10,
+      profitMultiplier: 1.5,
+      postProcessFee: 0,
+      otherFee: 0
+    };
+
+    const fieldsToSave = [
+      "materialName",
+      "materialPriceKg",
+      "wastePercent",
+      "printerPreset",
+      "materialPowerMode",
+      "machineCostPerMinute",
+      "printerWatt",
+      "seasonMode",
+      "monthlyKwh",
+      "powerPrice",
+      "tariffJsonUrl",
+      "failurePercent",
+      "profitMultiplier",
+      "postProcessFee",
+      "otherFee"
+    ];
+
+    const transientFields = [
+      "materialWeightG",
+      "printHours",
+      "printMinutes"
+    ];
+
+    function $(id) {
+      return document.getElementById(id);
+    }
+
+    function num(id) {
+      const value = parseFloat($(id).value);
+      return Number.isFinite(value) ? value : 0;
+    }
+
+    function money(value) {
+      const safe = Number.isFinite(value) ? value : 0;
+      return "NT$ " + safe.toLocaleString("zh-TW", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2
+      });
+    }
+
+    function round(value, digits = 2) {
+      const factor = Math.pow(10, digits);
+      return Math.round((value + Number.EPSILON) * factor) / factor;
+    }
+
+    function getCurrentSeason() {
+      const month = new Date().getMonth() + 1;
+      return month >= 6 && month <= 9 ? "summer" : "normal";
+    }
+
+    function getSelectedSeason() {
+      const mode = $("seasonMode").value;
+      if (mode === "auto") return getCurrentSeason();
+      return mode;
+    }
+
+    function getTariffPrice(tariff) {
+      const season = getSelectedSeason();
+      const bracket = $("monthlyKwh").value;
+
+      if (bracket === "custom") {
+        return num("powerPrice");
+      }
+
+      if (!tariff || !tariff[season] || tariff[season][bracket] === undefined) {
+        return builtInTariff[season][bracket] || defaultSettings.powerPrice;
+      }
+
+      return Number(tariff[season][bracket]);
+    }
+
+    function getPrinterName() {
+      const presetKey = $("printerPreset").value;
+      const data = printerPowerData[presetKey];
+      return data ? data.name : "自訂機型";
+    }
+
+    function saveSettings() {
+      const data = {};
+      fieldsToSave.forEach(id => {
+        const el = $(id);
+        if (!el) return;
+        data[id] = el.value;
+      });
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    }
+
+    function loadSettings() {
+      let data = { ...defaultSettings };
+
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+        data = { ...data, ...saved };
+      } catch (error) {
+        console.warn("讀取設定失敗", error);
+      }
+
+      fieldsToSave.forEach(id => {
+        if ($(id) && data[id] !== undefined) {
+          $(id).value = data[id];
+        }
+      });
+
+      transientFields.forEach(id => {
+        if ($(id)) $(id).value = "";
+      });
+    }
+
+    function resetSettings() {
+      if (!confirm("確定要清除已儲存設定嗎？本次重量與時間本來就不會被記錄。")) return;
+      localStorage.removeItem(STORAGE_KEY);
+      loadSettings();
+      applyBuiltInTariff("已清除設定，改用預設值");
+      calculate();
+    }
+
+    function applyPrinterPreset() {
+      const printer = $("printerPreset").value;
+      const mode = $("materialPowerMode").value;
+
+      if (printer === "custom" || mode === "custom") {
+        saveSettings();
+        calculate();
+        return;
+      }
+
+      const data = printerPowerData[printer];
+      if (data && data[mode] !== undefined) {
+        $("printerWatt").value = data[mode];
+      }
+
+      saveSettings();
+      calculate();
+    }
+
+    async function fetchTariff() {
+      const url = $("tariffJsonUrl").value.trim();
+
+      if (!url) {
+        applyBuiltInTariff("未設定 JSON URL，使用內建電價");
+        return;
+      }
+
+      $("statusSource").textContent = "取得中";
+      $("statusUpdated").textContent = "-";
+
+      try {
+        const response = await fetch(url, { cache: "no-store" });
+        if (!response.ok) throw new Error("HTTP " + response.status);
+
+        const tariff = await response.json();
+        const price = getTariffPrice(tariff);
+
+        $("powerPrice").value = price;
+        $("statusPowerPrice").textContent = round(price, 2);
+        $("statusSource").textContent = tariff.source || "外部 JSON";
+        $("statusUpdated").textContent = tariff.updatedAt || new Date().toLocaleString("zh-TW");
+
+        saveSettings();
+        calculate();
+      } catch (error) {
+        console.warn("自動取得電價失敗，使用內建電價", error);
+        applyBuiltInTariff("取得失敗，使用內建電價");
+      }
+    }
+
+    function applyBuiltInTariff(reason = "使用內建電價") {
+      const price = getTariffPrice(builtInTariff);
+      $("powerPrice").value = price;
+      $("statusPowerPrice").textContent = round(price, 2);
+      $("statusSource").textContent = reason;
+      $("statusUpdated").textContent = builtInTariff.updatedAt;
+      saveSettings();
+      calculate();
+    }
+
+    function calculate() {
+      const materialPriceKg = num("materialPriceKg");
+      const materialWeightG = num("materialWeightG");
+      const wastePercent = num("wastePercent");
+
+      const hours = num("printHours");
+      const minutes = num("printMinutes");
+      const totalMinutes = hours * 60 + minutes;
+      const totalHours = totalMinutes / 60;
+
+      const machineCostPerMinute = num("machineCostPerMinute");
+      const printerWatt = num("printerWatt");
+      const powerPrice = num("powerPrice");
+
+      const failurePercent = num("failurePercent");
+      const profitMultiplier = num("profitMultiplier");
+      const postProcessFee = num("postProcessFee");
+      const otherFee = num("otherFee");
+
+      const materialCostBase = (materialPriceKg / 1000) * materialWeightG;
+      const materialCost = materialCostBase * (1 + wastePercent / 100);
+
+      const timeCost = totalMinutes * machineCostPerMinute;
+
+      const kwh = (printerWatt / 1000) * totalHours;
+      const electricityCost = kwh * powerPrice;
+
+      const subtotal = materialCost + timeCost + electricityCost + postProcessFee + otherFee;
+      const riskAdjusted = subtotal * (1 + failurePercent / 100);
+      const quote = riskAdjusted * profitMultiplier;
+
+      $("materialCost").textContent = money(materialCost);
+      $("timeCost").textContent = money(timeCost);
+      $("electricityCost").textContent = money(electricityCost);
+      $("postCost").textContent = money(postProcessFee);
+      $("otherCost").textContent = money(otherFee);
+      $("subtotalCost").textContent = money(subtotal);
+      $("riskAdjustedCost").textContent = money(riskAdjusted);
+      $("quotePrice").textContent = money(quote);
+      $("totalMinutes").textContent = round(totalMinutes, 0) + " 分鐘";
+      $("kwhUsed").textContent = round(kwh, 4) + " kWh";
+      
+      let modeLabel = "";
+      const modeVal = $("materialPowerMode").value;
+      if(modeVal === "pla") modeLabel = " (PLA)";
+      else if(modeVal === "petg") modeLabel = " (PETG)";
+      else if(modeVal === "pc") modeLabel = " (高溫)";
+      else modeLabel = " (自訂)";
+
+      $("currentPrinter").textContent = getPrinterName() + modeLabel;
+      $("currentWatt").textContent = round(printerWatt, 0) + " W";
+
+      $("statusPowerPrice").textContent = round(powerPrice, 2);
+    }
+
+    function bindEvents() {
+      const allInputs = [
+        ...fieldsToSave,
+        ...transientFields
+      ];
+
+      allInputs.forEach(id => {
+        const el = $(id);
+        if (!el) return;
+
+        const handler = () => {
+          // 如果手動改了瓦數，把模式切換成 custom
+          if (id === "printerWatt") {
+            $("materialPowerMode").value = "custom";
+          }
+
+          if (id === "printerPreset" || id === "materialPowerMode") {
+            applyPrinterPreset();
+            return;
+          }
+
+          if (fieldsToSave.includes(id)) {
+            saveSettings();
+          }
+
+          if (id === "seasonMode" || id === "monthlyKwh") {
+            if ($("monthlyKwh").value !== "custom") {
+              applyBuiltInTariff("依級距更新內建電價");
+              return;
+            }
+          }
+
+          calculate();
+        };
+
+        el.addEventListener("input", handler);
+        el.addEventListener("change", handler);
+      });
+
+      $("refreshTariffBtn").addEventListener("click", fetchTariff);
+
+      $("useBuiltInTariffBtn").addEventListener("click", () => {
+        applyBuiltInTariff("手動套用內建電價");
+      });
+
+      $("saveSettingsBtn").addEventListener("click", () => {
+        saveSettings();
+        alert("設定已儲存。");
+      });
+
+      $("resetSettingsBtn").addEventListener("click", resetSettings);
+    }
+
+    function init() {
+      loadSettings();
+      bindEvents();
+
+      if ($("monthlyKwh").value === "custom") {
+        $("statusSource").textContent = "手動電價";
+        $("statusUpdated").textContent = "本機設定";
+        calculate();
+      } else {
+        fetchTariff();
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
