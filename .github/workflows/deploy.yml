@@ -64,9 +64,26 @@ jobs:
               return { ...meta, folder: folderName, previewImg };
             });
 
-            // 3. 生成卡片 HTML
+            // 2.5 收集所有不重複的 TAG
+            const allTags = new Set();
+            projects.forEach(p => {
+              if (p.tags && Array.isArray(p.tags)) {
+                p.tags.forEach(t => allTags.add(t));
+              }
+            });
+            const uniqueTags = Array.from(allTags).sort();
+
+            // 生成篩選按鈕 HTML
+            const filterHtml = `
+              <div class="filter-container">
+                <button class="filter-btn active" data-filter="all">全部作品</button>
+                ${uniqueTags.map(t => `<button class="filter-btn" data-filter="${t}">${t}</button>`).join("")}
+              </div>
+            `;
+
+            // 3. 生成卡片 HTML (加入 data-tags 屬性供 JS 篩選使用)
             const cardsHtml = projects.map(p => `
-              <a href="./${p.folder}/" class="card" target="_blank" rel="noopener noreferrer">
+              <a href="./${p.folder}/" class="card" target="_blank" rel="noopener noreferrer" data-tags="${(p.tags || []).join(",")}">
                 ${p.previewImg ? `<div class="card-img" style="background-image: url(\x27${p.previewImg}\x27);"></div>` : `<div class="card-placeholder">🚀</div>`}
                 <div class="card-content">
                   <div class="tags">${(p.tags || []).map(t => `<span class="tag">${t}</span>`).join("")}</div>
@@ -96,9 +113,39 @@ jobs:
                   padding: 3rem 1.5rem;
                 }
                 .container { max-width: 1200px; margin: 0 auto; }
-                header { margin-bottom: 3.5rem; text-align: center; }
+                header { margin-bottom: 2rem; text-align: center; }
                 h1 { font-size: 2.5rem; font-weight: 700; color: #f8fafc; margin-bottom: 0.75rem; letter-spacing: -0.02em; }
                 .subtitle { color: #94a3b8; font-size: 1.1rem; }
+                
+                /* 篩選按鈕樣式 */
+                .filter-container {
+                  display: flex;
+                  justify-content: center;
+                  gap: 0.75rem;
+                  margin-bottom: 3rem;
+                  flex-wrap: wrap;
+                }
+                .filter-btn {
+                  background: #1e293b;
+                  color: #94a3b8;
+                  border: 1px solid #334155;
+                  padding: 0.5rem 1.25rem;
+                  border-radius: 9999px;
+                  cursor: pointer;
+                  font-size: 0.95rem;
+                  font-weight: 600;
+                  transition: all 0.2s;
+                }
+                .filter-btn:hover {
+                  color: #f8fafc;
+                  border-color: #64748b;
+                }
+                .filter-btn.active {
+                  background: #38bdf8;
+                  color: #0f172a;
+                  border-color: #38bdf8;
+                }
+
                 .grid {
                   display: grid;
                   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -114,6 +161,9 @@ jobs:
                   display: flex;
                   flex-direction: column;
                   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                }
+                .card.hidden {
+                  display: none;
                 }
                 .card:hover {
                   transform: translateY(-4px);
@@ -152,8 +202,44 @@ jobs:
                   <h1>我的互動實驗室 ✨</h1>
                   <p class="subtitle">共收錄 ${projects.length} 個單頁式互動作品</p>
                 </header>
+                
+                ${filterHtml}
+
                 <main class="grid">${cardsHtml}</main>
               </div>
+
+              <script>
+                // 篩選功能的 JavaScript
+                document.addEventListener("DOMContentLoaded", () => {
+                  const filterBtns = document.querySelectorAll(".filter-btn");
+                  const cards = document.querySelectorAll(".card");
+
+                  filterBtns.forEach(btn => {
+                    btn.addEventListener("click", () => {
+                      // 1. 移除所有按鈕的 active 狀態，並加到被點擊的按鈕上
+                      filterBtns.forEach(b => b.classList.remove("active"));
+                      btn.classList.add("active");
+
+                      // 2. 取得要篩選的標籤名稱
+                      const filterValue = btn.getAttribute("data-filter");
+
+                      // 3. 判斷卡片是否顯示
+                      cards.forEach(card => {
+                        if (filterValue === "all") {
+                          card.classList.remove("hidden");
+                        } else {
+                          const tags = card.getAttribute("data-tags").split(",");
+                          if (tags.includes(filterValue)) {
+                            card.classList.remove("hidden");
+                          } else {
+                            card.classList.add("hidden");
+                          }
+                        }
+                      });
+                    });
+                  });
+                });
+              </script>
             </body>
             </html>`;
 
