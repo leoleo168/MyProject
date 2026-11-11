@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Arduino 4-Pin 自走車 3D 即時模擬器</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Three.js & OrbitControls -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body {
+      background-color: #0b1120;
+      color: #f1f5f9;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    .pin-glow-high {
+      box-shadow: 0 0 14px rgba(16, 185, 129, 0.45);
+    }
+    ::-webkit-scrollbar {
+      width: 4px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 2px;
+    }
+    /* 隱藏輸入框的預設外觀 */
+    input[type="text"] {
+      transition: all 0.2s;
+    }
+    input[type="text"]:focus {
+      background-color: #0f172a;
+      border-color: #34d399;
+    }
+  </style>
+</head>
+<body class="h-screen w-screen flex flex-col overflow-hidden select-none bg-slate-950">
+
+  <!-- 頂部資訊列 -->
+  <header class="bg-slate-900/95 border-b border-slate-800 px-3 md:px-6 py-2.5 flex items-center justify-between shrink-0 z-30">
+    <div class="flex items-center space-x-2">
+      <div class="p-1.5 bg-emerald-500/10 text-emerald-400 rounded-lg border border-emerald-500/20">
+        <i data-lucide="cpu" class="w-4 h-4 md:w-5 md:h-5"></i>
+      </div>
+      <div>
+        <h1 class="text-xs md:text-sm font-bold text-white tracking-wide flex items-center gap-1.5">
+          Arduino 自走車 3D
+          <span class="text-[9px] font-mono bg-emerald-500/20 text-emerald-300 px-1.5 py-0.2 rounded border border-emerald-500/30">4-Pin</span>
+        </h1>
+      </div>
+    </div>
+
+    <!-- 右上方工具按鈕 & 場景選擇 -->
+    <div class="flex items-center gap-1.5">
+      <div class="relative flex items-center">
+        <select id="sceneSelect" onchange="changeMap(this.value)" class="bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700 text-[11px] md:text-xs rounded-lg px-2 py-1 outline-none transition cursor-pointer">
+          <option value="minecraft">🟩 Minecraft 像素方塊</option>
+          <option value="racetrack">🏎️ 柏油賽道練習場</option>
+          <option value="cyber">🌐 賽博龐克霓虹網格</option>
+        </select>
+      </div>
+
+      <button id="camModeBtn" onclick="cycleCameraMode()" title="切換鏡頭視角" class="px-2 py-1 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/40 text-xs rounded-lg flex items-center gap-1 transition">
+        <i id="camModeIcon" data-lucide="crosshair" class="w-3.5 h-3.5"></i>
+        <span id="camModeText" class="text-[11px] font-semibold hidden md:inline">車尾追隨視角</span>
+      </button>
+
+      <button id="clearTrackBtn" title="清除軌跡" class="p-1.5 md:px-2.5 md:py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-lg border border-slate-700 flex items-center gap-1 transition">
+        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+        <span class="hidden md:inline">清除軌跡</span>
+      </button>
+      <button id="resetCarBtn" title="重置位置" class="p-1.5 md:px-2.5 md:py-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg flex items-center gap-1 transition shadow-sm">
+        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+        <span class="hidden md:inline">重置</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- 主工作區 -->
+  <main class="flex-1 flex flex-col md:flex-row overflow-hidden relative">
+
+    <!-- 3D 視窗渲染容器 -->
+    <div id="webgl-container" class="w-full h-[42vh] md:h-full md:flex-1 relative cursor-grab active:cursor-grabbing shrink-0 bg-slate-950 border-b md:border-b-0 md:border-r border-slate-800">
+      <!-- 3D 浮動即時數據 -->
+      <div class="absolute top-2 left-2 bg-slate-900/85 backdrop-blur-md px-2.5 py-1.5 rounded-lg border border-slate-800 shadow-lg pointer-events-none text-[11px] space-y-1 z-10">
+        <div class="flex items-center gap-3">
+          <span class="text-slate-400 flex items-center gap-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-sky-400"></span>左: <b id="leftSpeedBadge" class="font-mono text-sky-400">0.0</b>
+          </span>
+          <span class="text-slate-400 flex items-center gap-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>右: <b id="rightSpeedBadge" class="font-mono text-amber-400">0.0</b>
+          </span>
+          <span id="motionStatusBadge" class="font-bold text-slate-300 border-l border-slate-700 pl-2">停止</span>
+        </div>
+      </div>
+
+      <div class="absolute bottom-1.5 right-2 text-[10px] text-slate-400 bg-slate-900/80 backdrop-blur px-2 py-0.5 rounded border border-slate-800 pointer-events-none flex items-center gap-1.5">
+        <span id="camHintText">車尾追隨視角中</span>
+      </div>
+    </div>
+
+    <!-- 控制面板側邊欄 -->
+    <aside class="flex-1 w-full md:w-96 bg-slate-900/95 p-3.5 md:p-5 flex flex-col gap-4 overflow-y-auto z-10 shadow-2xl">
+      <!-- 4 腳位獨立控制開關 -->
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="text-xs font-bold text-slate-400 tracking-wider uppercase flex items-center gap-1.5">
+            <i data-lucide="toggle-left" class="w-3.5 h-3.5 text-emerald-400"></i> Arduino 4 腳位控制 (GPIO)
+          </h2>
+          <span class="text-[10px] text-slate-500 font-mono">點擊變數名稱可修改</span>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2.5">
+          <!-- 左輪 (IN1 / IN2) -->
+          <div class="bg-slate-800/60 rounded-xl p-2.5 border border-slate-700/60 flex flex-col gap-2">
+            <div class="text-[11px] font-bold text-sky-400 flex items-center justify-between">
+              <span class="flex items-center gap-1"><i data-lucide="disc" class="w-3 h-3"></i> 左輪</span>
+              <span id="leftStateText" class="text-[10px] text-slate-400 font-mono">停止</span>
+            </div>
+
+            <!-- Pin 1 -->
+            <button id="btn-in1" onclick="togglePin('in1')" class="w-full py-1.5 px-2 rounded-lg border text-xs font-mono font-medium transition flex items-center justify-between bg-slate-800 border-slate-700 text-slate-300 active:scale-95">
+              <div class="flex items-center gap-1">
+                <input type="text" id="name-in1" value="IN1" onclick="event.stopPropagation()" oninput="updateUI()" class="w-12 md:w-14 bg-slate-950/50 border border-slate-600 rounded px-1 py-0.5 text-[10px] text-white focus:outline-none text-center" placeholder="變數名">
+                <span class="font-bold text-[10px] text-slate-400">(左前)</span>
+              </div>
+              <span class="badge px-1.5 py-0.2 rounded text-[10px] font-bold bg-slate-700 text-slate-400">LOW</span>
+            </button>
+
+            <!-- Pin 2 -->
+            <button id="btn-in2" onclick="togglePin('in2')" class="w-full py-1.5 px-2 rounded-lg border text-xs font-mono font-medium transition flex items-center justify-between bg-slate-800 border-slate-700 text-slate-300 active:scale-95">
+              <div class="flex items-center gap-1">
+                <input type="text" id="name-in2" value="IN2" onclick="event.stopPropagation()" oninput="updateUI()" class="w-12 md:w-14 bg-slate-950/50 border border-slate-600 rounded px-1 py-0.5 text-[10px] text-white focus:outline-none text-center" placeholder="變數名">
+                <span class="font-bold text-[10px] text-slate-400">(左後)</span>
+              </div>
+              <span class="badge px-1.5 py-0.2 rounded text-[10px] font-bold bg-slate-700 text-slate-400">LOW</span>
+            </button>
+          </div>
+
+          <!-- 右輪 (IN3 / IN4) -->
+          <div class="bg-slate-800/60 rounded-xl p-2.5 border border-slate-700/60 flex flex-col gap-2">
+            <div class="text-[11px] font-bold text-amber-400 flex items-center justify-between">
+              <span class="flex items-center gap-1"><i data-lucide="disc" class="w-3 h-3"></i> 右輪</span>
+              <span id="rightStateText" class="text-[10px] text-slate-400 font-mono">停止</span>
+            </div>
+
+            <!-- Pin 3 -->
+            <button id="btn-in3" onclick="togglePin('in3')" class="w-full py-1.5 px-2 rounded-lg border text-xs font-mono font-medium transition flex items-center justify-between bg-slate-800 border-slate-700 text-slate-300 active:scale-95">
+              <div class="flex items-center gap-1">
+                <input type="text" id="name-in3" value="IN3" onclick="event.stopPropagation()" oninput="updateUI()" class="w-12 md:w-14 bg-slate-950/50 border border-slate-600 rounded px-1 py-0.5 text-[10px] text-white focus:outline-none text-center" placeholder="變數名">
+                <span class="font-bold text-[10px] text-slate-400">(右前)</span>
+              </div>
+              <span class="badge px-1.5 py-0.2 rounded text-[10px] font-bold bg-slate-700 text-slate-400">LOW</span>
+            </button>
+
+            <!-- Pin 4 -->
+            <button id="btn-in4" onclick="togglePin('in4')" class="w-full py-1.5 px-2 rounded-lg border text-xs font-mono font-medium transition flex items-center justify-between bg-slate-800 border-slate-700 text-slate-300 active:scale-95">
+              <div class="flex items-center gap-1">
+                <input type="text" id="name-in4" value="IN4" onclick="event.stopPropagation()" oninput="updateUI()" class="w-12 md:w-14 bg-slate-950/50 border border-slate-600 rounded px-1 py-0.5 text-[10px] text-white focus:outline-none text-center" placeholder="變數名">
+                <span class="font-bold text-[10px] text-slate-400">(右後)</span>
+              </div>
+              <span class="badge px-1.5 py-0.2 rounded text-[10px] font-bold bg-slate-700 text-slate-400">LOW</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 煞車警告 -->
+        <div id="brakeAlert" class="mt-2 p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-400 text-[11px] hidden flex items-center gap-1.5">
+          <i data-lucide="alert-triangle" class="w-3.5 h-3.5 shrink-0"></i>
+          <span>同輪雙 HIGH，馬達處於急煞鎖死狀態！</span>
+        </div>
+      </div>
+
+      <!-- 行駛快捷按鍵 -->
+      <div>
+        <h2 class="text-xs font-bold text-slate-400 tracking-wider uppercase mb-2 flex items-center gap-1.5">
+          <i data-lucide="gamepad-2" class="w-3.5 h-3.5 text-emerald-400"></i> 行駛動作快捷鍵
+        </h2>
+
+        <div class="grid grid-cols-3 gap-1.5">
+          <button onclick="setPreset(0,0,0,0)" class="col-span-3 py-2 bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1 active:scale-98">
+            <i data-lucide="square" class="w-3 h-3"></i> 緊急停止 (STOP)
+          </button>
+
+          <button onclick="setPreset(1,0,1,0)" class="col-start-2 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-medium flex flex-col items-center gap-0.5 active:scale-95">
+            <i data-lucide="arrow-up" class="w-3.5 h-3.5 text-emerald-400"></i> 前進
+          </button>
+
+          <button onclick="setPreset(0,0,1,0)" class="col-start-1 row-start-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-medium flex flex-col items-center gap-0.5 active:scale-95">
+            <i data-lucide="corner-up-left" class="w-3.5 h-3.5 text-sky-400"></i> 左前轉
+          </button>
+
+          <button onclick="setPreset(0,1,0,1)" class="col-start-2 row-start-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-medium flex flex-col items-center gap-0.5 active:scale-95">
+            <i data-lucide="arrow-down" class="w-3.5 h-3.5 text-amber-400"></i> 後退
+          </button>
+
+          <button onclick="setPreset(1,0,0,0)" class="col-start-3 row-start-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-medium flex flex-col items-center gap-0.5 active:scale-95">
+            <i data-lucide="corner-up-right" class="w-3.5 h-3.5 text-sky-400"></i> 右前轉
+          </button>
+
+          <button onclick="setPreset(0,1,1,0)" class="col-start-1 row-start-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-medium flex flex-col items-center gap-0.5 active:scale-95">
+            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5 text-indigo-400"></i> 原地逆轉
+          </button>
+
+          <button onclick="setPreset(1,0,0,1)" class="col-start-3 row-start-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-medium flex flex-col items-center gap-0.5 active:scale-95">
+            <i data-lucide="rotate-cw" class="w-3.5 h-3.5 text-indigo-400"></i> 原地順轉
+          </button>
+        </div>
+      </div>
+
+      <!-- Arduino 代碼預覽 -->
+      <div class="mt-auto bg-slate-950/70 rounded-xl p-2.5 border border-slate-800 flex flex-col gap-1.5 shrink-0">
+        <div class="text-[11px] font-bold text-slate-300 flex items-center justify-between">
+          <span class="flex items-center gap-1"><i data-lucide="code" class="w-3 h-3 text-emerald-400"></i> Arduino 控制代碼</span>
+          <button onclick="copyArduinoCode()" class="text-[10px] text-slate-400 hover:text-emerald-400 transition flex items-center gap-0.5">
+            <i data-lucide="copy" class="w-3 h-3"></i> 複製
+          </button>
+        </div>
+        <pre id="arduinoCodeBlock" class="bg-slate-900 p-2 rounded text-[10px] font-mono text-emerald-300 overflow-x-auto leading-relaxed border border-slate-800/80"></pre>
+      </div>
+    </aside>
+  </main>
+
+  <!-- 腳本執行邏輯 -->
+  <script>
+    const pins = { in1: 0, in2: 0, in3: 0, in4: 0 };
+    let cameraMode = 'chase'; // 'chase' | 'orbit' | 'free'
+
+    function cycleCameraMode(targetMode) {
+      if (targetMode) {
+        cameraMode = targetMode;
+      } else {
+        if (cameraMode === 'chase') cameraMode = 'orbit';
+        else if (cameraMode === 'orbit') cameraMode = 'free';
+        else cameraMode = 'chase';
+      }
+      updateCameraUI();
+    }
+
+    function updateCameraUI() {
+      const textEl = document.getElementById('camModeText');
+      const btnEl = document.getElementById('camModeBtn');
+      const hintEl = document.getElementById('camHintText');
+
+      if (cameraMode === 'chase') {
+        textEl.innerText = "車尾追隨視角";
+        btnEl.className = "px-2 py-1 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/40 text-xs rounded-lg flex items-center gap-1 transition";
+        hintEl.innerText = "車尾追隨視角中";
+      } else if (cameraMode === 'orbit') {
+        textEl.innerText = "中心跟隨(旋轉)";
+        btnEl.className = "px-2 py-1 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 text-xs rounded-lg flex items-center gap-1 transition";
+        hintEl.innerText = "中心跟隨中：可單指 360 度旋轉";
+      } else {
+        textEl.innerText = "固定全局視角";
+        btnEl.className = "px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700 text-xs rounded-lg flex items-center gap-1 transition";
+        hintEl.innerText = "固定視角：鏡頭完全靜止自由觀看";
+      }
+    }
+
+    function togglePin(pinName) {
+      pins[pinName] = pins[pinName] === 1 ? 0 : 1;
+      updateUI();
+    }
+
+    function setPreset(in1, in2, in3, in4) {
+      pins.in1 = in1;
+      pins.in2 = in2;
+      pins.in3 = in3;
+      pins.in4 = in4;
+      updateUI();
+    }
+
+    function copyArduinoCode() {
+      const code = document.getElementById('arduinoCodeBlock').innerText;
+      navigator.clipboard.writeText(code).then(() => {
+        alert("Arduino 控制代碼已複製！");
+      });
+    }
+
+    function updateUI() {
+      // 取得自訂變數名稱
+      const name1 = document.getElementById('name-in1').value || 'IN1';
+      const name2 = document.getElementById('name-in2').value || 'IN2';
+      const name3 = document.getElementById('name-in3').value || 'IN3';
+      const name4 = document.getElementById('name-in4').value || 'IN4';
+
+      ['in1', 'in2', 'in3', 'in4'].forEach(p => {
+        const btn = document.getElementById(`btn-${p}`);
+        const badge = btn.querySelector('.badge');
+        const isHigh = pins[p] === 1;
+
+        if (isHigh) {
+          btn.className = "w-full py-1.5 px-2 rounded-lg border text-xs font-mono font-medium transition flex items-center justify-between bg-emerald-500/15 border-emerald-500 text-emerald-300 pin-glow-high active:scale-95";
+          badge.className = "badge px-1.5 py-0.2 rounded text-[10px] font-bold bg-emerald-500 text-slate-950";
+          badge.innerText = "HIGH";
+        } else {
+          btn.className = "w-full py-1.5 px-2 rounded-lg border text-xs font-mono font-medium transition flex items-center justify-between bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-500 active:scale-95";
+          badge.className = "badge px-1.5 py-0.2 rounded text-[10px] font-bold bg-slate-700 text-slate-400";
+          badge.innerText = "LOW";
+        }
+      });
+
+      const getWheelState = (fwd, bwd) => {
+        if (fwd === 1 && bwd === 0) return '前進';
+        if (fwd === 0 && bwd === 1) return '後退';
+        if (fwd === 1 && bwd === 1) return '急煞';
+        return '停止';
+      };
+
+      document.getElementById('leftStateText').innerText = getWheelState(pins.in1, pins.in2);
+      document.getElementById('rightStateText').innerText = getWheelState(pins.in3, pins.in4);
+
+      const isBraking = (pins.in1 === 1 && pins.in2 === 1) || (pins.in3 === 1 && pins.in4 === 1);
+      document.getElementById('brakeAlert').classList.toggle('hidden', !isBraking);
+
+      // 即時更新 Arduino 代碼預覽 (套用自訂變數名稱)
+      document.getElementById('arduinoCodeBlock').innerText = 
+`digitalWrite(${name1}, ${pins.in1 ? 'HIGH' : 'LOW'});
+digitalWrite(${name2}, ${pins.in2 ? 'HIGH' : 'LOW'});
+digitalWrite(${name3}, ${pins.in3 ? 'HIGH' : 'LOW'});
+digitalWrite(${name4}, ${pins.in4 ? 'HIGH' : 'LOW'});`;
+    }
+
+    // ==========================================
+    // THREE.JS 3D 小車車場景建置
+    // ==========================================
+    const container = document.getElementById('webgl-container');
+    const scene = new THREE.Scene();
+
+    const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+    camera.position.set(0, 8, -12);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    container.appendChild(renderer.domElement);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.maxPolarAngle = Math.PI / 2 - 0.03;
+
+    // 使用者手動旋轉時切換為中心旋轉模式
+    controls.addEventListener('start', () => {
+      if (cameraMode === 'chase') {
+        cycleCameraMode('orbit');
+      }
+    });
+
+    // 燈光
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+    scene.add(ambientLight);
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
+    dirLight.position.set(20, 35, 20);
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.width = 1024;
+    dirLight.shadow.mapSize.height = 1024;
+    scene.add(dirLight);
+
+    // ==========================================
+    // 場景管理系統 (Minecraft / 賽道 / 賽博網格)
+    // ==========================================
+    const mapRoot = new THREE.Group();
+    scene.add(mapRoot);
+
+    function createPixelGrassTexture() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 64;
+      canvas.height = 64;
+      const ctx = canvas.getContext('2d');
+      const colors = ['#4ade80', '#22c55e', '#16a34a', '#15803d', '#14532d'];
+      const pSize = 4;
+      for (let x = 0; x < 64; x += pSize) {
+        for (let y = 0; y < 64; y += pSize) {
+          ctx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
+          ctx.fillRect(x, y, pSize, pSize);
+        }
+      }
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.magFilter = THREE.NearestFilter;
+      tex.minFilter = THREE.NearestFilter;
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(30, 30);
+      return tex;
+    }
+
+    function setupMinecraftMap() {
+      scene.background = new THREE.Color(0x7dd3fc);
+      scene.fog = new THREE.FogExp2(0x7dd3fc, 0.012);
+      ambientLight.intensity = 0.85;
+      dirLight.color.setHex(0xfffbeb);
+
+      const grassTex = createPixelGrassTexture();
+      const groundGeo = new THREE.PlaneGeometry(120, 120);
+      const groundMat = new THREE.MeshStandardMaterial({ map: grassTex, roughness: 0.9 });
+      const ground = new THREE.Mesh(groundGeo, groundMat);
+      ground.rotation.x = -Math.PI / 2;
+      ground.receiveShadow = true;
+      mapRoot.add(ground);
+
+      const grid = new THREE.GridHelper(120, 60, 0x166534, 0x15803d);
+      grid.position.y = 0.01;
+      mapRoot.add(grid);
+
+      const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5c3a21, roughness: 0.9 });
+      const leavesMat = new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.9 });
+
+      const treeCoords = [
+        [-12, -14], [14, -16], [-16, 12], [18, 15], 
+        [-22, 0], [22, -4], [-8, 24], [10, -26]
+      ];
+
+      treeCoords.forEach(([tx, tz]) => {
+        const treeGroup = new THREE.Group();
+        treeGroup.position.set(tx, 0, tz);
+
+        const trunk = new THREE.Mesh(new THREE.BoxGeometry(1.2, 4, 1.2), trunkMat);
+        trunk.position.y = 2;
+        trunk.castShadow = true;
+        treeGroup.add(trunk);
+
+        const leavesBottom = new THREE.Mesh(new THREE.BoxGeometry(3.6, 2, 3.6), leavesMat);
+        leavesBottom.position.y = 4.5;
+        leavesBottom.castShadow = true;
+        treeGroup.add(leavesBottom);
+
+        const leavesTop = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.5, 2.4), leavesMat);
+        leavesTop.position.y = 6;
+        leavesTop.castShadow = true;
+        treeGroup.add(leavesTop);
+
+        mapRoot.add(treeGroup);
+      });
+
+      const sunGeo = new THREE.PlaneGeometry(8, 8);
+      const sunMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
+      const sun = new THREE.Mesh(sunGeo, sunMat);
+      sun.position.set(40, 50, 40);
+      sun.lookAt(0, 0, 0);
+      mapRoot.add(sun);
+    }
+
+    function setupRacetrackMap() {
+      scene.background = new THREE.Color(0x1e293b);
+      scene.fog = new THREE.FogExp2(0x1e293b, 0.012);
+      ambientLight.intensity = 0.75;
+      dirLight.color.setHex(0xffffff);
+
+      const ground = new THREE.Mesh(
+        new THREE.PlaneGeometry(120, 120),
+        new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.85 })
+      );
+      ground.rotation.x = -Math.PI / 2;
+      ground.receiveShadow = true;
+      mapRoot.add(ground);
+
+      const startLine = new THREE.Mesh(
+        new THREE.PlaneGeometry(14, 2),
+        new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.3 })
+      );
+      startLine.rotation.x = -Math.PI / 2;
+      startLine.position.set(0, 0.02, 0);
+      mapRoot.add(startLine);
+
+      for (let z = -45; z <= 45; z += 6) {
+        if (Math.abs(z) < 3) continue;
+        const stripe = new THREE.Mesh(
+          new THREE.PlaneGeometry(0.5, 3),
+          new THREE.MeshBasicMaterial({ color: 0xfacc15 })
+        );
+        stripe.rotation.x = -Math.PI / 2;
+        stripe.position.set(0, 0.02, z);
+        mapRoot.add(stripe);
+      }
+
+      const curbLen = 90;
+      for (let i = -curbLen / 2; i <= curbLen / 2; i += 3) {
+        const color = Math.floor(i / 3) % 2 === 0 ? 0xef4444 : 0xf8fafc;
+        const leftCurb = new THREE.Mesh(
+          new THREE.BoxGeometry(0.8, 0.2, 3),
+          new THREE.MeshStandardMaterial({ color: color })
+        );
+        leftCurb.position.set(-10, 0.1, i);
+        const rightCurb = leftCurb.clone();
+        rightCurb.position.x = 10;
+        mapRoot.add(leftCurb, rightCurb);
+      }
+
+      const coneGeo = new THREE.ConeGeometry(0.5, 1.4, 16);
+      const coneMat = new THREE.MeshStandardMaterial({ color: 0xf97316 });
+      const conePositions = [[-4, 12], [4, 20], [-3, -15], [3, -25]];
+      conePositions.forEach(([cx, cz]) => {
+        const cone = new THREE.Mesh(coneGeo, coneMat);
+        cone.position.set(cx, 0.7, cz);
+        cone.castShadow = true;
+        mapRoot.add(cone);
+      });
+    }
+
+    function setupCyberMap() {
+      scene.background = new THREE.Color(0x0b1120);
+      scene.fog = new THREE.FogExp2(0x0b1120, 0.012);
+      ambientLight.intensity = 0.65;
+      dirLight.color.setHex(0xffffff);
+
+      const gridHelper = new THREE.GridHelper(100, 100, 0x38bdf8, 0x1e293b);
+      mapRoot.add(gridHelper);
+
+      const floor = new THREE.Mesh(
+        new THREE.PlaneGeometry(120, 120),
+        new THREE.ShadowMaterial({ opacity: 0.4 })
+      );
+      floor.rotation.x = -Math.PI / 2;
+      floor.receiveShadow = true;
+      mapRoot.add(floor);
+    }
+
+    function changeMap(mapName) {
+      while (mapRoot.children.length > 0) {
+        const obj = mapRoot.children[0];
+        mapRoot.remove(obj);
+        if (obj.geometry) obj.geometry.dispose();
+        if (obj.material) {
+          if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose());
+          else obj.material.dispose();
+        }
+      }
+
+      if (mapName === 'minecraft') setupMinecraftMap();
+      else if (mapName === 'racetrack') setupRacetrackMap();
+      else setupCyberMap();
+    }
+
+    // ==========================================
+    // 自走車 3D 模型
+    // ==========================================
+    const carGroup = new THREE.Group();
+    scene.add(carGroup);
+
+    const chassis = new THREE.Mesh(
+      new THREE.BoxGeometry(2.4, 0.35, 3.4),
+      new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.3, roughness: 0.4 })
+    );
+    chassis.position.y = 0.55;
+    chassis.castShadow = true;
+    carGroup.add(chassis);
+
+    const tailLightGeo = new THREE.BoxGeometry(0.5, 0.12, 0.08);
+    const tailLightMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
+    const leftTail = new THREE.Mesh(tailLightGeo, tailLightMat);
+    leftTail.position.set(-0.8, 0.65, -1.71);
+    const rightTail = leftTail.clone();
+    rightTail.position.x = 0.8;
+    carGroup.add(leftTail, rightTail);
+
+    const board = new THREE.Mesh(
+      new THREE.BoxGeometry(1.4, 0.1, 2.0),
+      new THREE.MeshStandardMaterial({ color: 0x059669, roughness: 0.2 })
+    );
+    board.position.set(0, 0.78, -0.2);
+    board.castShadow = true;
+    carGroup.add(board);
+
+    const chip = new THREE.Mesh(
+      new THREE.BoxGeometry(0.55, 0.08, 0.55),
+      new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.8 })
+    );
+    chip.position.set(0, 0.85, -0.2);
+    carGroup.add(chip);
+
+    const sensorBracket = new THREE.Mesh(
+      new THREE.BoxGeometry(1.2, 0.3, 0.1),
+      new THREE.MeshStandardMaterial({ color: 0x2563eb })
+    );
+    sensorBracket.position.set(0, 0.8, 1.65);
+    carGroup.add(sensorBracket);
+
+    const eyeGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.25, 16);
+    const eyeMat = new THREE.MeshStandardMaterial({ color: 0xcfd8dc, metalness: 0.8 });
+    const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+    leftEye.rotation.x = Math.PI / 2;
+    leftEye.position.set(-0.35, 0.8, 1.78);
+    const rightEye = leftEye.clone();
+    rightEye.position.x = 0.35;
+    carGroup.add(leftEye, rightEye);
+
+    const wheelGeo = new THREE.CylinderGeometry(0.65, 0.65, 0.42, 24);
+    const wheelMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.9 });
+    const rimGeo = new THREE.CylinderGeometry(0.35, 0.35, 0.44, 12);
+    const rimMat = new THREE.MeshStandardMaterial({ color: 0x0ea5e9, metalness: 0.4 });
+
+    function createWheel() {
+      const group = new THREE.Group();
+      const tire = new THREE.Mesh(wheelGeo, wheelMat);
+      tire.rotation.z = Math.PI / 2;
+      tire.castShadow = true;
+      const rim = new THREE.Mesh(rimGeo, rimMat);
+      rim.rotation.z = Math.PI / 2;
+      group.add(tire, rim);
+      return group;
+    }
+
+    const leftWheel = createWheel();
+    leftWheel.position.set(-1.45, 0.65, 0);
+    carGroup.add(leftWheel);
+
+    const rightWheel = createWheel();
+    rightWheel.position.set(1.45, 0.65, 0);
+    carGroup.add(rightWheel);
+
+    const casterGeo = new THREE.SphereGeometry(0.26, 12, 12);
+    const casterMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.8 });
+    const frontCaster = new THREE.Mesh(casterGeo, casterMat);
+    frontCaster.position.set(0, 0.26, 1.3);
+    const rearCaster = new THREE.Mesh(casterGeo, casterMat);
+    rearCaster.position.set(0, 0.26, -1.3);
+    carGroup.add(frontCaster, rearCaster);
+
+    const maxTrackPoints = 300;
+    const trackPositions = new Float32Array(maxTrackPoints * 3);
+    let trackCount = 0;
+    const trackGeometry = new THREE.BufferGeometry();
+    trackGeometry.setAttribute('position', new THREE.BufferAttribute(trackPositions, 3));
+    const trackLine = new THREE.Line(trackGeometry, new THREE.LineBasicMaterial({ color: 0x10b981, transparent: true, opacity: 0.6 }));
+    scene.add(trackLine);
+
+    function addTrackPoint(pos) {
+      if (trackCount < maxTrackPoints) {
+        trackPositions[trackCount * 3] = pos.x;
+        trackPositions[trackCount * 3 + 1] = 0.05;
+        trackPositions[trackCount * 3 + 2] = pos.z;
+        trackCount++;
+      } else {
+        for (let i = 0; i < (maxTrackPoints - 1) * 3; i++) {
+          trackPositions[i] = trackPositions[i + 3];
+        }
+        trackPositions[(maxTrackPoints - 1) * 3] = pos.x;
+        trackPositions[(maxTrackPoints - 1) * 3 + 1] = 0.05;
+        trackPositions[(maxTrackPoints - 1) * 3 + 2] = pos.z;
+      }
+      trackGeometry.attributes.position.needsUpdate = true;
+      trackGeometry.setDrawRange(0, trackCount);
+    }
+
+    function clearTrack() {
+      trackCount = 0;
+      trackGeometry.setDrawRange(0, 0);
+    }
+
+    document.getElementById('resetCarBtn').addEventListener('click', () => {
+      carGroup.position.set(0, 0, 0);
+      carGroup.rotation.set(0, 0, 0);
+      clearTrack();
+    });
+
+    document.getElementById('clearTrackBtn').addEventListener('click', clearTrack);
+
+    // ==========================================
+    // 動力學更新與追隨鏡頭運算
+    // ==========================================
+    const clock = new THREE.Clock();
+    const SPEED_MAX = 5.0;
+    const WHEEL_DISTANCE = 2.9;
+    let trackTimer = 0;
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const delta = Math.min(clock.getDelta(), 0.1);
+
+      let vL = 0;
+      if (pins.in1 === 1 && pins.in2 === 0) vL = SPEED_MAX;
+      else if (pins.in1 === 0 && pins.in2 === 1) vL = -SPEED_MAX;
+
+      let vR = 0;
+      if (pins.in3 === 1 && pins.in4 === 0) vR = SPEED_MAX;
+      else if (pins.in3 === 0 && pins.in4 === 1) vR = -SPEED_MAX;
+
+      document.getElementById('leftSpeedBadge').innerText = vL.toFixed(1);
+      document.getElementById('rightSpeedBadge').innerText = vR.toFixed(1);
+
+      let statusDesc = "停止";
+      if (vL > 0 && vR > 0) statusDesc = "前進 ⬆";
+      else if (vL < 0 && vR < 0) statusDesc = "後退 ⬇";
+      else if (vL < 0 && vR > 0) statusDesc = "逆轉 ↺";
+      else if (vL > 0 && vR < 0) statusDesc = "順轉 ↻";
+      else if (vL === 0 && vR > 0) statusDesc = "左前轉 ↰";
+      else if (vL > 0 && vR === 0) statusDesc = "右前轉 ↱";
+      document.getElementById('motionStatusBadge').innerText = statusDesc;
+
+      const linearVel = (vL + vR) / 2.0;
+      const angularVel = (vL - vR) / WHEEL_DISTANCE;
+
+      carGroup.rotation.y -= angularVel * delta;
+
+      const forwardVector = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), carGroup.rotation.y);
+      carGroup.position.addScaledVector(forwardVector, linearVel * delta);
+
+      const wheelR = 0.65;
+      leftWheel.children.forEach(mesh => mesh.rotation.x += (vL / wheelR) * delta);
+      rightWheel.children.forEach(mesh => mesh.rotation.x += (vR / wheelR) * delta);
+
+      trackTimer += delta;
+      if (trackTimer > 0.08 && (Math.abs(linearVel) > 0.01 || Math.abs(angularVel) > 0.01)) {
+        addTrackPoint(carGroup.position);
+        trackTimer = 0;
+      }
+
+      if (cameraMode === 'chase') {
+        const chaseOffset = new THREE.Vector3(0, 5.5, -10.5);
+        chaseOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), carGroup.rotation.y);
+        const targetCamPos = carGroup.position.clone().add(chaseOffset);
+
+        const lookAheadOffset = new THREE.Vector3(0, 1.2, 3.5);
+        lookAheadOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), carGroup.rotation.y);
+        const targetLookAt = carGroup.position.clone().add(lookAheadOffset);
+
+        camera.position.lerp(targetCamPos, 0.12);
+        controls.target.lerp(targetLookAt, 0.15);
+      } else if (cameraMode === 'orbit') {
+        controls.target.lerp(carGroup.position, 0.08);
+      }
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    function handleResize() {
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    }
+    window.addEventListener('resize', handleResize);
+
+    lucide.createIcons();
+    updateUI();
+    updateCameraUI();
+    setupMinecraftMap();
+    handleResize();
+    animate();
+  </script>
+</body>
+</html>

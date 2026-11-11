@@ -1,0 +1,6 @@
+{
+  "title": "Arduino 4-Pin 自走車 3D 即時模擬器",
+  "description": "結合 Three.js 的 3D 物理運動模擬與 Arduino 4 腳位控制面板，即時模擬雙馬達差速驅動與高低電位效果，並支援多種場景與視角切換。",
+  "tags": ["WeClass", "製作教學輔助", "Arduino", "3D模擬", "Three.js"],
+  "date": "2026-11"
+}
