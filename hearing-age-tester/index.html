@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>音頻產生器 & 聽力年齡測試</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+  input[type=range] {
+    accent-color: #6366f1;
+  }
+</style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans selection:bg-indigo-500 selection:text-white pb-10">
+
+<!-- Header -->
+<header class="border-b border-slate-800 bg-slate-900/60 backdrop-blur sticky top-0 z-50 py-3.5 px-4 sm:px-6">
+  <div class="max-w-4xl mx-auto flex items-center justify-between">
+    <div class="flex items-center gap-2.5">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center shadow-lg shadow-indigo-500/25">
+        <i class="fa-solid fa-wave-square text-base text-white"></i>
+      </div>
+      <div>
+        <h1 class="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-300">
+          FreqLab & 耳齡檢測
+        </h1>
+        <p class="text-[11px] text-slate-400">音頻產生與聲波可視化</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <span>適度音量</span>
+    </div>
+  </div>
+</header>
+
+<!-- Main Content -->
+<main class="max-w-4xl mx-auto p-4 sm:p-6 w-full space-y-5">
+
+  <!-- 1. 核心頻率控制與調整區 (置頂核心) -->
+  <section class="bg-slate-900/90 border border-slate-800/90 rounded-2xl p-5 sm:p-6 shadow-2xl space-y-5">
+    
+    <!-- 頻率數字面板 + 播放/停止按鈕 -->
+    <div class="flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-950/70 p-4 sm:p-5 rounded-2xl border border-slate-800/80">
+      <div class="text-center sm:text-left">
+        <div class="text-[11px] text-slate-400 uppercase font-semibold tracking-wider">當前頻率 (FREQUENCY)</div>
+        <div class="flex items-baseline justify-center sm:justify-start gap-2 mt-0.5">
+          <span id="freqDisplay" class="text-4xl sm:text-5xl font-black tracking-tight text-white font-mono">1,000</span>
+          <span class="text-xl font-bold text-indigo-400 font-mono">Hz</span>
+        </div>
+      </div>
+      
+      <button id="toggleBtn" class="w-full sm:w-auto px-7 py-3.5 rounded-xl font-bold flex items-center justify-center gap-2.5 transition-all duration-200 shadow-lg bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/30 active:scale-95">
+        <i class="fa-solid fa-play text-base" id="playIcon"></i>
+        <span id="btnText" class="text-base tracking-wide">開始發聲</span>
+      </button>
+    </div>
+
+    <!-- 頻率調節滑桿與步進微調 -->
+    <div class="space-y-2">
+      <div class="flex items-center justify-between text-xs">
+        <label class="font-medium text-slate-300 flex items-center gap-1.5">
+          <i class="fa-solid fa-sliders text-indigo-400"></i> 滑動調整頻率 (20 - 20,000 Hz)
+        </label>
+        <div class="flex gap-1.5">
+          <button class="step-btn px-2 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-xs font-mono text-slate-200" data-delta="-100">-100</button>
+          <button class="step-btn px-2 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-xs font-mono text-slate-200" data-delta="-10">-10</button>
+          <button class="step-btn px-2 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-xs font-mono text-slate-200" data-delta="10">+10</button>
+          <button class="step-btn px-2 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-xs font-mono text-slate-200" data-delta="100">+100</button>
+        </div>
+      </div>
+
+      <input id="freqSlider" type="range" min="0" max="1000" value="482" class="w-full h-2.5 bg-slate-800 rounded-lg appearance-none cursor-pointer">
+      
+      <div class="flex justify-between text-[11px] text-slate-500 font-mono">
+        <span>20 Hz</span>
+        <span>200 Hz</span>
+        <span>1,000 Hz</span>
+        <span>5,000 Hz</span>
+        <span>20,000 Hz</span>
+      </div>
+    </div>
+
+    <!-- 波形切換 -->
+    <div class="space-y-2">
+      <label class="text-xs font-medium text-slate-400 uppercase tracking-wider block">選擇波形 (Waveform)</label>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <button class="wave-btn active p-2.5 rounded-xl border border-indigo-500/60 bg-indigo-600/20 text-indigo-300 font-medium text-xs sm:text-sm flex items-center justify-center gap-2 transition" data-wave="sine">
+          <i class="fa-solid fa-water"></i>
+          <span>正弦波 (Sine)</span>
+        </button>
+        <button class="wave-btn p-2.5 rounded-xl border border-slate-800 bg-slate-950/40 text-slate-400 font-medium text-xs sm:text-sm flex items-center justify-center gap-2 hover:border-slate-700 transition" data-wave="square">
+          <i class="fa-solid fa-cubes-stacked"></i>
+          <span>方波 (Square)</span>
+        </button>
+        <button class="wave-btn p-2.5 rounded-xl border border-slate-800 bg-slate-950/40 text-slate-400 font-medium text-xs sm:text-sm flex items-center justify-center gap-2 hover:border-slate-700 transition" data-wave="sawtooth">
+          <i class="fa-solid fa-chart-area"></i>
+          <span>鋸齒波 (Saw)</span>
+        </button>
+        <button class="wave-btn p-2.5 rounded-xl border border-slate-800 bg-slate-950/40 text-slate-400 font-medium text-xs sm:text-sm flex items-center justify-center gap-2 hover:border-slate-700 transition" data-wave="triangle">
+          <i class="fa-solid fa-mountain"></i>
+          <span>三角波 (Triangle)</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 音量調整 -->
+    <div class="pt-2 border-t border-slate-800/80 flex items-center gap-4">
+      <span class="text-xs font-medium text-slate-400 flex items-center gap-1.5 whitespace-nowrap">
+        <i class="fa-solid fa-volume-high text-slate-500"></i> 音量 <span id="volDisplay" class="font-mono text-slate-200">30%</span>
+      </span>
+      <input id="volSlider" type="range" min="0" max="1" step="0.01" value="0.3" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer">
+    </div>
+
+  </section>
+
+  <!-- 2. 時域聲波示意圖 (已保留並優化顯示波峰週期) -->
+  <section class="bg-slate-900/90 border border-slate-800/90 rounded-2xl p-4 sm:p-5 shadow-xl">
+    <div class="flex items-center justify-between mb-2">
+      <span class="text-xs sm:text-sm font-semibold text-slate-300 flex items-center gap-2">
+        <i class="fa-solid fa-chart-line text-indigo-400"></i> 時域聲波示意圖 (Waveform)
+      </span>
+      <span class="text-[11px] text-slate-500 font-mono">即時波形週期渲染</span>
+    </div>
+    <div class="h-44 w-full bg-slate-950 rounded-xl overflow-hidden border border-slate-800/80 relative">
+      <canvas id="waveformCanvas" class="w-full h-full block"></canvas>
+      <div id="noSoundNotice" class="absolute inset-0 flex items-center justify-center text-xs text-slate-600 tracking-wider">
+        音訊未播放
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. 耳齡檢測與 Presets -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    
+    <!-- 耳齡即時推估 -->
+    <section class="bg-gradient-to-br from-slate-900/90 to-indigo-950/40 border border-indigo-500/20 rounded-2xl p-5 shadow-xl flex flex-col justify-between">
+      <div>
+        <div class="flex items-center gap-2 text-indigo-400 text-xs font-bold uppercase tracking-wider mb-2">
+          <i class="fa-solid fa-ear-listen"></i> 你的耳朵現在幾歲？
+        </div>
+        <p class="text-xs text-slate-400 leading-relaxed mb-3">
+          隨年齡增長，人耳對高頻的毛細胞會自然老化。能聽見此頻率推估為：
+        </p>
+      </div>
+
+      <div class="bg-slate-950/70 border border-slate-800/80 rounded-xl p-4 text-center">
+        <div class="text-[11px] text-slate-500">當前頻率對應聽力年齡區間</div>
+        <div id="earAgeResult" class="text-xl sm:text-2xl font-black text-indigo-400 mt-1">一般常人皆可聽見</div>
+        <div id="earAgeDesc" class="text-[11px] text-slate-400 mt-1">一般日常對話聲音在 250~4,000 Hz 之間</div>
+      </div>
+    </section>
+
+    <!-- 預設按鈕 (Presets) -->
+    <section class="bg-slate-900/90 border border-slate-800/90 rounded-2xl p-5 shadow-xl space-y-3">
+      <div class="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+        <i class="fa-solid fa-bolt text-indigo-400"></i> 快速預設頻率 (Presets)
+      </div>
+
+      <div>
+        <div class="text-[11px] text-slate-400 mb-1.5">👂 聽力年齡測試快選：</div>
+        <div class="grid grid-cols-3 gap-1.5">
+          <button class="preset-btn p-1.5 rounded-lg bg-slate-950 border border-slate-800 hover:border-indigo-500 text-xs text-slate-300 font-mono transition text-center" data-freq="8000">
+            8 kHz <span class="block text-[10px] text-slate-500">約 60 歲</span>
+          </button>
+          <button class="preset-btn p-1.5 rounded-lg bg-slate-950 border border-slate-800 hover:border-indigo-500 text-xs text-slate-300 font-mono transition text-center" data-freq="12000">
+            12 kHz <span class="block text-[10px] text-slate-500">約 50 歲</span>
+          </button>
+          <button class="preset-btn p-1.5 rounded-lg bg-slate-950 border border-slate-800 hover:border-indigo-500 text-xs text-slate-300 font-mono transition text-center" data-freq="14000">
+            14 kHz <span class="block text-[10px] text-slate-500">約 40 歲</span>
+          </button>
+          <button class="preset-btn p-1.5 rounded-lg bg-slate-950 border border-slate-800 hover:border-indigo-500 text-xs text-slate-300 font-mono transition text-center" data-freq="15000">
+            15 kHz <span class="block text-[10px] text-slate-500">約 30 歲</span>
+          </button>
+          <button class="preset-btn p-1.5 rounded-lg bg-slate-950 border border-slate-800 hover:border-indigo-500 text-xs text-slate-300 font-mono transition text-center" data-freq="16000">
+            16 kHz <span class="block text-[10px] text-slate-500">約 24 歲</span>
+          </button>
+          <button class="preset-btn p-1.5 rounded-lg bg-slate-950 border border-slate-800 hover:border-indigo-500 text-xs text-slate-300 font-mono transition text-center" data-freq="17400">
+            17.4 kHz <span class="block text-[10px] text-slate-500">蚊子音極限</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="pt-2 border-t border-slate-800/80">
+        <div class="text-[11px] text-slate-400 mb-1.5">🎵 常用基準音：</div>
+        <div class="grid grid-cols-3 gap-1.5">
+          <button class="preset-btn p-1.5 rounded-lg bg-slate-950 border border-slate-800 hover:border-indigo-500 text-xs text-slate-300 font-mono transition text-center" data-freq="60">
+            60 Hz <span class="block text-[10px] text-slate-500">交流低鳴</span>
+          </button>
+          <button class="preset-btn p-1.5 rounded-lg bg-slate-950 border border-slate-800 hover:border-indigo-500 text-xs text-slate-300 font-mono transition text-center" data-freq="440">
+            440 Hz <span class="block text-[10px] text-slate-500">標準音高 A4</span>
+          </button>
+          <button class="preset-btn p-1.5 rounded-lg bg-slate-950 border border-slate-800 hover:border-indigo-500 text-xs text-slate-300 font-mono transition text-center" data-freq="1000">
+            1,000 Hz <span class="block text-[10px] text-slate-500">測試基準音</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+</main>
+
+<script>
+  // --- 音訊狀態 ---
+  let audioCtx = null;
+  let oscillator = null;
+  let gainNode = null;
+  let analyserNode = null;
+  let isPlaying = false;
+  let currentWaveType = 'sine';
+  let currentFreq = 1000;
+  let currentVolume = 0.3;
+  let animationId = null;
+
+  // --- DOM 元件 ---
+  const toggleBtn = document.getElementById('toggleBtn');
+  const btnText = document.getElementById('btnText');
+  const playIcon = document.getElementById('playIcon');
+  const freqDisplay = document.getElementById('freqDisplay');
+  const freqSlider = document.getElementById('freqSlider');
+  const volSlider = document.getElementById('volSlider');
+  const volDisplay = document.getElementById('volDisplay');
+  const waveButtons = document.querySelectorAll('.wave-btn');
+  const presetButtons = document.querySelectorAll('.preset-btn');
+  const stepButtons = document.querySelectorAll('.step-btn');
+  const earAgeResult = document.getElementById('earAgeResult');
+  const earAgeDesc = document.getElementById('earAgeDesc');
+  const waveformCanvas = document.getElementById('waveformCanvas');
+  const noSoundNotice = document.getElementById('noSoundNotice');
+  const waveCtx = waveformCanvas.getContext('2d');
+
+  // 對數頻率映射 (20 Hz - 20,000 Hz)
+  const MIN_FREQ = 20;
+  const MAX_FREQ = 20000;
+  const MIN_LOG = Math.log(MIN_FREQ);
+  const MAX_LOG = Math.log(MAX_FREQ);
+
+  function sliderToFreq(val) {
+    const norm = val / 1000;
+    return Math.round(Math.exp(MIN_LOG + norm * (MAX_LOG - MIN_LOG)));
+  }
+
+  function freqToSlider(freq) {
+    const clamped = Math.max(MIN_FREQ, Math.min(MAX_FREQ, freq));
+    const norm = (Math.log(clamped) - MIN_LOG) / (MAX_LOG - MIN_LOG);
+    return Math.round(norm * 1000);
+  }
+
+  function initAudio() {
+    if (!audioCtx) {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      audioCtx = new AudioContextClass();
+      analyserNode = audioCtx.createAnalyser();
+      analyserNode.fftSize = 2048;
+
+      gainNode = audioCtx.createGain();
+      gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+
+      gainNode.connect(analyserNode);
+      analyserNode.connect(audioCtx.destination);
+    }
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+  }
+
+  function startSound() {
+    initAudio();
+
+    oscillator = audioCtx.createOscillator();
+    oscillator.type = currentWaveType;
+    oscillator.frequency.setValueAtTime(currentFreq, audioCtx.currentTime);
+    oscillator.connect(gainNode);
+
+    // 防爆音淡入
+    gainNode.gain.cancelScheduledValues(audioCtx.currentTime);
+    gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+    gainNode.gain.linearRampToValueAtTime(currentVolume, audioCtx.currentTime + 0.05);
+
+    oscillator.start();
+    isPlaying = true;
+    updateUIState(true);
+    drawWaveform();
+  }
+
+  function stopSound() {
+    if (!isPlaying || !gainNode) return;
+
+    gainNode.gain.cancelScheduledValues(audioCtx.currentTime);
+    gainNode.gain.setValueAtTime(gainNode.gain.value, audioCtx.currentTime);
+    gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.05);
+
+    setTimeout(() => {
+      if (oscillator) {
+        try {
+          oscillator.stop();
+          oscillator.disconnect();
+        } catch(e){}
+        oscillator = null;
+      }
+      isPlaying = false;
+      updateUIState(false);
+    }, 50);
+  }
+
+  function updateUIState(playing) {
+    if (playing) {
+      toggleBtn.classList.remove('bg-indigo-600', 'hover:bg-indigo-500', 'shadow-indigo-600/30');
+      toggleBtn.classList.add('bg-rose-600', 'hover:bg-rose-500', 'shadow-rose-600/30');
+      btnText.textContent = '停止發聲';
+      playIcon.className = 'fa-solid fa-stop text-base';
+      noSoundNotice.style.display = 'none';
+    } else {
+      toggleBtn.classList.add('bg-indigo-600', 'hover:bg-indigo-500', 'shadow-indigo-600/30');
+      toggleBtn.classList.remove('bg-rose-600', 'hover:bg-rose-500', 'shadow-rose-600/30');
+      btnText.textContent = '開始發聲';
+      playIcon.className = 'fa-solid fa-play text-base';
+      noSoundNotice.style.display = 'flex';
+    }
+  }
+
+  function updateEarAge(freq) {
+    let ageText = "";
+    let descText = "";
+
+    if (freq >= 19000) {
+      ageText = "小於 20 歲 (超幼童 / 青少年)";
+      descText = "接近人類極限！多數成人在 19-20 kHz 已完全聽不見。";
+    } else if (freq >= 17000) {
+      ageText = "約 24 歲以下";
+      descText = "俗稱「蚊子音」(Mosquito tone)，多數年輕族群仍能感應。";
+    } else if (freq >= 15000) {
+      ageText = "約 30 歲以下";
+      descText = "聽力非常良好，高頻毛細胞活力極佳！";
+    } else if (freq >= 14000) {
+      ageText = "約 40 歲以下";
+      descText = "一般成年人標準高頻上限區間。";
+    } else if (freq >= 12000) {
+      ageText = "約 50 歲以下";
+      descText = "隨年齡漸長，12 kHz 以上開始較難辨識。";
+    } else if (freq >= 8000) {
+      ageText = "約 60 歲以上";
+      descText = "若超過 8 kHz 聽不到，代表可能有顯著的年齡性高頻衰退。";
+    } else {
+      ageText = "一般常人皆可聽見";
+      descText = "絕大多數人皆可聽見，此區間涵蓋大部分生活聲音與語音。";
+    }
+
+    earAgeResult.textContent = ageText;
+    earAgeDesc.textContent = descText;
+  }
+
+  function setFrequency(freq) {
+    currentFreq = Math.max(MIN_FREQ, Math.min(MAX_FREQ, Math.round(freq)));
+    freqDisplay.textContent = currentFreq.toLocaleString();
+    freqSlider.value = freqToSlider(currentFreq);
+
+    if (oscillator && audioCtx) {
+      oscillator.frequency.setTargetAtTime(currentFreq, audioCtx.currentTime, 0.01);
+    }
+    updateEarAge(currentFreq);
+  }
+
+  // --- 事件綁定 ---
+  toggleBtn.addEventListener('click', () => {
+    isPlaying ? stopSound() : startSound();
+  });
+
+  freqSlider.addEventListener('input', (e) => {
+    setFrequency(sliderToFreq(Number(e.target.value)));
+  });
+
+  stepButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const delta = parseInt(btn.dataset.delta, 10);
+      setFrequency(currentFreq + delta);
+    });
+  });
+
+  waveButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      waveButtons.forEach(b => {
+        b.classList.remove('active', 'border-indigo-500/60', 'bg-indigo-600/20', 'text-indigo-300');
+        b.classList.add('border-slate-800', 'bg-slate-950/40', 'text-slate-400');
+      });
+      btn.classList.remove('border-slate-800', 'bg-slate-950/40', 'text-slate-400');
+      btn.classList.add('active', 'border-indigo-500/60', 'bg-indigo-600/20', 'text-indigo-300');
+
+      currentWaveType = btn.dataset.wave;
+      if (oscillator) {
+        oscillator.type = currentWaveType;
+      }
+    });
+  });
+
+  volSlider.addEventListener('input', (e) => {
+    currentVolume = parseFloat(e.target.value);
+    volDisplay.textContent = `${Math.round(currentVolume * 100)}%`;
+    if (gainNode && audioCtx && isPlaying) {
+      gainNode.gain.setTargetAtTime(currentVolume, audioCtx.currentTime, 0.01);
+    }
+  });
+
+  presetButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      setFrequency(parseInt(btn.dataset.freq, 10));
+    });
+  });
+
+  function resizeCanvas() {
+    const dpr = window.devicePixelRatio || 1;
+    const rect = waveformCanvas.getBoundingClientRect();
+    waveformCanvas.width = rect.width * dpr;
+    waveformCanvas.height = rect.height * dpr;
+  }
+  window.addEventListener('resize', resizeCanvas);
+  resizeCanvas();
+
+  // --- 波形繪製（週期自適應鎖定，避免高頻成密集塊狀） ---
+  function drawWaveform() {
+    if (!isPlaying) {
+      waveCtx.clearRect(0, 0, waveformCanvas.width, waveformCanvas.height);
+      return;
+    }
+
+    animationId = requestAnimationFrame(drawWaveform);
+
+    const dpr = window.devicePixelRatio || 1;
+    const buffer = new Uint8Array(analyserNode.fftSize);
+    analyserNode.getByteTimeDomainData(buffer);
+
+    const width = waveformCanvas.width;
+    const height = waveformCanvas.height;
+
+    waveCtx.fillStyle = '#020617';
+    waveCtx.fillRect(0, 0, width, height);
+
+    // 中線參考線
+    waveCtx.strokeStyle = 'rgba(51, 65, 85, 0.25)';
+    waveCtx.lineWidth = 1 * dpr;
+    waveCtx.beginPath();
+    waveCtx.moveTo(0, height / 2);
+    waveCtx.lineTo(width, height / 2);
+    waveCtx.stroke();
+
+    // 零交叉觸發偵測 (Zero-crossing trigger) 鎖定波形相位
+    let startIdx = 0;
+    for (let i = 0; i < buffer.length / 2; i++) {
+      if (buffer[i] < 128 && buffer[i + 1] >= 128) {
+        startIdx = i;
+        break;
+      }
+    }
+
+    // 依頻率動態計算顯示的取樣點數，固定展現約 3~5 個波形週期，清晰可見
+    const sampleRate = audioCtx ? audioCtx.sampleRate : 44100;
+    const samplesPerCycle = sampleRate / currentFreq;
+    const targetCycles = 4; // 畫面上展示 4 個週期
+    let displayLength = Math.round(samplesPerCycle * targetCycles);
+    
+    // 限制取樣視窗在有效範圍內
+    displayLength = Math.max(30, Math.min(buffer.length - startIdx - 1, displayLength));
+
+    waveCtx.lineWidth = 2.5 * dpr;
+    waveCtx.strokeStyle = '#818cf8';
+    waveCtx.shadowColor = 'rgba(99, 102, 241, 0.4)';
+    waveCtx.shadowBlur = 6 * dpr;
+    waveCtx.beginPath();
+
+    const sliceWidth = width / displayLength;
+    let x = 0;
+
+    for (let i = 0; i < displayLength; i++) {
+      const v = buffer[startIdx + i] / 128.0;
+      const y = (v * height) / 2;
+
+      if (i === 0) {
+        waveCtx.moveTo(x, y);
+      } else {
+        waveCtx.lineTo(x, y);
+      }
+      x += sliceWidth;
+    }
+
+    waveCtx.stroke();
+    waveCtx.shadowBlur = 0; // 重設 shadow
+  }
+
+  setFrequency(1000);
+</script>
+</body>
+</html>
