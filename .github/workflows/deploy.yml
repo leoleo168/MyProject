@@ -81,7 +81,7 @@ jobs:
               </div>
             `;
 
-            // 3. 生成卡片 HTML (加入 data-tags 屬性供 JS 篩選使用)
+            // 3. 生成卡片 HTML
             const cardsHtml = projects.map(p => `
               <a href="./${p.folder}/" class="card" target="_blank" rel="noopener noreferrer" data-tags="${(p.tags || []).join(",")}">
                 ${p.previewImg ? `<div class="card-img" style="background-image: url(\x27${p.previewImg}\x27);"></div>` : `<div class="card-placeholder">🚀</div>`}
@@ -117,6 +117,35 @@ jobs:
                 h1 { font-size: 2.5rem; font-weight: 700; color: #f8fafc; margin-bottom: 0.75rem; letter-spacing: -0.02em; }
                 .subtitle { color: #94a3b8; font-size: 1.1rem; }
                 
+                /* 聯絡資訊樣式 */
+                .contact-info {
+                  display: flex;
+                  justify-content: center;
+                  gap: 1rem;
+                  margin-top: 1.25rem;
+                  flex-wrap: wrap;
+                }
+                .contact-link {
+                  color: #94a3b8;
+                  text-decoration: none;
+                  display: flex;
+                  align-items: center;
+                  gap: 0.4rem;
+                  font-size: 0.9rem;
+                  font-weight: 600;
+                  background: #1e293b;
+                  padding: 0.4rem 1rem;
+                  border-radius: 9999px;
+                  border: 1px solid #334155;
+                  transition: all 0.2s;
+                }
+                .contact-link:hover {
+                  color: #f8fafc;
+                  border-color: #38bdf8;
+                  background: #0f172a;
+                  transform: translateY(-2px);
+                }
+
                 /* 篩選按鈕樣式 */
                 .filter-container {
                   display: flex;
@@ -199,8 +228,19 @@ jobs:
             <body>
               <div class="container">
                 <header>
-                  <h1>我的單頁實驗室 ✨</h1>
+                  <h1>我的互動實驗室 ✨</h1>
                   <p class="subtitle">共收錄 ${projects.length} 個單頁式互動作品</p>
+                  
+                  <!-- 聯絡資訊與短網址區塊 -->
+                  <div class="contact-info">
+                    <a href="mailto:leoleo168@gmail.com" class="contact-link">
+                      📧 聯絡信箱
+                    </a>
+                    <a href="https://is.gd/leoleo168" target="_blank" rel="noopener noreferrer" class="contact-link">
+                      🔗 關於我
+                    </a>
+                  </div>
+
                 </header>
                 
                 ${filterHtml}
@@ -216,14 +256,11 @@ jobs:
 
                   filterBtns.forEach(btn => {
                     btn.addEventListener("click", () => {
-                      // 1. 移除所有按鈕的 active 狀態，並加到被點擊的按鈕上
                       filterBtns.forEach(b => b.classList.remove("active"));
                       btn.classList.add("active");
 
-                      // 2. 取得要篩選的標籤名稱
                       const filterValue = btn.getAttribute("data-filter");
 
-                      // 3. 判斷卡片是否顯示
                       cards.forEach(card => {
                         if (filterValue === "all") {
                           card.classList.remove("hidden");
