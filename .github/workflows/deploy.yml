@@ -100,7 +100,7 @@ jobs:
             <head>
               <meta charset="UTF-8">
               <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <title>互動網頁作品集</title>
+              <title>我的單頁實驗室</title>
               <link rel="preconnect" href="https://fonts.googleapis.com">
               <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
               <style>
@@ -228,7 +228,7 @@ jobs:
             <body>
               <div class="container">
                 <header>
-                  <h1>我的互動實驗室 ✨</h1>
+                  <h1>我的單頁實驗室 ✨</h1>
                   <p class="subtitle">共收錄 ${projects.length} 個單頁式互動作品</p>
                   
                   <!-- 聯絡資訊與短網址區塊 -->
