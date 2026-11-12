@@ -161,7 +161,7 @@
   
   // 每頁最多 100 格 (機台 A4 工單)
   const MAX_PLATES_PER_PAGE = 100;
-  // 每頁最多 20 格 (收納袋 A6 小卡)
+  // 每頁最多 20 格 (收納袋小卡)
   const MAX_PLATES_PER_CARD = 20;
 
   window.addEventListener('DOMContentLoaded', () => {
@@ -260,7 +260,7 @@
     }
 
     // ==========================================
-    // 1. 產生機台工單 (如果模式包含 sheet 或 both)
+    // 1. 產生機台工單
     // ==========================================
     if (printMode === 'sheet' || printMode === 'both') {
       const chunks = [];
@@ -339,11 +339,10 @@
     }
 
     // ==========================================
-    // 2. 產生收納袋小卡 (如果模式包含 card 或 both)
+    // 2. 產生收納袋小卡
     // ==========================================
     if (printMode === 'card' || printMode === 'both') {
       
-      // 將盤數依照 MAX_PLATES_PER_CARD (20) 切割成多張小卡
       const cardChunks = [];
       for (let i = 0; i < allPlates.length; i += MAX_PLATES_PER_CARD) {
         cardChunks.push(allPlates.slice(i, i + MAX_PLATES_PER_CARD));
@@ -354,37 +353,37 @@
         cardPage.className = 'a4-card items-start justify-start'; 
         
         const isMultiCard = cardChunks.length > 1;
-        const cardPageSuffix = isMultiCard ? `<span class="text-sm text-blue-600 ml-1">(第 ${pageIndex + 1}/${cardChunks.length} 頁)</span>` : '';
+        const cardPageSuffix = isMultiCard ? `<span class="text-xs text-blue-600 ml-1">(第 ${pageIndex + 1}/${cardChunks.length} 頁)</span>` : '';
         const rangeText = isMultiCard ? `(第 ${chunk[0].index}~${chunk[chunk.length - 1].index} 盤)` : `(共 ${totalPlates} 盤)`;
 
-        // 強制鎖定為 A6 尺寸 (105mm x 148.5mm)，移除剪裁提示文字
+        // 🏆 縮小為 90mm x 130mm，確保十字對折後不會切到虛線
         cardPage.innerHTML = `
-          <div style="width: 105mm; height: 148.5mm;" class="border-2 border-dashed border-slate-400 p-4 flex flex-col relative bg-white overflow-hidden">
+          <div style="width: 90mm; height: 130mm;" class="border-2 border-dashed border-slate-400 p-3 flex flex-col relative bg-white overflow-hidden">
             
-            <div class="flex justify-between items-end border-b-2 border-slate-900 pb-2 mb-3 shrink-0">
-              <h2 class="text-lg font-black text-slate-900">📦 產品收納卡 ${cardPageSuffix}</h2>
-              <span class="text-[10px] text-slate-500 font-mono">#${orderId}</span>
+            <div class="flex justify-between items-end border-b-2 border-slate-900 pb-1.5 mb-2 shrink-0">
+              <h2 class="text-base font-black text-slate-900">📦 產品收納卡 ${cardPageSuffix}</h2>
+              <span class="text-[9px] text-slate-500 font-mono">#${orderId}</span>
             </div>
             
-            <div class="mb-3 shrink-0">
-              <div class="text-[10px] text-slate-500 font-bold mb-0.5">列印品項</div>
+            <div class="mb-2 shrink-0">
+              <div class="text-[9px] text-slate-500 font-bold mb-0.5">列印品項</div>
               <div class="text-sm font-black text-slate-900 leading-tight break-all">${itemName}</div>
             </div>
             
-            <div class="flex justify-between items-end mb-3 shrink-0">
+            <div class="flex justify-between items-end mb-2 shrink-0">
               <div>
-                <div class="text-[10px] text-slate-500 font-bold mb-0.5">總需求數量 (PCS)</div>
-                <div class="text-2xl font-black text-blue-700 leading-none">${totalQty}</div>
+                <div class="text-[9px] text-slate-500 font-bold mb-0.5">總需求數量 (PCS)</div>
+                <div class="text-xl font-black text-blue-700 leading-none">${totalQty}</div>
               </div>
               <div class="w-1/2 pb-1">
-                <div class="text-[10px] text-slate-500 font-bold mb-1">包裝人員 / 日期</div>
+                <div class="text-[9px] text-slate-500 font-bold mb-1">包裝人員 / 日期</div>
                 <div class="border-b border-dashed border-slate-400 h-4 w-full"></div>
               </div>
             </div>
 
-            <!-- 小卡專屬網格區 (為確保好打勾，設為 5 欄) -->
+            <!-- 小卡專屬網格區 -->
             <div class="flex-1 overflow-visible">
-              <div class="text-[10px] font-bold text-slate-800 mb-1 flex justify-between">
+              <div class="text-[9px] font-bold text-slate-800 mb-1 flex justify-between">
                 <span>裝袋盤數確認表：</span>
                 <span class="text-blue-700">${rangeText}</span>
               </div>
@@ -396,7 +395,6 @@
 
         const cardGridContainer = cardPage.querySelector('.card-grid-container');
         
-        // 將該分頁的盤數格子加入小卡中
         chunk.forEach(plate => {
           const gridBox = document.createElement('div');
           gridBox.className = `square-box rounded p-1 flex flex-col justify-between bg-white relative`;
