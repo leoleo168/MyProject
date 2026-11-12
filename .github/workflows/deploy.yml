@@ -138,6 +138,8 @@ jobs:
                   border-radius: 9999px;
                   border: 1px solid #334155;
                   transition: all 0.2s;
+                  cursor: pointer;
+                  font-family: inherit;
                 }
                 .contact-link:hover {
                   color: #f8fafc;
@@ -233,9 +235,10 @@ jobs:
                   
                   <!-- 聯絡資訊與短網址區塊 -->
                   <div class="contact-info">
-                    <a href="mailto:leoleo168@gmail.com" class="contact-link">
-                      📧 聯絡信箱
-                    </a>
+                    <!-- 改成按鈕，點擊觸發複製功能 -->
+                    <button onclick="copyEmail()" id="email-btn" class="contact-link">
+                      📧 leoleo168@gmail.com
+                    </button>
                     <a href="https://is.gd/leoleo168" target="_blank" rel="noopener noreferrer" class="contact-link">
                       🔗 短網址 https://is.gd/leoleo168
                     </a>
@@ -249,6 +252,20 @@ jobs:
               </div>
 
               <script>
+                // 複製信箱功能
+                function copyEmail() {
+                  navigator.clipboard.writeText("leoleo168@gmail.com").then(() => {
+                    const btn = document.getElementById("email-btn");
+                    btn.innerHTML = "✅ 已複製信箱！";
+                    // 2秒後變回原來的文字
+                    setTimeout(() => {
+                      btn.innerHTML = "📧 leoleo168@gmail.com";
+                    }, 2000);
+                  }).catch(err => {
+                    console.error("複製失敗", err);
+                  });
+                }
+
                 // 篩選功能的 JavaScript
                 document.addEventListener("DOMContentLoaded", () => {
                   const filterBtns = document.querySelectorAll(".filter-btn");
