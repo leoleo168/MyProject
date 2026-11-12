@@ -28,7 +28,7 @@
     break-after: page;
   }
 
-  /* 🏆 關鍵修正：避免最後一頁產生空白頁 */
+  /* 避免最後一頁產生空白頁 */
   .a4-card:last-child {
     page-break-after: auto;
     break-after: auto;
@@ -54,7 +54,6 @@
     
     .a4-card {
       width: 100% !important;
-      /* 🏆 關鍵修正：改用 100vh 讓瀏覽器自動貼合單頁高度，避免 297mm 造成的微小溢出 */
       height: 100vh !important; 
       max-height: 100vh !important;
       padding: 8mm 10mm !important;
@@ -76,14 +75,22 @@
     <div class="flex flex-wrap items-center justify-between gap-3 mb-4 border-b border-slate-200 pb-4">
       <div>
         <h1 class="text-lg font-black text-slate-900">3D列印生產工單系統</h1>
-        <p class="text-xs text-slate-500 font-bold mt-1">固定一行 10 格・超過 100 盤自動產生新頁面</p>
+        <p class="text-xs text-slate-500 font-bold mt-1">支援機台工單與收納袋標籤卡列印</p>
       </div>
       <div class="flex items-center gap-2">
         <button onclick="toggleItemModal(true)" class="flex items-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg font-bold text-xs border border-slate-300 transition">
-          ⚙️ 品項庫管理
+          ⚙️ 品項庫
         </button>
+        
+        <!-- 列印模式選擇 -->
+        <select id="printMode" onchange="renderBatches()" class="text-sm border border-slate-300 rounded-lg p-2 bg-slate-50 outline-none focus:border-blue-500 font-bold text-slate-700 cursor-pointer">
+          <option value="both">📄+🏷️ 工單與小卡全印</option>
+          <option value="sheet">📄 僅印機台工單</option>
+          <option value="card">🏷️ 僅印收納小卡</option>
+        </select>
+
         <button onclick="window.print()" class="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-black shadow-md transition active:scale-95 text-sm">
-          🖨️ 列印 A4 工單
+          🖨️ 開始列印
         </button>
       </div>
     </div>
@@ -94,7 +101,7 @@
         <label class="block text-xs font-bold text-slate-700 mb-1.5">列印品項名稱</label>
         <div class="flex flex-col gap-1.5">
           <select id="itemSelect" onchange="handleSelectChange()" class="text-sm border border-slate-300 rounded-lg p-2 bg-slate-50 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"></select>
-          <input type="text" id="itemInput" value="感測器固定外殼" oninput="renderBatches()" class="w-full text-sm border border-slate-300 rounded-lg p-2 font-bold outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+          <input type="text" id="itemInput" value="" placeholder="請輸入或選擇品項" oninput="renderBatches()" class="w-full text-sm border border-slate-300 rounded-lg p-2 font-bold outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
         </div>
       </div>
       <div>
@@ -103,7 +110,7 @@
       </div>
       <div>
         <label class="block text-xs font-bold text-slate-700 mb-1.5">總需求數量 (PCS)</label>
-        <input type="number" id="totalQtyInput" min="1" value="160" oninput="renderBatches()" class="w-full text-base border border-slate-300 rounded-lg p-2 font-black text-blue-700 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 mt-1">
+        <input type="number" id="totalQtyInput" min="1" value="50" oninput="renderBatches()" class="w-full text-base border border-slate-300 rounded-lg p-2 font-black text-blue-700 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 mt-1">
       </div>
     </div>
   </div>
@@ -143,11 +150,19 @@
 </div>
 
 <script>
-  const DEFAULT_ITEMS = ["3D031-扭扭筆架", "感測器固定外殼", "導軌防塵護蓋", "線軸固定轉接件"];
+  const DEFAULT_ITEMS = [
+    "齒輪傳動組件", 
+    "馬達固定支架", 
+    "外殼散熱風扇罩", 
+    "線材導管接頭",
+    "測試校正方塊"
+  ];
   let items = [];
   
-  // 每頁最多 100 格 (10欄 x 10列)
+  // 每頁最多 100 格 (機台 A4 工單)
   const MAX_PLATES_PER_PAGE = 100;
+  // 每頁最多 20 格 (收納袋 A6 小卡)
+  const MAX_PLATES_PER_CARD = 20;
 
   window.addEventListener('DOMContentLoaded', () => {
     loadItems();
@@ -217,11 +232,12 @@
     alert('匯入成功！');
   }
 
-  // 🏆 核心：分頁與固定 10 欄排版邏輯
+  // 🏆 核心：分頁、小卡與排版邏輯
   function renderBatches() {
     const perPlate = parseInt(document.getElementById('perPlateInput').value, 10) || 1;
     const totalQty = parseInt(document.getElementById('totalQtyInput').value, 10) || 0;
     const itemName = document.getElementById('itemInput').value || '未填寫品項';
+    const printMode = document.getElementById('printMode').value;
     
     const today = new Date();
     const currentDate = today.toISOString().split('T')[0];
@@ -236,101 +252,169 @@
 
     // 建立所有盤數資料
     const allPlates = [];
-    let runningCumulative = 0;
     for (let i = 0; i < totalPlates; i++) {
-      const isLastPlate = (i === totalPlates - 1);
-      const remainder = totalQty % perPlate;
-      const currentPlateQty = (isLastPlate && remainder !== 0) ? remainder : perPlate;
-      runningCumulative += currentPlateQty;
       allPlates.push({
         index: i + 1,
-        qty: currentPlateQty,
-        cumulative: runningCumulative
+        cumulative: (i + 1) * perPlate
       });
     }
 
-    // 將盤數依照 MAX_PLATES_PER_PAGE (100) 切割成多個分頁
-    const chunks = [];
-    for (let i = 0; i < allPlates.length; i += MAX_PLATES_PER_PAGE) {
-      chunks.push(allPlates.slice(i, i + MAX_PLATES_PER_PAGE));
-    }
+    // ==========================================
+    // 1. 產生機台工單 (如果模式包含 sheet 或 both)
+    // ==========================================
+    if (printMode === 'sheet' || printMode === 'both') {
+      const chunks = [];
+      for (let i = 0; i < allPlates.length; i += MAX_PLATES_PER_PAGE) {
+        chunks.push(allPlates.slice(i, i + MAX_PLATES_PER_PAGE));
+      }
 
-    // 針對每個分頁產生一張 A4 卡片
-    chunks.forEach((chunk, pageIndex) => {
-      const a4Card = document.createElement('div');
-      a4Card.className = 'a4-card';
-      
-      const isMultiPage = chunks.length > 1;
-      const pageTitleSuffix = isMultiPage ? `<span class="text-base text-blue-600 ml-2">(第 ${pageIndex + 1} 頁 / 共 ${chunks.length} 頁)</span>` : '';
-      const rangeText = isMultiPage ? `（第 ${chunk[0].index} 盤 ~ 第 ${chunk[chunk.length - 1].index} 盤）` : `（印完請直接於大格內打勾）`;
+      chunks.forEach((chunk, pageIndex) => {
+        const a4Card = document.createElement('div');
+        a4Card.className = 'a4-card';
+        
+        const isMultiPage = chunks.length > 1;
+        const pageTitleSuffix = isMultiPage ? `<span class="text-base text-blue-600 ml-2">(第 ${pageIndex + 1} 頁 / 共 ${chunks.length} 頁)</span>` : '';
+        const rangeText = isMultiPage ? `（第 ${chunk[0].index} 盤 ~ 第 ${chunk[chunk.length - 1].index} 盤）` : `（印完請直接於大格內打勾）`;
 
-      a4Card.innerHTML = `
-        <!-- 表頭 -->
-        <div class="border-b-2 border-slate-900 pb-1.5 mb-2 flex justify-between items-end shrink-0">
-          <div>
-            <h2 class="text-2xl font-black tracking-tight text-slate-900">3D 列印生產單 ${pageTitleSuffix}</h2>
-            <div class="text-xs text-slate-500 font-bold mt-0.5">機台黏貼專用・進度核對卡</div>
+        a4Card.innerHTML = `
+          <div class="border-b-2 border-slate-900 pb-1.5 mb-2 flex justify-between items-end shrink-0">
+            <div>
+              <h2 class="text-2xl font-black tracking-tight text-slate-900">3D 列印生產單 ${pageTitleSuffix}</h2>
+              <div class="text-xs text-slate-500 font-bold mt-0.5">機台黏貼專用・進度核對卡</div>
+            </div>
+            <div class="text-right text-xs text-slate-600 font-mono leading-tight">
+              <div>日期: ${currentDate}</div>
+              <div>單號: #${orderId}</div>
+            </div>
           </div>
-          <div class="text-right text-xs text-slate-600 font-mono leading-tight">
-            <div>日期: ${currentDate}</div>
-            <div>單號: #${orderId}</div>
+
+          <div class="grid grid-cols-2 gap-4 mb-2 p-2 bg-slate-50 rounded-lg border border-slate-200 text-xs shrink-0">
+            <div><span class="font-bold text-slate-700">耗材種類 / 顏色規格：</span><div class="mt-1.5 border-b border-dashed border-slate-400 h-4"></div></div>
+            <div><span class="font-bold text-slate-700">操作人員 / 簽核：</span><div class="mt-1.5 border-b border-dashed border-slate-400 h-4"></div></div>
           </div>
-        </div>
 
-        <!-- 現場填寫區 -->
-        <div class="grid grid-cols-2 gap-4 mb-2 p-2 bg-slate-50 rounded-lg border border-slate-200 text-xs shrink-0">
-          <div><span class="font-bold text-slate-700">耗材種類 / 顏色規格：</span><div class="mt-1.5 border-b border-dashed border-slate-400 h-4"></div></div>
-          <div><span class="font-bold text-slate-700">操作人員 / 簽核：</span><div class="mt-1.5 border-b border-dashed border-slate-400 h-4"></div></div>
-        </div>
-
-        <!-- 參數顯示區 -->
-        <div class="grid grid-cols-3 gap-3 mb-2 p-2.5 bg-slate-50 rounded-lg border border-slate-200 shrink-0">
-          <div>
-            <div class="text-xs font-bold text-slate-500 mb-0.5">列印品項</div>
-            <div class="text-base font-black text-slate-900 truncate">${itemName}</div>
+          <div class="grid grid-cols-3 gap-3 mb-2 p-2.5 bg-slate-50 rounded-lg border border-slate-200 shrink-0">
+            <div>
+              <div class="text-xs font-bold text-slate-500 mb-0.5">列印品項</div>
+              <div class="text-base font-black text-slate-900 truncate">${itemName}</div>
+            </div>
+            <div>
+              <div class="text-xs font-bold text-slate-500 mb-0.5">每盤容量 (個/盤)</div>
+              <div class="text-base font-black text-slate-900">${perPlate}</div>
+            </div>
+            <div>
+              <div class="text-xs font-bold text-slate-500 mb-0.5">總需求數量 (PCS)</div>
+              <div class="text-base font-black text-slate-900">${totalQty}</div>
+            </div>
           </div>
-          <div>
-            <div class="text-xs font-bold text-slate-500 mb-0.5">每盤容量 (個/盤)</div>
-            <div class="text-base font-black text-slate-900">${perPlate}</div>
+
+          <div class="flex justify-between items-center text-sm font-bold text-slate-800 mb-2 px-1 shrink-0">
+            <span>生產盤數勾選表 <span class="text-slate-500 text-xs">${rangeText}</span></span>
+            <span>總盤數：<span class="text-lg font-black text-blue-700">${totalPlates}</span> 盤</span>
           </div>
-          <div>
-            <div class="text-xs font-bold text-slate-500 mb-0.5">總需求數量 (PCS)</div>
-            <div class="text-base font-black text-slate-900">${totalQty}</div>
-          </div>
-        </div>
 
-        <!-- 盤數摘要 -->
-        <div class="flex justify-between items-center text-sm font-bold text-slate-800 mb-2 px-1 shrink-0">
-          <span>生產盤數勾選表 <span class="text-slate-500 text-xs">${rangeText}</span></span>
-          <span>總盤數：<span class="text-lg font-black text-blue-700">${totalPlates}</span> 盤</span>
-        </div>
-
-        <!-- 網格區 (固定 10 欄，自然向下排列) -->
-        <div class="flex-1 overflow-visible">
-          <div class="w-full grid grid-cols-10 gap-1 content-start grid-container"></div>
-        </div>
-      `;
-
-      const gridContainer = a4Card.querySelector('.grid-container');
-
-      // 渲染該頁的格子
-      chunk.forEach(plate => {
-        const gridBox = document.createElement('div');
-        gridBox.className = `square-box rounded p-1 flex flex-col justify-between bg-white relative`;
-        gridBox.innerHTML = `
-          <div class="text-left">
-            <span class="text-xs font-black text-slate-900 leading-none">#${plate.index}</span>
-          </div>
-          <div class="text-right mt-auto">
-            <div class="text-[9px] text-slate-500 font-bold leading-none mb-0.5">總數</div>
-            <div class="text-sm font-black text-slate-900 leading-none">${plate.cumulative}</div>
+          <div class="flex-1 overflow-visible">
+            <div class="w-full grid grid-cols-10 gap-1 content-start grid-container"></div>
           </div>
         `;
-        gridContainer.appendChild(gridBox);
-      });
 
-      printArea.appendChild(a4Card);
-    });
+        const gridContainer = a4Card.querySelector('.grid-container');
+        chunk.forEach(plate => {
+          const gridBox = document.createElement('div');
+          gridBox.className = `square-box rounded p-1 flex flex-col justify-between bg-white relative`;
+          gridBox.innerHTML = `
+            <div class="text-left">
+              <span class="text-xs font-black text-slate-900 leading-none">#${plate.index}</span>
+            </div>
+            <div class="text-right mt-auto">
+              <div class="text-[9px] text-slate-500 font-bold leading-none mb-0.5">總數</div>
+              <div class="text-sm font-black text-slate-900 leading-none">${plate.cumulative}</div>
+            </div>
+          `;
+          gridContainer.appendChild(gridBox);
+        });
+
+        printArea.appendChild(a4Card);
+      });
+    }
+
+    // ==========================================
+    // 2. 產生收納袋小卡 (如果模式包含 card 或 both)
+    // ==========================================
+    if (printMode === 'card' || printMode === 'both') {
+      
+      // 將盤數依照 MAX_PLATES_PER_CARD (20) 切割成多張小卡
+      const cardChunks = [];
+      for (let i = 0; i < allPlates.length; i += MAX_PLATES_PER_CARD) {
+        cardChunks.push(allPlates.slice(i, i + MAX_PLATES_PER_CARD));
+      }
+
+      cardChunks.forEach((chunk, pageIndex) => {
+        const cardPage = document.createElement('div');
+        cardPage.className = 'a4-card items-start justify-start'; 
+        
+        const isMultiCard = cardChunks.length > 1;
+        const cardPageSuffix = isMultiCard ? `<span class="text-sm text-blue-600 ml-1">(第 ${pageIndex + 1}/${cardChunks.length} 頁)</span>` : '';
+        const rangeText = isMultiCard ? `(第 ${chunk[0].index}~${chunk[chunk.length - 1].index} 盤)` : `(共 ${totalPlates} 盤)`;
+
+        // 強制鎖定為 A6 尺寸 (105mm x 148.5mm)，移除剪裁提示文字
+        cardPage.innerHTML = `
+          <div style="width: 105mm; height: 148.5mm;" class="border-2 border-dashed border-slate-400 p-4 flex flex-col relative bg-white overflow-hidden">
+            
+            <div class="flex justify-between items-end border-b-2 border-slate-900 pb-2 mb-3 shrink-0">
+              <h2 class="text-lg font-black text-slate-900">📦 產品收納卡 ${cardPageSuffix}</h2>
+              <span class="text-[10px] text-slate-500 font-mono">#${orderId}</span>
+            </div>
+            
+            <div class="mb-3 shrink-0">
+              <div class="text-[10px] text-slate-500 font-bold mb-0.5">列印品項</div>
+              <div class="text-sm font-black text-slate-900 leading-tight break-all">${itemName}</div>
+            </div>
+            
+            <div class="flex justify-between items-end mb-3 shrink-0">
+              <div>
+                <div class="text-[10px] text-slate-500 font-bold mb-0.5">總需求數量 (PCS)</div>
+                <div class="text-2xl font-black text-blue-700 leading-none">${totalQty}</div>
+              </div>
+              <div class="w-1/2 pb-1">
+                <div class="text-[10px] text-slate-500 font-bold mb-1">包裝人員 / 日期</div>
+                <div class="border-b border-dashed border-slate-400 h-4 w-full"></div>
+              </div>
+            </div>
+
+            <!-- 小卡專屬網格區 (為確保好打勾，設為 5 欄) -->
+            <div class="flex-1 overflow-visible">
+              <div class="text-[10px] font-bold text-slate-800 mb-1 flex justify-between">
+                <span>裝袋盤數確認表：</span>
+                <span class="text-blue-700">${rangeText}</span>
+              </div>
+              <div class="w-full grid grid-cols-5 gap-1 content-start card-grid-container"></div>
+            </div>
+
+          </div>
+        `;
+
+        const cardGridContainer = cardPage.querySelector('.card-grid-container');
+        
+        // 將該分頁的盤數格子加入小卡中
+        chunk.forEach(plate => {
+          const gridBox = document.createElement('div');
+          gridBox.className = `square-box rounded p-1 flex flex-col justify-between bg-white relative`;
+          gridBox.innerHTML = `
+            <div class="text-left">
+              <span class="text-[10px] font-black text-slate-900 leading-none">#${plate.index}</span>
+            </div>
+            <div class="text-right mt-auto">
+              <div class="text-[8px] text-slate-500 font-bold leading-none mb-0.5">總數</div>
+              <div class="text-[11px] font-black text-slate-900 leading-none">${plate.cumulative}</div>
+            </div>
+          `;
+          cardGridContainer.appendChild(gridBox);
+        });
+
+        printArea.appendChild(cardPage);
+      });
+    }
   }
 </script>
 </body>
