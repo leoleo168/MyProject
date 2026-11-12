@@ -15,8 +15,8 @@
   /* 網頁預覽用的 A4 卡片樣式 */
   .a4-card {
     width: 210mm;
-    height: 297mm; /* 固定 A4 高度 */
-    margin: 0 auto 20px auto; /* 網頁預覽時卡片之間留空隙 */
+    min-height: 297mm;
+    margin: 0 auto 20px auto;
     background: white;
     padding: 10mm 12mm;
     box-sizing: border-box;
@@ -26,6 +26,13 @@
     flex-direction: column;
     page-break-after: always;
     break-after: page;
+  }
+
+  /* 🏆 關鍵修正：避免最後一頁產生空白頁 */
+  .a4-card:last-child {
+    page-break-after: auto;
+    break-after: auto;
+    margin-bottom: 0;
   }
 
   /* 列印專用樣式 */
@@ -46,9 +53,10 @@
     }
     
     .a4-card {
-      width: 210mm;
-      height: 297mm !important;
-      max-height: 297mm !important;
+      width: 100% !important;
+      /* 🏆 關鍵修正：改用 100vh 讓瀏覽器自動貼合單頁高度，避免 297mm 造成的微小溢出 */
+      height: 100vh !important; 
+      max-height: 100vh !important;
       padding: 8mm 10mm !important;
       margin: 0 !important;
       border: none !important;
@@ -91,11 +99,11 @@
       </div>
       <div>
         <label class="block text-xs font-bold text-slate-700 mb-1.5">每盤容量 (個/盤)</label>
-        <input type="number" id="perPlateInput" min="1" value="4" oninput="renderBatches()" class="w-full text-base border border-slate-300 rounded-lg p-2 font-black text-blue-700 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 mt-1">
+        <input type="number" id="perPlateInput" min="1" value="10" oninput="renderBatches()" class="w-full text-base border border-slate-300 rounded-lg p-2 font-black text-blue-700 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 mt-1">
       </div>
       <div>
         <label class="block text-xs font-bold text-slate-700 mb-1.5">總需求數量 (PCS)</label>
-        <input type="number" id="totalQtyInput" min="1" value="500" oninput="renderBatches()" class="w-full text-base border border-slate-300 rounded-lg p-2 font-black text-blue-700 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 mt-1">
+        <input type="number" id="totalQtyInput" min="1" value="160" oninput="renderBatches()" class="w-full text-base border border-slate-300 rounded-lg p-2 font-black text-blue-700 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 mt-1">
       </div>
     </div>
   </div>
@@ -135,7 +143,7 @@
 </div>
 
 <script>
-  const DEFAULT_ITEMS = ["感測器固定外殼", "導軌防塵護蓋", "線軸固定轉接件", "治具固定夾塊"];
+  const DEFAULT_ITEMS = ["3D031-扭扭筆架", "感測器固定外殼", "導軌防塵護蓋", "線軸固定轉接件"];
   let items = [];
   
   // 每頁最多 100 格 (10欄 x 10列)
