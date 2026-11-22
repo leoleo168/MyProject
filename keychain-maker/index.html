@@ -1,0 +1,1414 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>剪影鑰匙圈STL產生器 | Silhouette Keychain STL Maker</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Three.js 核心、SVG載入器與 STL 匯出器 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/SVGLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/STLExporter.js"></script>
+  <!-- opentype.js 向量字型解析核心 (徹底告別馬賽克鋸齒) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/opentype.js/1.3.4/opentype.min.js"></script>
+  <!-- FontAwesome 圖示 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+
+  <style>
+    body { font-family: 'Noto Sans TC', sans-serif; }
+    input[type=range] { accent-color: #38bdf8; }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col">
+
+  <!-- 導覽列 -->
+  <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-50 px-6 py-3 flex justify-between items-center">
+    <div class="flex items-center space-x-3">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-sky-400 flex items-center justify-center text-slate-950 font-bold text-xl shadow-lg shadow-sky-500/20">
+        <i class="fa-solid fa-cube"></i>
+      </div>
+      <div>
+        <h1 class="text-base sm:text-lg font-bold text-white tracking-wide" data-lang="title">剪影鑰匙圈STL產生器</h1>
+        <p class="text-xs text-slate-400" data-lang="subtitle">真向量立體刻字・平滑直線無鋸齒・一鍵 STL 匯出</p>
+      </div>
+    </div>
+
+    <!-- 語言切換按鈕 -->
+    <button id="langToggleBtn" class="flex items-center space-x-2 bg-slate-800 hover:bg-slate-700 text-sky-400 border border-slate-700 px-3 py-1.5 rounded-lg text-sm transition">
+      <i class="fa-solid fa-globe"></i>
+      <span id="langText">English</span>
+    </button>
+  </header>
+
+  <!-- 主工作區 -->
+  <main class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 p-4 sm:p-6 max-w-7xl mx-auto w-full">
+    
+    <!-- 左側控制面板 (佔 5 欄) -->
+    <div class="lg:col-span-5 flex flex-col gap-4 overflow-y-auto max-h-[calc(100vh-100px)] pr-1">
+      
+      <!-- 步驟 1: 上傳剪影圖片 -->
+      <section class="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-4 shadow-sm">
+        <h2 class="text-sm font-bold text-sky-400 mb-2 flex items-center gap-2">
+          <i class="fa-solid fa-image"></i>
+          <span data-lang="step1">第一步：上傳剪影圖片</span>
+        </h2>
+        
+        <div id="dropZone" class="border-2 border-dashed border-slate-600 hover:border-sky-400 rounded-xl p-3 text-center cursor-pointer transition bg-slate-900/40">
+          <input type="file" id="fileInput" accept="image/*" class="hidden">
+          <i class="fa-solid fa-cloud-arrow-up text-2xl text-slate-400 mb-1"></i>
+          <p class="text-xs sm:text-sm text-slate-300 font-medium" data-lang="dropText">點擊或拖曳圖片到這裡</p>
+          <p class="text-[11px] text-slate-500 mt-0.5" data-lang="dropTip">白底黑剪影效果最佳，自動保持真實長寬比例</p>
+        </div>
+
+        <!-- 2D 剪影預覽 & 參數 -->
+        <div class="mt-2.5 grid grid-cols-3 gap-3 items-center bg-slate-900/60 p-2 rounded-xl border border-slate-800">
+          <div class="text-center">
+            <span class="text-[11px] text-slate-400 block mb-1" data-lang="preview2D">提取預覽</span>
+            <canvas id="previewCanvas" class="w-14 h-14 border border-slate-700 bg-white rounded mx-auto object-contain"></canvas>
+          </div>
+          <div class="col-span-2 space-y-1.5">
+            <div>
+              <div class="flex justify-between text-xs text-slate-300">
+                <span data-lang="thresholdLabel">黑白敏感度</span>
+                <span id="thresholdVal" class="text-sky-400 font-mono">150</span>
+              </div>
+              <input type="range" id="thresholdInput" min="10" max="250" value="150" class="w-full h-1.5 bg-slate-700 rounded-lg">
+            </div>
+
+            <button id="invertBtn" class="w-full text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 py-1 rounded transition flex items-center justify-center gap-1">
+              <i class="fa-solid fa-repeat"></i>
+              <span data-lang="invertLabel">黑白反轉 (Invert)</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 步驟 2: 外觀樣式選擇 -->
+      <section class="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-4 shadow-sm">
+        <h2 class="text-sm font-bold text-sky-400 mb-2 flex items-center gap-2">
+          <i class="fa-solid fa-shapes"></i>
+          <span data-lang="step2">第二步：選擇外觀樣式</span>
+        </h2>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <button class="preset-btn bg-slate-900/40 border border-slate-700 hover:border-slate-500 text-slate-300 p-2 rounded-xl text-xs font-medium flex flex-col items-center justify-center gap-1 transition" data-preset="silhouette">
+            <i class="fa-solid fa-star text-base text-amber-400"></i>
+            <span data-lang="preset1">純剪影</span>
+          </button>
+          <button class="preset-btn active bg-sky-500/20 border-2 border-sky-400 text-sky-300 p-2 rounded-xl text-xs font-medium flex flex-col items-center justify-center gap-1 transition" data-preset="taiwan">
+            <i class="fa-solid fa-map-location-dot text-base text-emerald-400"></i>
+            <span data-lang="presetTaiwan">台灣造型</span>
+          </button>
+          <button class="preset-btn bg-slate-900/40 border border-slate-700 hover:border-slate-500 text-slate-300 p-2 rounded-xl text-xs font-medium flex flex-col items-center justify-center gap-1 transition" data-preset="circle">
+            <i class="fa-regular fa-circle text-base"></i>
+            <span data-lang="preset2">圓形勳章</span>
+          </button>
+          <button class="preset-btn bg-slate-900/40 border border-slate-700 hover:border-slate-500 text-slate-300 p-2 rounded-xl text-xs font-medium flex flex-col items-center justify-center gap-1 transition" data-preset="shield">
+            <i class="fa-solid fa-shield-halved text-base text-cyan-400"></i>
+            <span data-lang="presetShield">英雄盾牌</span>
+          </button>
+          <button class="preset-btn bg-slate-900/40 border border-slate-700 hover:border-slate-500 text-slate-300 p-2 rounded-xl text-xs font-medium flex flex-col items-center justify-center gap-1 transition" data-preset="heart">
+            <i class="fa-solid fa-heart text-base text-rose-400"></i>
+            <span data-lang="presetHeart">愛心形狀</span>
+          </button>
+          <button class="preset-btn bg-slate-900/40 border border-slate-700 hover:border-slate-500 text-slate-300 p-2 rounded-xl text-xs font-medium flex flex-col items-center justify-center gap-1 transition" data-preset="tag">
+            <i class="fa-solid fa-tag text-base text-violet-400"></i>
+            <span data-lang="presetTag">名牌吊牌</span>
+          </button>
+          <button class="preset-btn bg-slate-900/40 border border-slate-700 hover:border-slate-500 text-slate-300 p-2 rounded-xl text-xs font-medium flex flex-col items-center justify-center gap-1 transition" data-preset="roundRect">
+            <i class="fa-regular fa-square text-base"></i>
+            <span data-lang="preset3">圓角方牌</span>
+          </button>
+          <button class="preset-btn bg-slate-900/40 border border-slate-700 hover:border-slate-500 text-slate-300 p-2 rounded-xl text-xs font-medium flex flex-col items-center justify-center gap-1 transition" data-preset="capsule">
+            <i class="fa-solid fa-capsules text-base"></i>
+            <span data-lang="preset4">膠囊橢圓</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- 步驟 3: 圖形浮雕位置與大小 -->
+      <section class="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-4 shadow-sm space-y-2.5">
+        <div class="flex justify-between items-center">
+          <h2 class="text-sm font-bold text-sky-400 flex items-center gap-2">
+            <i class="fa-solid fa-up-down-left-right"></i>
+            <span data-lang="stepGraphic">第三步：圖形浮雕位置與大小</span>
+          </h2>
+          <button id="resetGraphicPos" class="text-[11px] text-slate-400 hover:text-white underline" data-lang="resetGraphic">置中重置</button>
+        </div>
+
+        <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-800 space-y-2">
+          <div>
+            <div class="flex justify-between text-xs text-slate-300 mb-1">
+              <span data-lang="graphicScale">圖形縮放大小</span>
+              <span id="graphicScaleVal" class="text-sky-400 font-mono">100%</span>
+            </div>
+            <input type="range" id="graphicScaleInput" min="40" max="180" step="5" value="100" class="w-full h-1.5 bg-slate-700 rounded-lg">
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <div class="flex justify-between text-xs text-slate-300 mb-1">
+                <span data-lang="graphicX">圖形左右 (X)</span>
+                <span id="graphicXVal" class="text-sky-400 font-mono">0 mm</span>
+              </div>
+              <input type="range" id="graphicXInput" min="-25" max="25" step="0.5" value="0" class="w-full h-1.5 bg-slate-700 rounded-lg">
+            </div>
+            <div>
+              <div class="flex justify-between text-xs text-slate-300 mb-1">
+                <span data-lang="graphicY">圖形上下 (Y)</span>
+                <span id="graphicYVal" class="text-sky-400 font-mono">0 mm</span>
+              </div>
+              <input type="range" id="graphicYInput" min="-25" max="25" step="0.5" value="0" class="w-full h-1.5 bg-slate-700 rounded-lg">
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 步驟 4: 真向量立體文字刻字 (平滑直線無鋸齒) -->
+      <section id="textSection" class="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-4 shadow-sm space-y-3 transition-opacity">
+        <div class="flex justify-between items-center">
+          <h2 class="text-sm font-bold text-sky-400 flex items-center gap-2">
+            <i class="fa-solid fa-font"></i>
+            <span data-lang="stepText">第四步：底板立體文字 (真向量平滑筆畫)</span>
+          </h2>
+          <span id="fontStatusBadge" class="text-[11px] text-amber-400 bg-amber-950/60 px-2 py-0.5 rounded border border-amber-800/50">
+            <i class="fa-solid fa-spinner fa-spin mr-1"></i>字型載入中...
+          </span>
+        </div>
+
+        <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-800 space-y-2.5">
+          <!-- 文字輸入框 -->
+          <div>
+            <label class="text-xs text-slate-300 block mb-1" data-lang="textInputLabel">輸入文字 (支援中文、英文、座號)</label>
+            <input type="text" id="customTextInput" maxlength="12" placeholder="例：TAIWAN 或 你好" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-sky-400 transition placeholder:text-slate-500">
+          </div>
+
+          <!-- 文字控制滑桿 -->
+          <div id="textControlsArea" class="space-y-2 pt-1 border-t border-slate-800">
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <div class="flex justify-between text-xs text-slate-300 mb-1">
+                  <span data-lang="textSize">字體大小</span>
+                  <span id="textSizeVal" class="text-sky-400 font-mono">10 mm</span>
+                </div>
+                <input type="range" id="textSizeInput" min="5" max="22" step="1" value="10" class="w-full h-1.5 bg-slate-700 rounded-lg">
+              </div>
+              <div>
+                <div class="flex justify-between text-xs text-slate-300 mb-1">
+                  <span data-lang="textRotation">旋轉角度</span>
+                  <span id="textRotVal" class="text-sky-400 font-mono">0°</span>
+                </div>
+                <input type="range" id="textRotInput" min="-180" max="180" step="5" value="0" class="w-full h-1.5 bg-slate-700 rounded-lg">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <div class="flex justify-between text-xs text-slate-300 mb-1">
+                  <span data-lang="textX">文字左右 (X)</span>
+                  <span id="textXVal" class="text-sky-400 font-mono">0 mm</span>
+                </div>
+                <input type="range" id="textXInput" min="-25" max="25" step="0.5" value="0" class="w-full h-1.5 bg-slate-700 rounded-lg">
+              </div>
+              <div>
+                <div class="flex justify-between text-xs text-slate-300 mb-1">
+                  <span data-lang="textY">文字上下 (Y)</span>
+                  <span id="textYVal" class="text-sky-400 font-mono">-13 mm</span>
+                </div>
+                <input type="range" id="textYInput" min="-25" max="25" step="0.5" value="-13" class="w-full h-1.5 bg-slate-700 rounded-lg">
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 步驟 5: 鑰匙孔微調 -->
+      <section class="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-4 shadow-sm space-y-3">
+        <h2 class="text-sm font-bold text-sky-400 flex items-center gap-2">
+          <i class="fa-solid fa-ring"></i>
+          <span data-lang="step5">第五步：鑰匙孔微調 (智慧安全警示)</span>
+        </h2>
+
+        <div>
+          <label class="text-xs text-slate-300 block mb-1.5" data-lang="holeModeLabel">吊孔樣式</label>
+          <div class="grid grid-cols-2 gap-2">
+            <button id="modeHoleInBase" class="mode-btn bg-sky-500/20 border-2 border-sky-400 text-sky-300 py-1.5 px-3 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5">
+              <i class="fa-solid fa-circle-dot"></i>
+              <span data-lang="modeHole">底板直接打孔 (推薦)</span>
+            </button>
+            <button id="modeExtRing" class="mode-btn bg-slate-900/40 border border-slate-700 hover:border-slate-500 text-slate-300 py-1.5 px-3 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5">
+              <i class="fa-solid fa-ring"></i>
+              <span data-lang="modeRing">外接耳環 (同高齊平)</span>
+            </button>
+          </div>
+        </div>
+
+        <div id="holeWarningBox" class="p-2.5 rounded-xl border text-xs flex items-center gap-2 transition duration-200 bg-emerald-950/40 border-emerald-500/40 text-emerald-300">
+          <i id="holeWarningIcon" class="fa-solid fa-circle-check text-base"></i>
+          <span id="holeWarningText" data-lang="holeStatusOk">孔洞位置安全，肉厚充足，可完美列印</span>
+        </div>
+
+        <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-800 space-y-2">
+          <div class="flex justify-between items-center text-xs text-sky-300 font-medium">
+            <span data-lang="holePosLabel">孔洞位置微調</span>
+            <button id="resetRingPos" class="text-[11px] text-slate-400 hover:text-white underline" data-lang="resetPos">預設位置</button>
+          </div>
+          <div>
+            <div class="flex justify-between text-xs text-slate-300 mb-1">
+              <span data-lang="ringX">左右位置 (X 軸)</span>
+              <span id="ringXVal" class="text-sky-400 font-mono">10 mm</span>
+            </div>
+            <input type="range" id="ringXInput" min="-30" max="30" step="0.5" value="10" class="w-full h-1.5 bg-slate-700 rounded-lg">
+          </div>
+          <div>
+            <div class="flex justify-between text-xs text-slate-300 mb-1">
+              <span data-lang="ringY">上下位置 (Y 軸)</span>
+              <span id="ringYVal" class="text-sky-400 font-mono">24 mm</span>
+            </div>
+            <input type="range" id="ringYInput" min="-35" max="35" step="0.5" value="24" class="w-full h-1.5 bg-slate-700 rounded-lg">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <div class="flex justify-between text-xs text-slate-300 mb-1">
+              <span data-lang="thicknessLabel">浮雕總厚度</span>
+              <span id="thicknessVal" class="text-sky-400 font-bold">3.2 mm</span>
+            </div>
+            <input type="range" id="thicknessInput" min="2.0" max="6.0" step="0.4" value="3.2" class="w-full h-1.5 bg-slate-700 rounded-lg">
+          </div>
+          <div>
+            <div class="flex justify-between text-xs text-slate-300 mb-1">
+              <span data-lang="holeSizeLabel">孔洞直徑</span>
+              <span id="holeSizeVal" class="text-sky-400">3.5 mm</span>
+            </div>
+            <input type="range" id="holeSizeInput" min="2.5" max="6.0" step="0.5" value="3.5" class="w-full h-1.5 bg-slate-700 rounded-lg">
+          </div>
+        </div>
+      </section>
+
+      <!-- 匯出按鈕 -->
+      <button id="exportStlBtn" class="w-full bg-gradient-to-r from-sky-500 to-cyan-400 hover:from-sky-400 hover:to-cyan-300 text-slate-950 font-bold py-3 px-4 rounded-xl text-sm sm:text-base shadow-lg shadow-sky-500/25 flex items-center justify-center gap-2 transition active:scale-95">
+        <i class="fa-solid fa-download"></i>
+        <span data-lang="downloadBtn">下載 3D 列印 STL 檔案</span>
+      </button>
+
+    </div>
+
+    <!-- 右側面板：3D 預覽 (佔 7 欄) -->
+    <div class="lg:col-span-7 bg-slate-800/50 border border-slate-800 rounded-2xl overflow-hidden relative flex flex-col min-h-[480px] lg:min-h-full">
+      <div class="absolute top-4 left-4 z-10 flex flex-col gap-2 pointer-events-none">
+        <span class="bg-slate-900/85 backdrop-blur border border-slate-700/80 px-3 py-1 rounded-full text-xs text-sky-400 flex items-center gap-1.5 shadow">
+          <i class="fa-solid fa-layer-group text-xs"></i>
+          <span data-lang="previewTip">真向量曲線字體；直線筆畫平滑無馬賽克鋸齒</span>
+        </span>
+      </div>
+
+      <!-- 3D WebGL Canvas 容器 -->
+      <div id="threeContainer" class="w-full h-full flex-1"></div>
+    </div>
+
+  </main>
+
+  <script>
+    /* ==========================================================
+       雙語字典 (已全面更新為「剪影鑰匙圈STL產生器」)
+       ========================================================== */
+    const translations = {
+      zh: {
+        title: "剪影鑰匙圈STL產生器",
+        subtitle: "真向量立體刻字・平滑直線無鋸齒・一鍵 STL 匯出",
+        step1: "第一步：上傳剪影圖片",
+        dropText: "點擊或拖曳圖片到這裡",
+        dropTip: "白底黑剪影效果最佳，自動保持真實長寬比例",
+        preview2D: "提取預覽",
+        thresholdLabel: "黑白敏感度",
+        invertLabel: "黑白反轉 (Invert)",
+        step2: "第二步：選擇外觀樣式",
+        preset1: "純剪影",
+        presetTaiwan: "台灣造型",
+        preset2: "圓形勳章",
+        presetShield: "英雄盾牌",
+        presetHeart: "愛心形狀",
+        presetTag: "名牌吊牌",
+        preset3: "圓角方牌",
+        preset4: "膠囊橢圓",
+        stepGraphic: "第三步：圖形浮雕位置與大小",
+        resetGraphic: "置中重置",
+        graphicScale: "圖形縮放大小",
+        graphicX: "圖形左右 (X)",
+        graphicY: "圖形上下 (Y)",
+        stepText: "第四步：底板立體文字 (真向量平滑筆畫)",
+        fontReadyTip: "真向量字型就緒",
+        textDisabledTip: "純剪影模式不可刻字，請先選擇底板樣式",
+        textInputLabel: "輸入文字 (支援中文、英文、座號)",
+        textSize: "字體大小",
+        textRotation: "旋轉角度",
+        textX: "文字左右 (X)",
+        textY: "文字上下 (Y)",
+        step5: "第五步：鑰匙孔微調 (智慧安全警示)",
+        holeModeLabel: "吊孔樣式",
+        modeHole: "底板直接打孔 (推薦)",
+        modeRing: "外接耳環 (同高齊平)",
+        holeStatusOk: "孔洞位置安全，肉厚充足，可完美列印",
+        holeStatusWarnEdge: "⚠️ 警告：孔洞太靠近邊緣（肉厚小於 1.2mm），列印易破裂！",
+        holeStatusWarnOutside: "🚨 嚴重警告：孔洞已超出底板邊緣，無法形成封閉鑰匙孔！",
+        holePosLabel: "孔洞位置微調",
+        resetPos: "預設位置",
+        ringX: "左右位置 (X 軸)",
+        ringY: "上下位置 (Y 軸)",
+        thicknessLabel: "浮雕總厚度",
+        holeSizeLabel: "孔洞直徑",
+        downloadBtn: "下載 3D 列印 STL 檔案",
+        previewTip: "真向量曲線字體；直線筆畫平滑無馬賽克鋸齒",
+        langBtn: "English"
+      },
+      en: {
+        title: "Silhouette Keychain STL Maker",
+        subtitle: "True Vector Smooth Font & STL Export",
+        step1: "Step 1: Upload Silhouette Image",
+        dropText: "Click or drag silhouette image here",
+        dropTip: "Black silhouette on white is best",
+        preview2D: "Vector Preview",
+        thresholdLabel: "B&W Sensitivity",
+        invertLabel: "Invert Black/White",
+        step2: "Step 2: Choose Base Style",
+        preset1: "Silhouette",
+        presetTaiwan: "Taiwan Map",
+        preset2: "Round Badge",
+        presetShield: "Hero Shield",
+        presetHeart: "Heart Base",
+        presetTag: "Dog Tag",
+        preset3: "Square Plate",
+        preset4: "Capsule Base",
+        stepGraphic: "Step 3: Graphic Position & Scale",
+        resetGraphic: "Reset Center",
+        graphicScale: "Graphic Scale",
+        graphicX: "Graphic X Offset",
+        graphicY: "Graphic Y Offset",
+        stepText: "Step 4: Smooth 3D Text (True Vector)",
+        fontReadyTip: "Vector Font Ready",
+        textDisabledTip: "Text unavailable in Pure Silhouette mode",
+        textInputLabel: "Custom Text (Chinese, English, Numbers)",
+        textSize: "Font Size",
+        textRotation: "Rotation",
+        textX: "Text X Offset",
+        textY: "Text Y Offset",
+        step5: "Step 5: Hole Settings (Safety Checker)",
+        holeModeLabel: "Hole Style",
+        modeHole: "Hole in Base (Solid)",
+        modeRing: "Flush External Loop",
+        holeStatusOk: "Hole position safe with sufficient wall thickness.",
+        holeStatusWarnEdge: "⚠️ Warning: Hole is too close to border (<1.2mm); may break!",
+        holeStatusWarnOutside: "🚨 Critical: Hole is outside base border! Hole will fail.",
+        holePosLabel: "Adjust Hole Position",
+        resetPos: "Default",
+        ringX: "Horizontal (X Axis)",
+        ringY: "Vertical (Y Axis)",
+        thicknessLabel: "Total Thickness",
+        holeSizeLabel: "Hole Diameter",
+        downloadBtn: "Download 3D Printable .STL",
+        previewTip: "True vector font; straight edges without pixel stairs",
+        langBtn: "繁體中文"
+      }
+    };
+
+    let currentLang = 'zh';
+    document.getElementById('langToggleBtn').addEventListener('click', () => {
+      currentLang = currentLang === 'zh' ? 'en' : 'zh';
+      document.querySelectorAll('[data-lang]').forEach(el => {
+        const key = el.getAttribute('data-lang');
+        if (translations[currentLang][key]) {
+          el.innerText = translations[currentLang][key];
+        }
+      });
+      document.getElementById('langText').innerText = translations[currentLang].langBtn;
+      validateHoleSafety();
+    });
+
+    /* ==========================================================
+       狀態管理
+       ========================================================== */
+    const state = {
+      image: null,
+      threshold: 150,
+      invert: false,
+      preset: 'taiwan',
+      holeMode: 'hole',
+      thickness: 3.2,
+      baseThickness: 1.6,
+      holeSize: 3.5,
+      ringX: 10.0,
+      ringY: 24.0,
+      graphicX: 0,
+      graphicY: 0,
+      graphicScale: 1.0,
+      text: "",
+      textSize: 10,
+      textRot: 0,
+      textX: 0,
+      textY: -13,
+      holeSafetyStatus: 'ok',
+      loadedFont: null
+    };
+
+    /* ==========================================================
+       Three.js 場景初始化
+       ========================================================== */
+    const container = document.getElementById('threeContainer');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0b1120);
+
+    const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+    camera.position.set(0, -65, 80);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    container.appendChild(renderer.domElement);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+
+    // 虛擬列印熱床
+    const gridHelper = new THREE.GridHelper(100, 20, 0x38bdf8, 0x1e293b);
+    gridHelper.rotation.x = Math.PI / 2;
+    gridHelper.position.z = 0;
+    scene.add(gridHelper);
+
+    // 光源
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
+    scene.add(ambientLight);
+
+    const dirLight1 = new THREE.DirectionalLight(0x38bdf8, 1.2);
+    dirLight1.position.set(40, 50, 70);
+    scene.add(dirLight1);
+
+    const dirLight2 = new THREE.DirectionalLight(0xffffff, 0.6);
+    dirLight2.position.set(-40, -50, 30);
+    scene.add(dirLight2);
+
+    window.addEventListener('resize', () => {
+      if (!container) return;
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    });
+
+    let currentGroup = null;
+
+    /* ==========================================================
+       載入開源繁體中文真向量字型 (Noto Sans TC)
+       ========================================================== */
+    const FONT_URL_BACKUP = "https://cdn.jsdelivr.net/npm/@openfonts/noto-sans-tc_chinese-traditional@1.44.1/files/noto-sans-tc-chinese-traditional-700.woff";
+
+    opentype.load(FONT_URL_BACKUP, (err, font) => {
+      const badge = document.getElementById('fontStatusBadge');
+      if (err) {
+        console.warn("字型載入備用，切換中...", err);
+        badge.innerHTML = `<i class="fa-solid fa-check mr-1"></i>字型備用模式`;
+      } else {
+        state.loadedFont = font;
+        badge.className = "text-[11px] text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800/50";
+        badge.innerHTML = `<i class="fa-solid fa-circle-check mr-1"></i>真向量字型就緒`;
+        if (state.text) update3DModel();
+      }
+    });
+
+    /* ==========================================================
+       官方真實台灣向量路徑
+       ========================================================== */
+    const TAIWAN_SVG_STRING = `<svg version="1.1" viewBox="0 0 612 612" xmlns="http://www.w3.org/2000/svg"><path d="M 412.5 72 L 421 75.5 L 422 82 L 430 87.5 L 432.5 91 L 436.5 93 L 439.5 92 L 443.5 95 L 456.5 95 L 458 96.5 L 457 99.5 L 459 109 L 463.5 108 L 467 110.5 L 465.5 113 L 454 121.5 L 449.5 128 L 448 129.5 L 445 141.5 L 447 159.5 L 452 166.5 L 452 178 Q 446 176.1 449 185.5 L 445 188 L 440 211.5 L 430.5 221 L 428 222.5 L 427 224.5 L 428 230.5 L 422 238.5 L 422 243.5 L 425 250.5 L 421 255.5 L 421 266.5 L 417 276.5 L 417 284.5 L 414 290.5 L 409 313.5 L 409 322.5 L 407 324.5 L 408 328.5 L 405 340.5 L 395 361.5 Q 398.7 363.3 397 370.5 L 389 377.5 L 386 388.5 L 375.5 407 L 370 409.5 L 371 416.5 L 365 426 L 349 435.5 L 347 445.5 L 341 452.5 Q 340 466.5 334 475.5 L 333 496.5 L 334 501.5 L 332 509.5 L 333 514.5 L 332 517.5 L 333 522.5 Q 326.9 525.9 326 534.5 L 328 539 L 315.5 532 L 313 538 L 310 536.5 Q 310.9 527.6 307 523.5 L 310 510.5 L 299 483.5 L 291.5 474 L 280 467.5 L 278.5 465 L 276 463.5 L 273.5 460 L 269.5 462 L 260 453.5 L 262 453 L 260.5 449 L 250 441.5 L 254 430 L 250 429 L 241 404.5 L 240 393.5 L 241 391 L 235 392 L 232.5 387 L 228 385.5 L 227 382.5 L 231 379.5 L 226 377 L 227 380.5 L 224.5 381 L 223 376.5 L 224 374 L 229 373 L 228 362.5 L 232 353.5 L 231 350.5 L 235.5 339 L 237.5 340 L 238 329.5 L 236 326.5 L 238 322 Q 232.8 324.1 234 319.5 L 239 316.5 L 236 307.5 L 242 290.5 L 240 282.5 L 242 277 L 252 274 L 251 271.5 L 256 267.5 L 259 260 L 257 258.5 L 268 243.5 L 265 242.5 L 274 238.5 L 273 236.5 L 274 234 L 271 235.5 Q 272.1 239.7 268 238 L 273.5 230 L 277 229 L 278 225 L 280 224.5 L 278 220.5 L 282 219 L 285 211 L 283 210.5 L 292 207 L 289 203.5 L 302 185.5 L 310 167 L 314 166 L 315 161 L 323 157.5 L 328.5 149 L 331 147.5 L 332 138.5 L 339 128.5 L 340 121 L 344 118.5 Q 344.8 108.7 352.5 106 L 373.5 97 L 396.5 91 L 399 92.5 L 396.5 89 L 395 86.5 L 402.5 76 L 412.5 72 Z" fill="#000000"></path></svg>`;
+
+    function getParsedTaiwanShape() {
+      const loader = new THREE.SVGLoader();
+      const svgData = loader.parse(TAIWAN_SVG_STRING);
+      const shapes = [];
+      svgData.paths.forEach(p => {
+        shapes.push(...THREE.SVGLoader.createShapes(p));
+      });
+      if (shapes.length === 0) return null;
+      
+      const rawShape = shapes[0];
+      const pts = rawShape.extractPoints(300).shape;
+
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      pts.forEach(pt => {
+        if (pt.x < minX) minX = pt.x;
+        if (pt.x > maxX) maxX = pt.x;
+        if (pt.y < minY) minY = pt.y;
+        if (pt.y > maxY) maxY = pt.y;
+      });
+
+      const centerX = (minX + maxX) / 2;
+      const centerY = (minY + maxY) / 2;
+      const targetHeight = 58;
+      const scale = targetHeight / (maxY - minY);
+
+      const normalizedShape = new THREE.Shape();
+      const firstX = (pts[0].x - centerX) * scale;
+      const firstY = -(pts[0].y - centerY) * scale;
+      normalizedShape.moveTo(firstX, firstY);
+
+      for (let i = 1; i < pts.length; i++) {
+        const px = (pts[i].x - centerX) * scale;
+        const py = -(pts[i].y - centerY) * scale;
+        normalizedShape.lineTo(px, py);
+      }
+      normalizedShape.closePath();
+      return normalizedShape;
+    }
+
+    /* ==========================================================
+       底板形狀庫
+       ========================================================== */
+    function createBaseShape(preset, targetSize) {
+      if (preset === 'taiwan') {
+        return getParsedTaiwanShape();
+      }
+
+      const baseShape = new THREE.Shape();
+      const radius = (targetSize * 1.3) / 2;
+
+      switch(preset) {
+        case 'shield': {
+          const sw = targetSize * 0.65, sh = targetSize * 0.7;
+          baseShape.moveTo(-sw, sh);
+          baseShape.lineTo(sw, sh);
+          baseShape.bezierCurveTo(sw, 0, sw * 0.8, -sh * 0.5, 0, -sh);
+          baseShape.bezierCurveTo(-sw * 0.8, -sh * 0.5, -sw, 0, -sw, sh);
+          baseShape.closePath();
+          break;
+        }
+
+        case 'heart': {
+          const hs = targetSize * 0.042;
+          baseShape.moveTo(0, 4 * hs);
+          baseShape.bezierCurveTo(0, 11 * hs, -14 * hs, 15 * hs, -14 * hs, 3 * hs);
+          baseShape.bezierCurveTo(-14 * hs, -6 * hs, -5 * hs, -11 * hs, 0, -17 * hs);
+          baseShape.bezierCurveTo(5 * hs, -11 * hs, 14 * hs, -6 * hs, 14 * hs, 3 * hs);
+          baseShape.bezierCurveTo(14 * hs, 15 * hs, 0, 11 * hs, 0, 4 * hs);
+          baseShape.closePath();
+          break;
+        }
+
+        case 'tag': {
+          const tw = targetSize * 0.6, th = targetSize * 0.7, cut = 7;
+          baseShape.moveTo(-tw + cut, th);
+          baseShape.lineTo(tw - cut, th);
+          baseShape.lineTo(tw, th - cut);
+          baseShape.lineTo(tw, -th + cut);
+          baseShape.lineTo(tw - cut, -th);
+          baseShape.lineTo(-tw + cut, -th);
+          baseShape.lineTo(-tw, -th + cut);
+          baseShape.lineTo(-tw, th - cut);
+          baseShape.closePath();
+          break;
+        }
+
+        case 'circle': {
+          baseShape.absarc(0, 0, radius, 0, Math.PI * 2, false);
+          break;
+        }
+
+        case 'roundRect': {
+          const bw = targetSize * 1.25, bh = targetSize * 1.25, cr = 6;
+          baseShape.moveTo(-bw/2 + cr, -bh/2);
+          baseShape.lineTo(bw/2 - cr, -bh/2);
+          baseShape.quadraticCurveTo(bw/2, -bh/2, bw/2, -bh/2 + cr);
+          baseShape.lineTo(bw/2, bh/2 - cr);
+          baseShape.quadraticCurveTo(bw/2, bh/2, bw/2 - cr, bh/2);
+          baseShape.lineTo(-bw/2 + cr, bh/2);
+          baseShape.quadraticCurveTo(-bw/2, bh/2, -bw/2, bh/2 - cr);
+          baseShape.lineTo(-bw/2, -bh/2 + cr);
+          baseShape.quadraticCurveTo(-bw/2, -bh/2, -bw/2 + cr, -bh/2);
+          break;
+        }
+
+        case 'capsule':
+        default: {
+          const cr = radius * 0.75;
+          baseShape.absarc(8, 0, cr, -Math.PI/2, Math.PI/2, false);
+          baseShape.absarc(-8, 0, cr, Math.PI/2, -Math.PI/2, false);
+          baseShape.closePath();
+          break;
+        }
+      }
+
+      return baseShape;
+    }
+
+    /* ==========================================================
+       智慧孔洞安全檢測 (Point-in-Polygon & Margin)
+       ========================================================== */
+    function isPointInsidePolygon(pt, poly) {
+      let inside = false;
+      for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+        const xi = poly[i].x, yi = poly[i].y;
+        const xj = poly[j].x, yj = poly[j].y;
+        const intersect = ((yi > pt.y) !== (yj > pt.y)) &&
+            (pt.x < (xj - xi) * (pt.y - yi) / (yj - yi) + xi);
+        if (intersect) inside = !inside;
+      }
+      return inside;
+    }
+
+    function getMinDistanceToPolygon(pt, poly) {
+      let minDst = Infinity;
+      for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+        const p1 = poly[j], p2 = poly[i];
+        const dx = p2.x - p1.x;
+        const dy = p2.y - p1.y;
+        const l2 = dx * dx + dy * dy;
+        let t = ((pt.x - p1.x) * dx + (pt.y - p1.y) * dy) / l2;
+        t = Math.max(0, Math.min(1, t));
+        const projX = p1.x + t * dx;
+        const projY = p1.y + t * dy;
+        const dst = Math.hypot(pt.x - projX, pt.y - projY);
+        if (dst < minDst) minDst = dst;
+      }
+      return minDst;
+    }
+
+    function validateHoleSafety() {
+      const box = document.getElementById('holeWarningBox');
+      const icon = document.getElementById('holeWarningIcon');
+      const text = document.getElementById('holeWarningText');
+
+      if (state.preset === 'silhouette') {
+        state.holeSafetyStatus = 'ok';
+        box.className = 'p-2.5 rounded-xl border text-xs flex items-center gap-2 transition duration-200 bg-slate-900/40 border-slate-700 text-slate-400';
+        icon.className = 'fa-solid fa-info-circle text-base';
+        text.innerText = currentLang === 'zh' ? '純剪影模式：請自由移動吊環至主體邊緣' : 'Pure Silhouette mode';
+        return;
+      }
+
+      if (state.holeMode === 'ring') {
+        state.holeSafetyStatus = 'ok';
+        box.className = 'p-2.5 rounded-xl border text-xs flex items-center gap-2 transition duration-200 bg-emerald-950/40 border-emerald-500/40 text-emerald-300';
+        icon.className = 'fa-solid fa-circle-check text-base';
+        text.innerText = currentLang === 'zh' ? '外接耳環模式：請確保耳環與底板外緣相交' : 'External Ring: Ensure contact with plate.';
+        return;
+      }
+
+      const baseShape = createBaseShape(state.preset, 42);
+      const poly = baseShape.extractPoints(180).shape;
+      const holeCenter = { x: state.ringX, y: state.ringY };
+      const holeRadius = state.holeSize / 2;
+      const minSafeMargin = 1.2;
+
+      const centerInside = isPointInsidePolygon(holeCenter, poly);
+      let allPointsInside = centerInside;
+      if (centerInside) {
+        for (let a = 0; a < Math.PI * 2; a += Math.PI / 6) {
+          const sx = holeCenter.x + Math.cos(a) * holeRadius;
+          const sy = holeCenter.y + Math.sin(a) * holeRadius;
+          if (!isPointInsidePolygon({ x: sx, y: sy }, poly)) {
+            allPointsInside = false;
+            break;
+          }
+        }
+      }
+
+      if (!allPointsInside) {
+        state.holeSafetyStatus = 'outside';
+        box.className = 'p-2.5 rounded-xl border text-xs flex items-center gap-2 transition duration-200 bg-rose-950/60 border-rose-500 text-rose-300 animate-pulse';
+        icon.className = 'fa-solid fa-triangle-exclamation text-base text-rose-400';
+        text.innerText = translations[currentLang].holeStatusWarnOutside;
+        return;
+      }
+
+      const edgeDist = getMinDistanceToPolygon(holeCenter, poly);
+      const wallThickness = edgeDist - holeRadius;
+
+      if (wallThickness < minSafeMargin) {
+        state.holeSafetyStatus = 'edge';
+        box.className = 'p-2.5 rounded-xl border text-xs flex items-center gap-2 transition duration-200 bg-amber-950/50 border-amber-500 text-amber-300';
+        icon.className = 'fa-solid fa-circle-exclamation text-base text-amber-400';
+        text.innerText = translations[currentLang].holeStatusWarnEdge;
+      } else {
+        state.holeSafetyStatus = 'ok';
+        box.className = 'p-2.5 rounded-xl border text-xs flex items-center gap-2 transition duration-200 bg-emerald-950/40 border-emerald-500/40 text-emerald-300';
+        icon.className = 'fa-solid fa-circle-check text-base text-emerald-400';
+        text.innerText = translations[currentLang].holeStatusOk;
+      }
+    }
+
+    /* ==========================================================
+       圖片二值化多邊形萃取演算法
+       ========================================================== */
+    function getPolygonArea(pts) {
+      let area = 0;
+      for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+        area += (pts[j].x * pts[i].y) - (pts[i].x * pts[j].y);
+      }
+      return area / 2;
+    }
+
+    function buildShapesWithHoles(polygons) {
+      if (!polygons || polygons.length === 0) return [];
+
+      const polyObjects = polygons.map(pts => ({
+        pts,
+        area: Math.abs(getPolygonArea(pts))
+      }));
+
+      polyObjects.sort((a, b) => b.area - a.area);
+      const shapes = [];
+
+      polyObjects.forEach(polyObj => {
+        const pt0 = polyObj.pts[0];
+        let parentShape = null;
+
+        for (let i = 0; i < shapes.length; i++) {
+          const s = shapes[i];
+          if (isPointInsidePolygon(pt0, s.outerPoly)) {
+            parentShape = s;
+            break;
+          }
+        }
+
+        if (parentShape) {
+          const holePath = new THREE.Path();
+          holePath.moveTo(polyObj.pts[0].x, polyObj.pts[0].y);
+          for (let k = 1; k < polyObj.pts.length; k++) {
+            holePath.lineTo(polyObj.pts[k].x, polyObj.pts[k].y);
+          }
+          holePath.closePath();
+          parentShape.shape.holes.push(holePath);
+        } else {
+          const shape = new THREE.Shape();
+          shape.moveTo(polyObj.pts[0].x, polyObj.pts[0].y);
+          for (let k = 1; k < polyObj.pts.length; k++) {
+            shape.lineTo(polyObj.pts[k].x, polyObj.pts[k].y);
+          }
+          shape.closePath();
+
+          shapes.push({
+            shape,
+            outerPoly: polyObj.pts
+          });
+        }
+      });
+
+      return shapes.map(s => s.shape);
+    }
+
+    function traceAllContours(binary, w, h) {
+      const visited = new Uint8Array(w * h);
+      const polygons = [];
+      const dirs = [
+        {x: 0, y: -1}, {x: 1, y: -1}, {x: 1, y: 0}, {x: 1, y: 1},
+        {x: 0, y: 1}, {x: -1, y: 1}, {x: -1, y: 0}, {x: -1, y: -1}
+      ];
+
+      for (let y = 1; y < h - 1; y++) {
+        for (let x = 1; x < w - 1; x++) {
+          if (binary[y][x] === 1 && !visited[y * w + x]) {
+            if (binary[y-1][x] === 0 || binary[y+1][x] === 0 || binary[y][x-1] === 0 || binary[y][x+1] === 0) {
+              const points = [];
+              let cx = x, cy = y;
+              let dirIdx = 0, steps = 0;
+
+              while (steps < 4000) {
+                points.push({ x: cx, y: cy });
+                visited[cy * w + cx] = 1;
+                let foundNext = false;
+                const checkStart = (dirIdx + 5) % 8;
+                for (let i = 0; i < 8; i++) {
+                  const d = (checkStart + i) % 8;
+                  const nx = cx + dirs[d].x;
+                  const ny = cy + dirs[d].y;
+                  if (nx >= 0 && nx < w && ny >= 0 && ny < h && binary[ny][nx] === 1) {
+                    cx = nx;
+                    cy = ny;
+                    dirIdx = d;
+                    foundNext = true;
+                    break;
+                  }
+                }
+                if (!foundNext || (cx === x && cy === y && steps > 2)) break;
+                steps++;
+              }
+
+              if (points.length > 12) {
+                const smoothed = [];
+                const stride = Math.max(1, Math.floor(points.length / 180));
+                for (let i = 0; i < points.length; i += stride) smoothed.push(points[i]);
+                polygons.push(smoothed);
+              }
+            }
+          }
+        }
+      }
+      return polygons;
+    }
+
+    function extractSmoothContours(img, threshold, invert) {
+      const maxSample = 180;
+      let w, h;
+      if (img.width >= img.height) {
+        w = maxSample;
+        h = Math.max(10, Math.round(maxSample * (img.height / img.width)));
+      } else {
+        h = maxSample;
+        w = Math.max(10, Math.round(maxSample * (img.width / img.height)));
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      const imgData = ctx.getImageData(0, 0, w, h).data;
+
+      const previewCanvas = document.getElementById('previewCanvas');
+      previewCanvas.width = w;
+      previewCanvas.height = h;
+      const pCtx = previewCanvas.getContext('2d');
+      pCtx.drawImage(canvas, 0, 0);
+
+      const binary = [];
+      for (let y = 0; y < h; y++) {
+        binary[y] = [];
+        for (let x = 0; x < w; x++) {
+          const idx = (y * w + x) * 4;
+          const r = imgData[idx];
+          const g = imgData[idx + 1];
+          const b = imgData[idx + 2];
+          const a = imgData[idx + 3];
+          const brightness = 0.299 * r + 0.587 * g + 0.114 * b;
+          let solid = (a > 60 && brightness < threshold);
+          if (invert) solid = !solid;
+          binary[y][x] = solid ? 1 : 0;
+        }
+      }
+
+      const polygons = traceAllContours(binary, w, h);
+      return { polygons, w, h };
+    }
+
+    /* ==========================================================
+       真向量數學文字生成 (直接調用 opentype 貝茲曲線，零馬賽克)
+       ========================================================== */
+    function generateTrueVectorTextShapes(text, fontSize, rotRad, offsetX, offsetY) {
+      if (!text || text.trim() === '' || !state.loadedFont) return [];
+
+      const font = state.loadedFont;
+      const openPath = font.getPath(text.trim(), 0, 0, fontSize);
+      const svgPathString = openPath.toPathData(3);
+
+      if (!svgPathString) return [];
+
+      const svgWrap = `<svg xmlns="http://www.w3.org/2000/svg"><path d="${svgPathString}" fill="#000" /></svg>`;
+      const loader = new THREE.SVGLoader();
+      const svgData = loader.parse(svgWrap);
+      const rawShapes = [];
+      svgData.paths.forEach(p => {
+        rawShapes.push(...THREE.SVGLoader.createShapes(p));
+      });
+
+      if (rawShapes.length === 0) return [];
+
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      rawShapes.forEach(shape => {
+        const pts = shape.getPoints();
+        pts.forEach(pt => {
+          if (pt.x < minX) minX = pt.x;
+          if (pt.x > maxX) maxX = pt.x;
+          if (pt.y < minY) minY = pt.y;
+          if (pt.y > maxY) maxY = pt.y;
+        });
+      });
+
+      const centerX = (minX + maxX) / 2;
+      const centerY = (minY + maxY) / 2;
+      const cosR = Math.cos(rotRad);
+      const sinR = Math.sin(rotRad);
+
+      const transformedShapes = [];
+
+      rawShapes.forEach(rawShape => {
+        const shape = new THREE.Shape();
+        const pts = rawShape.getPoints();
+
+        const transform = (x, y) => {
+          const lx = x - centerX;
+          const ly = -(y - centerY);
+          const rx = lx * cosR - ly * sinR + offsetX;
+          const ry = lx * sinR + ly * cosR + offsetY;
+          return { x: rx, y: ry };
+        };
+
+        const p0 = transform(pts[0].x, pts[0].y);
+        shape.moveTo(p0.x, p0.y);
+        for (let i = 1; i < pts.length; i++) {
+          const p = transform(pts[i].x, pts[i].y);
+          shape.lineTo(p.x, p.y);
+        }
+        shape.closePath();
+
+        if (rawShape.holes && rawShape.holes.length > 0) {
+          rawShape.holes.forEach(rawHole => {
+            const hPts = rawHole.getPoints();
+            const holePath = new THREE.Path();
+            const hp0 = transform(hPts[0].x, hPts[0].y);
+            holePath.moveTo(hp0.x, hp0.y);
+            for (let k = 1; k < hPts.length; k++) {
+              const hp = transform(hPts[k].x, hPts[k].y);
+              holePath.lineTo(hp.x, hp.y);
+            }
+            holePath.closePath();
+            shape.holes.push(holePath);
+          });
+        }
+
+        transformedShapes.push(shape);
+      });
+
+      return transformedShapes;
+    }
+
+    /* ==========================================================
+       重新建構 3D 模型
+       ========================================================== */
+    function update3DModel() {
+      if (!state.image) return;
+
+      validateHoleSafety();
+
+      const hasBase = state.preset !== 'silhouette';
+      const textSection = document.getElementById('textSection');
+      const customTextInput = document.getElementById('customTextInput');
+
+      if (!hasBase) {
+        textSection.classList.add('opacity-40', 'pointer-events-none');
+        customTextInput.disabled = true;
+      } else {
+        textSection.classList.remove('opacity-40', 'pointer-events-none');
+        customTextInput.disabled = false;
+      }
+
+      const { polygons, w, h } = extractSmoothContours(state.image, state.threshold, state.invert);
+
+      if (currentGroup) {
+        scene.remove(currentGroup);
+      }
+      currentGroup = new THREE.Group();
+
+      const isTaiwan = state.preset === 'taiwan';
+      const baseTargetSize = isTaiwan ? 22 : 38; 
+      const targetSize = baseTargetSize * state.graphicScale;
+      const scale = targetSize / Math.max(w, h);
+
+      const silMaterial = new THREE.MeshStandardMaterial({
+        color: 0x38bdf8,
+        roughness: 0.35,
+        metalness: 0.1,
+      });
+
+      const textMaterial = new THREE.MeshStandardMaterial({
+        color: 0x38bdf8,
+        roughness: 0.3,
+        metalness: 0.15,
+      });
+
+      const baseMaterial = new THREE.MeshStandardMaterial({
+        color: 0x1e293b,
+        roughness: 0.5,
+      });
+
+      const baseH = state.baseThickness; // 1.6 mm
+
+      // 1. 底板建構
+      if (hasBase) {
+        const baseShape = createBaseShape(state.preset, 42);
+
+        if (state.holeMode === 'hole') {
+          const holePath = new THREE.Path();
+          holePath.absarc(state.ringX, state.ringY, state.holeSize / 2, 0, Math.PI * 2, true);
+          baseShape.holes.push(holePath);
+        }
+
+        const baseGeo = new THREE.ExtrudeGeometry(baseShape, {
+          depth: baseH,
+          bevelEnabled: true,
+          bevelThickness: 0.25,
+          bevelSize: 0.2,
+          bevelSegments: 2
+        });
+
+        const baseMesh = new THREE.Mesh(baseGeo, baseMaterial);
+        currentGroup.add(baseMesh);
+
+        // 3D 視覺孔洞警示環
+        if (state.holeMode === 'hole') {
+          const ringColor = state.holeSafetyStatus === 'outside' ? 0xef4444 : 
+                           (state.holeSafetyStatus === 'edge' ? 0xf59e0b : 0x10b981);
+          const indicatorGeo = new THREE.RingGeometry(state.holeSize / 2, state.holeSize / 2 + 0.6, 32);
+          const indicatorMat = new THREE.MeshBasicMaterial({ 
+            color: ringColor, 
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: state.holeSafetyStatus === 'ok' ? 0.35 : 0.95
+          });
+          const indicatorMesh = new THREE.Mesh(indicatorGeo, indicatorMat);
+          indicatorMesh.position.set(state.ringX, state.ringY, baseH + 0.05);
+          currentGroup.add(indicatorMesh);
+        }
+      }
+
+      // 2. 剪影本體 (智慧接地技術，外凸不懸空)
+      if (polygons.length > 0) {
+        const baseOffsetX = isTaiwan ? 1.5 : 0;
+        const baseOffsetY = isTaiwan ? -1.0 : 0;
+        const totalX = baseOffsetX + state.graphicX;
+        const totalY = baseOffsetY + state.graphicY;
+
+        const transformedPolys = polygons.map(pts => {
+          return pts.map(pt => ({
+            x: (pt.x - w / 2) * scale + totalX,
+            y: -(pt.y - h / 2) * scale + totalY
+          }));
+        });
+
+        const imageShapes = buildShapesWithHoles(transformedPolys);
+        imageShapes.forEach(shape => {
+          const extrudeSettings = {
+            depth: state.thickness,
+            bevelEnabled: true,
+            bevelThickness: 0.3,
+            bevelSize: 0.2,
+            bevelSegments: 2
+          };
+          const geom = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+          const mesh = new THREE.Mesh(geom, silMaterial);
+          currentGroup.add(mesh);
+        });
+      }
+
+      // 3. 真向量中英文立體文字 (直線完全平滑，零鋸齒，孔洞清晰穿透)
+      if (hasBase && state.text && state.text.trim() !== '') {
+        const rotRad = (state.textRot * Math.PI) / 180;
+        const textShapes = generateTrueVectorTextShapes(
+          state.text,
+          state.textSize,
+          rotRad,
+          state.textX,
+          state.textY
+        );
+
+        textShapes.forEach(shape => {
+          const textGeo = new THREE.ExtrudeGeometry(shape, {
+            depth: state.thickness,
+            bevelEnabled: true,
+            bevelThickness: 0.2,
+            bevelSize: 0.15,
+            bevelSegments: 2
+          });
+          const textMesh = new THREE.Mesh(textGeo, textMaterial);
+          currentGroup.add(textMesh);
+        });
+      }
+
+      // 4. 外接耳環 (齊平底板高度 1.6mm)
+      if (state.holeMode === 'ring' || !hasBase) {
+        const ringOuterR = (state.holeSize / 2) + 2.2;
+        const ringInnerR = state.holeSize / 2;
+        const ringThickness = hasBase ? baseH : state.thickness;
+
+        const ringShape = new THREE.Shape();
+        ringShape.absarc(0, 0, ringOuterR, 0, Math.PI * 2, false);
+        const holePath = new THREE.Path();
+        holePath.absarc(0, 0, ringInnerR, 0, Math.PI * 2, true);
+        ringShape.holes.push(holePath);
+
+        const ringGeo = new THREE.ExtrudeGeometry(ringShape, {
+          depth: ringThickness,
+          bevelEnabled: true,
+          bevelThickness: 0.2,
+          bevelSize: 0.15,
+          bevelSegments: 2
+        });
+
+        ringGeo.translate(state.ringX, state.ringY, 0);
+        const ringMesh = new THREE.Mesh(ringGeo, hasBase ? baseMaterial : silMaterial);
+        currentGroup.add(ringMesh);
+      }
+
+      scene.add(currentGroup);
+    }
+
+    // 動畫循環
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    /* ==========================================================
+       預設剪影：五角星
+       ========================================================== */
+    function loadDefaultStarImage() {
+      const c = document.createElement('canvas');
+      c.width = 160;
+      c.height = 160;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, 160, 160);
+
+      ctx.fillStyle = '#000000';
+      ctx.beginPath();
+      const cx = 80, cy = 80;
+      const outerR = 60, innerR = 25;
+      for (let i = 0; i < 5; i++) {
+        const outerAngle = (i * 72 - 90) * Math.PI / 180;
+        const innerAngle = (i * 72 + 36 - 90) * Math.PI / 180;
+        const ox = cx + Math.cos(outerAngle) * outerR;
+        const oy = cy + Math.sin(outerAngle) * outerR;
+        if (i === 0) ctx.moveTo(ox, oy);
+        else ctx.lineTo(ox, oy);
+
+        const ix = cx + Math.cos(innerAngle) * innerR;
+        const iy = cy + Math.sin(innerAngle) * innerR;
+        ctx.lineTo(ix, iy);
+      }
+      ctx.closePath();
+      ctx.fill();
+
+      const img = new Image();
+      img.onload = () => {
+        state.image = img;
+        update3DModel();
+      };
+      img.src = c.toDataURL();
+    }
+    loadDefaultStarImage();
+
+    /* ==========================================================
+       UI 監聽事件
+       ========================================================== */
+    const fileInput = document.getElementById('fileInput');
+    const dropZone = document.getElementById('dropZone');
+
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-sky-400'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('border-sky-400'));
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('border-sky-400');
+      if (e.dataTransfer.files.length > 0) loadImg(e.dataTransfer.files[0]);
+    });
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) loadImg(e.target.files[0]);
+    });
+
+    function loadImg(file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          state.image = img;
+          update3DModel();
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // 門檻
+    document.getElementById('thresholdInput').addEventListener('input', (e) => {
+      state.threshold = parseInt(e.target.value);
+      document.getElementById('thresholdVal').innerText = state.threshold;
+      update3DModel();
+    });
+
+    // 反轉黑白
+    document.getElementById('invertBtn').addEventListener('click', () => {
+      state.invert = !state.invert;
+      update3DModel();
+    });
+
+    // 圖案位移與縮放
+    document.getElementById('graphicScaleInput').addEventListener('input', (e) => {
+      const pct = parseInt(e.target.value);
+      state.graphicScale = pct / 100;
+      document.getElementById('graphicScaleVal').innerText = pct + '%';
+      update3DModel();
+    });
+
+    document.getElementById('graphicXInput').addEventListener('input', (e) => {
+      state.graphicX = parseFloat(e.target.value);
+      document.getElementById('graphicXVal').innerText = state.graphicX.toFixed(1) + ' mm';
+      update3DModel();
+    });
+
+    document.getElementById('graphicYInput').addEventListener('input', (e) => {
+      state.graphicY = parseFloat(e.target.value);
+      document.getElementById('graphicYVal').innerText = state.graphicY.toFixed(1) + ' mm';
+      update3DModel();
+    });
+
+    document.getElementById('resetGraphicPos').addEventListener('click', () => {
+      state.graphicX = 0;
+      state.graphicY = 0;
+      state.graphicScale = 1.0;
+      document.getElementById('graphicXInput').value = 0;
+      document.getElementById('graphicYInput').value = 0;
+      document.getElementById('graphicScaleInput').value = 100;
+      document.getElementById('graphicXVal').innerText = '0 mm';
+      document.getElementById('graphicYVal').innerText = '0 mm';
+      document.getElementById('graphicScaleVal').innerText = '100%';
+      update3DModel();
+    });
+
+    // 立體刻字 UI 監聽
+    const customTextInput = document.getElementById('customTextInput');
+    customTextInput.addEventListener('input', (e) => {
+      state.text = e.target.value;
+      update3DModel();
+    });
+
+    document.getElementById('textSizeInput').addEventListener('input', (e) => {
+      state.textSize = parseInt(e.target.value);
+      document.getElementById('textSizeVal').innerText = state.textSize + ' mm';
+      update3DModel();
+    });
+
+    document.getElementById('textRotInput').addEventListener('input', (e) => {
+      state.textRot = parseInt(e.target.value);
+      document.getElementById('textRotVal').innerText = state.textRot + '°';
+      update3DModel();
+    });
+
+    document.getElementById('textXInput').addEventListener('input', (e) => {
+      state.textX = parseFloat(e.target.value);
+      document.getElementById('textXVal').innerText = state.textX.toFixed(1) + ' mm';
+      update3DModel();
+    });
+
+    document.getElementById('textYInput').addEventListener('input', (e) => {
+      state.textY = parseFloat(e.target.value);
+      document.getElementById('textYVal').innerText = state.textY.toFixed(1) + ' mm';
+      update3DModel();
+    });
+
+    // 開孔模式切換
+    const btnHole = document.getElementById('modeHoleInBase');
+    const btnRing = document.getElementById('modeExtRing');
+
+    btnHole.addEventListener('click', () => {
+      state.holeMode = 'hole';
+      btnHole.classList.add('border-sky-400', 'bg-sky-500/20', 'text-sky-300');
+      btnHole.classList.remove('border-slate-700', 'text-slate-300');
+      btnRing.classList.remove('border-sky-400', 'bg-sky-500/20', 'text-sky-300');
+      btnRing.classList.add('border-slate-700', 'text-slate-300');
+      update3DModel();
+    });
+
+    btnRing.addEventListener('click', () => {
+      state.holeMode = 'ring';
+      btnRing.classList.add('border-sky-400', 'bg-sky-500/20', 'text-sky-300');
+      btnRing.classList.remove('border-slate-700', 'text-slate-300');
+      btnHole.classList.remove('border-sky-400', 'bg-sky-500/20', 'text-sky-300');
+      btnHole.classList.add('border-slate-700', 'text-slate-300');
+      update3DModel();
+    });
+
+    // 吊環/孔洞 X/Y 軸微調
+    document.getElementById('ringXInput').addEventListener('input', (e) => {
+      state.ringX = parseFloat(e.target.value);
+      document.getElementById('ringXVal').innerText = state.ringX.toFixed(1) + ' mm';
+      update3DModel();
+    });
+
+    document.getElementById('ringYInput').addEventListener('input', (e) => {
+      state.ringY = parseFloat(e.target.value);
+      document.getElementById('ringYVal').innerText = state.ringY.toFixed(1) + ' mm';
+      update3DModel();
+    });
+
+    // 吊孔重置
+    document.getElementById('resetRingPos').addEventListener('click', () => {
+      state.ringX = state.preset === 'taiwan' ? 10.0 : 0;
+      state.ringY = state.preset === 'taiwan' ? 24.0 : (state.holeMode === 'hole' ? 20 : 27);
+      document.getElementById('ringXInput').value = state.ringX;
+      document.getElementById('ringYInput').value = state.ringY;
+      document.getElementById('ringXVal').innerText = state.ringX + ' mm';
+      document.getElementById('ringYVal').innerText = state.ringY + ' mm';
+      update3DModel();
+    });
+
+    // 厚度
+    document.getElementById('thicknessInput').addEventListener('input', (e) => {
+      state.thickness = parseFloat(e.target.value);
+      document.getElementById('thicknessVal').innerText = state.thickness.toFixed(1) + ' mm';
+      update3DModel();
+    });
+
+    // 孔徑
+    document.getElementById('holeSizeInput').addEventListener('input', (e) => {
+      state.holeSize = parseFloat(e.target.value);
+      document.getElementById('holeSizeVal').innerText = state.holeSize.toFixed(1) + ' mm';
+      update3DModel();
+    });
+
+    // 外觀樣式切換
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.preset-btn').forEach(b => {
+          b.classList.remove('active', 'border-sky-400', 'bg-sky-500/20', 'text-sky-300', 'border-2');
+          b.classList.add('border-slate-700', 'text-slate-300');
+        });
+        btn.classList.add('active', 'border-sky-400', 'bg-sky-500/20', 'text-sky-300', 'border-2');
+        btn.classList.remove('border-slate-700', 'text-slate-300');
+        state.preset = btn.getAttribute('data-preset');
+
+        if (state.preset === 'taiwan') {
+          state.ringX = 10.0;
+          state.ringY = 24.0;
+          state.textY = -13.0;
+        } else {
+          state.ringX = 0;
+          state.ringY = state.holeMode === 'hole' ? 20 : 27;
+          state.textY = -13.0;
+        }
+        document.getElementById('ringXInput').value = state.ringX;
+        document.getElementById('ringYInput').value = state.ringY;
+        document.getElementById('ringXVal').innerText = state.ringX + ' mm';
+        document.getElementById('ringYVal').innerText = state.ringY + ' mm';
+
+        update3DModel();
+      });
+    });
+
+    /* ==========================================================
+       匯出 STL 檔案
+       ========================================================== */
+    document.getElementById('exportStlBtn').addEventListener('click', () => {
+      if (!currentGroup) return;
+
+      if (state.holeMode === 'hole' && state.holeSafetyStatus === 'outside') {
+        const confirmMsg = currentLang === 'zh' ? 
+          '【注意】孔洞目前位在底板外面，印出來可能無法穿鑰匙圈！\n建議將孔洞移入底板內再下載。\n\n確定仍要強制下載嗎？' :
+          '[Warning] The hole is outside the plate! Continue?';
+        if (!confirm(confirmMsg)) {
+          return;
+        }
+      }
+
+      const exporter = new THREE.STLExporter();
+      const result = exporter.parse(currentGroup, { binary: true });
+      const blob = new Blob([result], { type: 'application/octet-stream' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `keychain_${state.preset}_${Date.now()}.stl`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    });
+  </script>
+</body>
+</html>
