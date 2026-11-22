@@ -25,19 +25,19 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # 使用 Node.js 掃描所有資料夾並產生漂亮的首頁 index.html
+      # 使用 Node.js 掃描所有資料夾並產生精美的雙語首頁 index.html
       - name: Build Index Page
         run: |
           node -e '
             const fs = require("fs");
             const path = require("path");
 
-            // 1. 取得所有包含 index.html 的子資料夾（忽略 .git、.github 等隱藏資料夾）
+            // 1. 取得所有包含 index.html 的子資料夾
             const directories = fs.readdirSync(".", { withFileTypes: true })
               .filter(d => d.isDirectory() && !d.name.startsWith("."))
               .filter(d => fs.existsSync(path.join(d.name, "index.html")));
 
-            // 2. 整理每個專案的資料
+            // 2. 整理專案資料
             const projects = directories.map(dir => {
               const folderName = dir.name;
               let meta = {
@@ -47,7 +47,6 @@ jobs:
                 date: ""
               };
 
-              // 讀取自訂的 meta.json
               const metaFile = path.join(folderName, "meta.json");
               if (fs.existsSync(metaFile)) {
                 try {
@@ -57,7 +56,6 @@ jobs:
                 }
               }
 
-              // 檢查是否有預覽圖
               const hasPreview = fs.existsSync(path.join(folderName, "preview.png"));
               const previewImg = hasPreview ? `./${folderName}/preview.png` : "";
 
@@ -76,197 +74,441 @@ jobs:
             // 生成篩選按鈕 HTML
             const filterHtml = `
               <div class="filter-container">
-                <button class="filter-btn active" data-filter="all">全部作品</button>
-                ${uniqueTags.map(t => `<button class="filter-btn" data-filter="${t}">${t}</button>`).join("")}
+                <button class="filter-btn active" data-filter="all">
+                  <i class="fa-solid fa-layer-group"></i> <span data-i18n="filterAll">全部作品</span>
+                </button>
+                ${uniqueTags.map(t => `
+                  <button class="filter-btn" data-filter="${t}">
+                    <span>${t}</span>
+                  </button>
+                `).join("")}
               </div>
             `;
 
             // 3. 生成卡片 HTML
             const cardsHtml = projects.map(p => `
               <a href="./${p.folder}/" class="card" target="_blank" rel="noopener noreferrer" data-tags="${(p.tags || []).join(",")}">
-                ${p.previewImg ? `<div class="card-img" style="background-image: url(\x27${p.previewImg}\x27);"></div>` : `<div class="card-placeholder">🚀</div>`}
+                <div class="card-img-wrapper">
+                  ${p.previewImg ? `<div class="card-img" style="background-image: url(\x27${p.previewImg}\x27);"></div>` : `<div class="card-placeholder"><i class="fa-solid fa-compass-drafting"></i></div>`}
+                  <div class="card-badge"><i class="fa-solid fa-arrow-up-right-from-square"></i></div>
+                </div>
                 <div class="card-content">
-                  <div class="tags">${(p.tags || []).map(t => `<span class="tag">${t}</span>`).join("")}</div>
+                  <div class="tags">
+                    ${(p.tags || []).map(t => `<span class="tag">${t}</span>`).join("")}
+                  </div>
                   <h2 class="card-title">${p.title}</h2>
                   <p class="card-desc">${p.description}</p>
-                  <span class="card-link">進入體驗 &rarr;</span>
+                  <div class="card-footer">
+                    <span class="card-link"><span data-i18n="viewProject">立即探索</span> <i class="fa-solid fa-arrow-right"></i></span>
+                  </div>
                 </div>
               </a>
             `).join("\n");
 
-            // 4. 生成完整的首頁 index.html
+            // 4. 生成新版首頁 index.html
             const fullHtml = `<!DOCTYPE html>
             <html lang="zh-TW">
             <head>
               <meta charset="UTF-8">
               <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <title>我的單頁實驗室</title>
+              <title>單頁互動實驗室 | Single Page Lab</title>
+              
+              <!-- Google Fonts & Font Awesome 圖示 -->
               <link rel="preconnect" href="https://fonts.googleapis.com">
-              <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+              <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+              <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+              <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
               <style>
-                * { box-sizing: border-box; margin: 0; padding: 0; }
-                body {
-                  font-family: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
-                  background-color: #0f172a;
-                  color: #e2e8f0;
-                  min-height: 100vh;
-                  padding: 3rem 1.5rem;
+                :root {
+                  --bg-main: #0b1120;
+                  --bg-card: rgba(30, 41, 59, 0.7);
+                  --border-color: rgba(51, 65, 85, 0.6);
+                  --accent: #38bdf8;
+                  --accent-gradient: linear-gradient(135deg, #38bdf8 0%, #06b6d4 100%);
+                  --text-main: #f8fafc;
+                  --text-muted: #94a3b8;
                 }
-                .container { max-width: 1200px; margin: 0 auto; }
-                header { margin-bottom: 2rem; text-align: center; }
-                h1 { font-size: 2.5rem; font-weight: 700; color: #f8fafc; margin-bottom: 0.75rem; letter-spacing: -0.02em; }
-                .subtitle { color: #94a3b8; font-size: 1.1rem; }
+
+                * { box-sizing: border-box; margin: 0; padding: 0; }
                 
-                /* 聯絡資訊樣式 */
+                body {
+                  font-family: "Plus Jakarta Sans", "Noto Sans TC", system-ui, sans-serif;
+                  background-color: var(--bg-main);
+                  color: var(--text-main);
+                  min-height: 100vh;
+                  padding: 2.5rem 1.5rem 4rem;
+                  background-image: 
+                    radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.12) 0px, transparent 50%),
+                    radial-gradient(at 100% 100%, rgba(6, 182, 212, 0.08) 0px, transparent 50%);
+                  background-attachment: fixed;
+                }
+
+                .container { max-width: 1240px; margin: 0 auto; }
+
+                /* 頂部導覽列（含語言切換） */
+                .navbar {
+                  display: flex;
+                  justify-content: flex-end;
+                  margin-bottom: 2rem;
+                }
+                .lang-toggle {
+                  background: rgba(30, 41, 59, 0.8);
+                  border: 1px solid var(--border-color);
+                  color: var(--text-muted);
+                  padding: 0.45rem 1rem;
+                  border-radius: 9999px;
+                  cursor: pointer;
+                  font-size: 0.85rem;
+                  font-weight: 600;
+                  display: inline-flex;
+                  align-items: center;
+                  gap: 0.4rem;
+                  transition: all 0.25s ease;
+                  backdrop-filter: blur(8px);
+                }
+                .lang-toggle:hover {
+                  color: var(--accent);
+                  border-color: var(--accent);
+                  box-shadow: 0 0 15px rgba(56, 189, 248, 0.2);
+                }
+
+                /* Hero 標題區 */
+                header { margin-bottom: 2.5rem; text-align: center; }
+                .hero-pill {
+                  display: inline-flex;
+                  align-items: center;
+                  gap: 0.4rem;
+                  font-size: 0.8rem;
+                  font-weight: 600;
+                  color: var(--accent);
+                  background: rgba(56, 189, 248, 0.1);
+                  border: 1px solid rgba(56, 189, 248, 0.25);
+                  padding: 0.3rem 0.9rem;
+                  border-radius: 9999px;
+                  margin-bottom: 1rem;
+                }
+                h1 {
+                  font-size: clamp(2.2rem, 5vw, 3.2rem);
+                  font-weight: 800;
+                  letter-spacing: -0.03em;
+                  margin-bottom: 0.75rem;
+                  background: linear-gradient(135deg, #ffffff 40%, #94a3b8 100%);
+                  -webkit-background-clip: text;
+                  -webkit-text-fill-color: transparent;
+                }
+                .subtitle {
+                  color: var(--text-muted);
+                  font-size: 1.1rem;
+                  max-width: 600px;
+                  margin: 0 auto;
+                }
+
+                /* 聯絡資訊標籤 */
                 .contact-info {
                   display: flex;
                   justify-content: center;
-                  gap: 1rem;
-                  margin-top: 1.25rem;
+                  gap: 0.85rem;
+                  margin-top: 1.5rem;
                   flex-wrap: wrap;
                 }
                 .contact-link {
-                  color: #94a3b8;
+                  color: var(--text-muted);
                   text-decoration: none;
                   display: flex;
                   align-items: center;
-                  gap: 0.4rem;
-                  font-size: 0.9rem;
+                  gap: 0.5rem;
+                  font-size: 0.875rem;
                   font-weight: 600;
-                  background: #1e293b;
-                  padding: 0.4rem 1rem;
+                  background: var(--bg-card);
+                  padding: 0.45rem 1.1rem;
                   border-radius: 9999px;
-                  border: 1px solid #334155;
-                  transition: all 0.2s;
+                  border: 1px solid var(--border-color);
+                  transition: all 0.25s ease;
                   cursor: pointer;
+                  backdrop-filter: blur(8px);
                   font-family: inherit;
                 }
                 .contact-link:hover {
-                  color: #f8fafc;
-                  border-color: #38bdf8;
-                  background: #0f172a;
+                  color: #fff;
+                  border-color: var(--accent);
+                  background: rgba(30, 41, 59, 1);
                   transform: translateY(-2px);
+                  box-shadow: 0 4px 12px rgba(56, 189, 248, 0.15);
                 }
 
-                /* 篩選按鈕樣式 */
+                /* 標籤分類篩選列 */
                 .filter-container {
                   display: flex;
                   justify-content: center;
-                  gap: 0.75rem;
+                  gap: 0.6rem;
                   margin-bottom: 3rem;
                   flex-wrap: wrap;
                 }
                 .filter-btn {
-                  background: #1e293b;
-                  color: #94a3b8;
-                  border: 1px solid #334155;
-                  padding: 0.5rem 1.25rem;
+                  background: var(--bg-card);
+                  color: var(--text-muted);
+                  border: 1px solid var(--border-color);
+                  padding: 0.5rem 1.15rem;
                   border-radius: 9999px;
                   cursor: pointer;
-                  font-size: 0.95rem;
+                  font-size: 0.9rem;
                   font-weight: 600;
-                  transition: all 0.2s;
+                  display: inline-flex;
+                  align-items: center;
+                  gap: 0.4rem;
+                  transition: all 0.2s ease;
+                  backdrop-filter: blur(8px);
                 }
                 .filter-btn:hover {
-                  color: #f8fafc;
+                  color: #fff;
                   border-color: #64748b;
                 }
                 .filter-btn.active {
-                  background: #38bdf8;
-                  color: #0f172a;
-                  border-color: #38bdf8;
+                  background: var(--accent-gradient);
+                  color: #0b1120;
+                  border-color: transparent;
+                  box-shadow: 0 0 16px rgba(56, 189, 248, 0.35);
                 }
 
+                /* 作品卡片網格 */
                 .grid {
                   display: grid;
                   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
                   gap: 2rem;
                 }
                 .card {
-                  background: #1e293b;
-                  border-radius: 16px;
+                  background: var(--bg-card);
+                  border-radius: 20px;
                   overflow: hidden;
-                  border: 1px solid #334155;
+                  border: 1px solid var(--border-color);
                   text-decoration: none;
                   color: inherit;
                   display: flex;
                   flex-direction: column;
                   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                  backdrop-filter: blur(12px);
+                  position: relative;
                 }
                 .card.hidden {
                   display: none;
                 }
                 .card:hover {
-                  transform: translateY(-4px);
-                  border-color: #38bdf8;
-                  box-shadow: 0 12px 24px -10px rgba(56, 189, 248, 0.25);
+                  transform: translateY(-6px);
+                  border-color: rgba(56, 189, 248, 0.6);
+                  box-shadow: 0 16px 32px -10px rgba(56, 189, 248, 0.25);
+                }
+                
+                /* 卡片圖片與預覽 */
+                .card-img-wrapper {
+                  position: relative;
+                  overflow: hidden;
+                  width: 100%;
+                  height: 180px;
+                  background: #131d31;
+                  border-bottom: 1px solid var(--border-color);
                 }
                 .card-img {
                   width: 100%;
-                  height: 180px;
+                  height: 100%;
                   background-size: cover;
                   background-position: center;
-                  background-repeat: no-repeat;
-                  border-bottom: 1px solid #334155;
+                  transition: transform 0.4s ease;
+                }
+                .card:hover .card-img {
+                  transform: scale(1.05);
                 }
                 .card-placeholder {
                   width: 100%;
-                  height: 140px;
-                  background: #1e293b;
+                  height: 100%;
                   display: flex;
                   align-items: center;
                   justify-content: center;
-                  font-size: 3rem;
-                  border-bottom: 1px solid #334155;
+                  font-size: 2.8rem;
+                  color: #334155;
+                  background: linear-gradient(135deg, #131d31 0%, #1e293b 100%);
                 }
-                .card-content { padding: 1.5rem; display: flex; flex-direction: column; flex-grow: 1; }
-                .tags { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
-                .tag { font-size: 0.75rem; background: #334155; color: #38bdf8; padding: 0.25rem 0.6rem; border-radius: 9999px; font-weight: 600; }
-                .card-title { font-size: 1.25rem; font-weight: 700; color: #f8fafc; margin-bottom: 0.5rem; }
-                .card-desc { font-size: 0.925rem; color: #94a3b8; line-height: 1.5; margin-bottom: 1.5rem; flex-grow: 1; }
-                .card-link { font-size: 0.9rem; font-weight: 600; color: #38bdf8; display: inline-flex; align-items: center; }
+                .card-badge {
+                  position: absolute;
+                  top: 0.75rem;
+                  right: 0.75rem;
+                  width: 32px;
+                  height: 32px;
+                  background: rgba(15, 23, 42, 0.85);
+                  border: 1px solid var(--border-color);
+                  border-radius: 50%;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  font-size: 0.75rem;
+                  color: var(--accent);
+                  backdrop-filter: blur(4px);
+                  transition: all 0.2s ease;
+                }
+                .card:hover .card-badge {
+                  background: var(--accent);
+                  color: #0b1120;
+                  transform: rotate(45deg);
+                }
+
+                /* 卡片內容 */
+                .card-content {
+                  padding: 1.5rem;
+                  display: flex;
+                  flex-direction: column;
+                  flex-grow: 1;
+                }
+                .tags {
+                  display: flex;
+                  gap: 0.4rem;
+                  margin-bottom: 0.75rem;
+                  flex-wrap: wrap;
+                }
+                .tag {
+                  font-size: 0.725rem;
+                  background: rgba(56, 189, 248, 0.1);
+                  color: var(--accent);
+                  border: 1px solid rgba(56, 189, 248, 0.2);
+                  padding: 0.2rem 0.55rem;
+                  border-radius: 9999px;
+                  font-weight: 600;
+                }
+                .card-title {
+                  font-size: 1.25rem;
+                  font-weight: 700;
+                  color: #f8fafc;
+                  margin-bottom: 0.5rem;
+                  line-height: 1.35;
+                }
+                .card-desc {
+                  font-size: 0.925rem;
+                  color: var(--text-muted);
+                  line-height: 1.55;
+                  margin-bottom: 1.5rem;
+                  flex-grow: 1;
+                }
+                .card-footer {
+                  display: flex;
+                  align-items: center;
+                  padding-top: 1rem;
+                  border-top: 1px solid rgba(51, 65, 85, 0.4);
+                }
+                .card-link {
+                  font-size: 0.875rem;
+                  font-weight: 600;
+                  color: var(--accent);
+                  display: inline-flex;
+                  align-items: center;
+                  gap: 0.4rem;
+                  transition: gap 0.2s ease;
+                }
+                .card:hover .card-link {
+                  gap: 0.65rem;
+                }
+
+                /* 頁尾 */
+                footer {
+                  margin-top: 4rem;
+                  text-align: center;
+                  color: #475569;
+                  font-size: 0.85rem;
+                }
               </style>
             </head>
             <body>
               <div class="container">
+                <!-- 導覽列雙語切換 -->
+                <div class="navbar">
+                  <button class="lang-toggle" onclick="toggleLanguage()" id="lang-btn">
+                    <i class="fa-solid fa-globe"></i> <span>EN</span>
+                  </button>
+                </div>
+
                 <header>
-                  <h1>我的單頁實驗室 ✨</h1>
-                  <p class="subtitle">共收錄 ${projects.length} 個單頁式互動作品</p>
+                  <div class="hero-pill">
+                    <i class="fa-solid fa-bolt"></i> <span data-i18n="badge">互動原型實驗庫</span>
+                  </div>
+                  <h1 data-i18n="title">單頁式作品集中心</h1>
+                  <p class="subtitle" data-i18n="subtitle">收錄了 ${projects.length} 個獨立前端互動實驗與展示原型</p>
                   
-                  <!-- 聯絡資訊與短網址區塊 -->
+                  <!-- 聯絡資訊區塊 -->
                   <div class="contact-info">
-                    <!-- 改成按鈕，點擊觸發複製功能 -->
                     <button onclick="copyEmail()" id="email-btn" class="contact-link">
-                      📧 leoleo168@gmail.com
+                      <i class="fa-regular fa-envelope"></i> <span>leoleo168@gmail.com</span>
                     </button>
                     <a href="https://is.gd/leoleo168" target="_blank" rel="noopener noreferrer" class="contact-link">
-                      🔗 短網址 https://is.gd/leoleo168
+                      <i class="fa-solid fa-arrow-up-right-from-square"></i> <span data-i18n="shortLink">專屬短網址</span>
                     </a>
                   </div>
-
                 </header>
                 
                 ${filterHtml}
 
                 <main class="grid">${cardsHtml}</main>
+
+                <footer>
+                  <p data-i18n="footerText">持續建造更多有趣的原型與互動 🚀</p>
+                </footer>
               </div>
 
               <script>
+                // 雙語文字字典
+                const i18n = {
+                  "zh-TW": {
+                    badge: "互動原型實驗庫",
+                    title: "單頁式作品集中心",
+                    subtitle: "收錄了 ${projects.length} 個獨立前端互動實驗與展示原型",
+                    shortLink: "專屬短網址",
+                    filterAll: "全部作品",
+                    viewProject: "立即探索",
+                    copied: "已複製信箱！",
+                    footerText: "持續建造更多有趣的原型與互動 🚀"
+                  },
+                  "en": {
+                    badge: "Interactive Prototype Hub",
+                    title: "Single Page Lab",
+                    subtitle: "A collection of ${projects.length} standalone web experiments & prototypes",
+                    shortLink: "Shortlink",
+                    filterAll: "All Projects",
+                    viewProject: "Explore",
+                    copied: "Copied!",
+                    footerText: "Building interactive web experiences continuously 🚀"
+                  }
+                };
+
+                let currentLang = "zh-TW";
+
+                function toggleLanguage() {
+                  currentLang = currentLang === "zh-TW" ? "en" : "zh-TW";
+                  document.documentElement.lang = currentLang;
+                  document.getElementById("lang-btn").innerHTML = currentLang === "zh-TW" 
+                    ? \x27<i class="fa-solid fa-globe"></i> <span>EN</span>\x27 
+                    : \x27<i class="fa-solid fa-globe"></i> <span>中文</span>\x27;
+
+                  document.querySelectorAll("[data-i18n]").forEach(el => {
+                    const key = el.getAttribute("data-i18n");
+                    if (i18n[currentLang] && i18n[currentLang][key]) {
+                      el.textContent = i18n[currentLang][key];
+                    }
+                  });
+                }
+
                 // 複製信箱功能
                 function copyEmail() {
                   navigator.clipboard.writeText("leoleo168@gmail.com").then(() => {
                     const btn = document.getElementById("email-btn");
-                    btn.innerHTML = "✅ 已複製信箱！";
-                    // 2秒後變回原來的文字
+                    const originalHtml = btn.innerHTML;
+                    const text = i18n[currentLang].copied;
+                    btn.innerHTML = \`<i class="fa-solid fa-check"></i> <span>\${text}</span>\`;
                     setTimeout(() => {
-                      btn.innerHTML = "📧 leoleo168@gmail.com";
+                      btn.innerHTML = originalHtml;
                     }, 2000);
                   }).catch(err => {
                     console.error("複製失敗", err);
                   });
                 }
 
-                // 篩選功能的 JavaScript
+                // 分類篩選功能
                 document.addEventListener("DOMContentLoaded", () => {
                   const filterBtns = document.querySelectorAll(".filter-btn");
                   const cards = document.querySelectorAll(".card");
