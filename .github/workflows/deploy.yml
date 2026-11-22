@@ -99,7 +99,7 @@ jobs:
                   <h2 class="card-title">${p.title}</h2>
                   <p class="card-desc">${p.description}</p>
                   <div class="card-footer">
-                    <span class="card-link"><span data-i18n="viewProject">立即探索</span> <i class="fa-solid fa-arrow-right"></i></span>
+                    <span class="card-link"><span data-i18n="viewProject">進入體驗</span> <i class="fa-solid fa-arrow-right"></i></span>
                   </div>
                 </div>
               </a>
@@ -111,7 +111,7 @@ jobs:
             <head>
               <meta charset="UTF-8">
               <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <title>單頁互動實驗室 | Single Page Lab</title>
+              <title>我的單頁實驗室 ✨</title>
               
               <!-- Google Fonts & Font Awesome 圖示 -->
               <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -428,16 +428,17 @@ jobs:
                   <div class="hero-pill">
                     <i class="fa-solid fa-bolt"></i> <span data-i18n="badge">互動原型實驗庫</span>
                   </div>
-                  <h1 data-i18n="title">單頁式作品集中心</h1>
-                  <p class="subtitle" data-i18n="subtitle">收錄了 ${projects.length} 個獨立前端互動實驗與展示原型</p>
+                  <!-- 依需求設定抬頭為：我的單頁實驗室 ✨ -->
+                  <h1 data-i18n="title">我的單頁實驗室 ✨</h1>
+                  <p class="subtitle" data-i18n="subtitle">共收錄 ${projects.length} 個單頁式互動作品</p>
                   
-                  <!-- 聯絡資訊區塊 -->
+                  <!-- 聯絡資訊區塊（顯示完整短網址） -->
                   <div class="contact-info">
                     <button onclick="copyEmail()" id="email-btn" class="contact-link">
                       <i class="fa-regular fa-envelope"></i> <span>leoleo168@gmail.com</span>
                     </button>
                     <a href="https://is.gd/leoleo168" target="_blank" rel="noopener noreferrer" class="contact-link">
-                      <i class="fa-solid fa-arrow-up-right-from-square"></i> <span data-i18n="shortLink">專屬短網址</span>
+                      <i class="fa-solid fa-link"></i> <span>https://is.gd/leoleo168</span>
                     </a>
                   </div>
                 </header>
@@ -456,19 +457,17 @@ jobs:
                 const i18n = {
                   "zh-TW": {
                     badge: "互動原型實驗庫",
-                    title: "單頁式作品集中心",
-                    subtitle: "收錄了 ${projects.length} 個獨立前端互動實驗與展示原型",
-                    shortLink: "專屬短網址",
+                    title: "我的單頁實驗室 ✨",
+                    subtitle: "共收錄 ${projects.length} 個單頁式互動作品",
                     filterAll: "全部作品",
-                    viewProject: "立即探索",
+                    viewProject: "進入體驗",
                     copied: "已複製信箱！",
                     footerText: "持續建造更多有趣的原型與互動 🚀"
                   },
                   "en": {
                     badge: "Interactive Prototype Hub",
-                    title: "Single Page Lab",
-                    subtitle: "A collection of ${projects.length} standalone web experiments & prototypes",
-                    shortLink: "Shortlink",
+                    title: "My Single Page Lab ✨",
+                    subtitle: "A collection of ${projects.length} standalone web experiments",
                     filterAll: "All Projects",
                     viewProject: "Explore",
                     copied: "Copied!",
