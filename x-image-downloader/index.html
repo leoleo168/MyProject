@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>X (Twitter) 媒體一鍵下載器</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 JSZip 與 FileSaver 庫，實現無阻擋的 ZIP 一鍵打包下載 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <style>
         .hidden-element { display: none !important; }
         @keyframes spin { to { transform: rotate(360deg); } }
@@ -19,12 +22,12 @@
         <!-- Header -->
         <div class="text-center space-y-2">
             <div class="flex justify-center mb-4">
-                <div class="bg-blue-500 p-3 rounded-2xl shadow-lg shadow-blue-500/20 flex gap-2">
+                <div class="bg-blue-500 p-3 rounded-2xl shadow-lg shadow-blue-500/20">
                     <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
                 </div>
             </div>
             <h1 class="text-3xl font-bold text-slate-900">X (Twitter) 媒體下載器</h1>
-            <p class="text-slate-500">貼上貼文網址，自動解析並下載高畫質圖片與影片</p>
+            <p class="text-slate-500">貼上貼文網址，自動解析並打包下載高畫質圖片與影片</p>
         </div>
 
         <!-- Input Section -->
@@ -62,10 +65,11 @@
                 </div>
                 <button
                     id="downloadAllBtn"
-                    class="bg-blue-500 hover:bg-blue-600 text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-colors w-full sm:w-auto justify-center shadow-sm shadow-blue-500/30"
+                    class="bg-blue-500 hover:bg-blue-600 text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-colors w-full sm:w-auto justify-center shadow-sm shadow-blue-500/30 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                    <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-                    一鍵下載全部
+                    <svg id="dlAllIcon" class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                    <svg id="dlAllSpinner" class="hidden-element w-4 h-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    <span id="dlAllText">一鍵打包下載 (ZIP)</span>
                 </button>
             </div>
 
@@ -89,6 +93,9 @@
         const countText = document.getElementById('countText');
         const authorText = document.getElementById('authorText');
         const downloadAllBtn = document.getElementById('downloadAllBtn');
+        const dlAllText = document.getElementById('dlAllText');
+        const dlAllIcon = document.getElementById('dlAllIcon');
+        const dlAllSpinner = document.getElementById('dlAllSpinner');
 
         let currentMedia = [];
         let currentAuthor = '';
@@ -139,6 +146,7 @@
                         });
                     }
 
+                    // 去除重複
                     currentMedia = Array.from(new Map(currentMedia.map(item => [item.url, item])).values());
                 }
 
@@ -184,9 +192,12 @@
                 <div class="group relative rounded-xl overflow-hidden border border-slate-200 bg-slate-900 aspect-square">
                     ${mediaElement}
                     <div class="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-3 backdrop-blur-sm">
-                        <button onclick="downloadMedia('${media.url}')" class="bg-white text-slate-900 p-3 rounded-full hover:bg-blue-50 transition-colors shadow-lg" title="下載此檔案">
+                        <button onclick="downloadSingleMedia('${media.url}', ${idx}, '${media.type}')" class="bg-white text-slate-900 p-3 rounded-full hover:bg-blue-50 transition-colors shadow-lg" title="下載此檔案">
                             <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
                         </button>
+                        <a href="${media.url}" target="_blank" rel="noopener noreferrer" class="bg-white/20 text-white p-3 rounded-full hover:bg-white/30 transition-colors shadow-lg" title="在新分頁開啟原圖/影片">
+                            <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></svg>
+                        </a>
                     </div>
                 </div>
                 `;
@@ -195,22 +206,62 @@
             resultsDiv.classList.remove('hidden-element');
         }
 
-        // 修改後的下載邏輯：直接開新分頁，避免 CORS 或 Unauthorized 阻擋
-        function downloadMedia(url) {
-            // 建立一個隱藏的 a 標籤
+        // 單一檔案下載（維持開新分頁／直接下載）
+        function downloadSingleMedia(url, index, type) {
             const a = document.createElement('a');
             a.href = url;
-            // 加上 target="_blank" 強制開新分頁
             a.target = '_blank';
-            // 加上 rel="noopener noreferrer" 提升安全性
             a.rel = 'noopener noreferrer';
-            
-            // 嘗試加入 download 屬性 (雖然跨域時瀏覽器通常會忽略，但加上無妨)
-            a.download = ''; 
-            
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
+        }
+
+        // 一鍵打包下載成 ZIP 壓縮檔（解決多圖被瀏覽器快顯封鎖攔截的問題）
+        async function handleDownloadAllZip() {
+            if (currentMedia.length === 0) return;
+
+            downloadAllBtn.disabled = true;
+            dlAllIcon.classList.add('hidden-element');
+            dlAllSpinner.classList.remove('hidden-element');
+
+            const zip = new JSZip();
+            let completed = 0;
+
+            for (let i = 0; i < currentMedia.length; i++) {
+                const media = currentMedia[i];
+                dlAllText.textContent = `打包中 (${i + 1}/${currentMedia.length})...`;
+
+                try {
+                    // 透過 fetch 取得二進位資料
+                    const res = await fetch(media.url);
+                    if (!res.ok) throw new Error('Fetch failed');
+                    const blob = await res.blob();
+                    
+                    const ext = media.type === 'video' ? 'mp4' : 'jpg';
+                    const fileName = `${currentAuthor}_${String(i + 1).padStart(2, '0')}.${ext}`;
+                    zip.file(fileName, blob);
+                    completed++;
+                } catch (e) {
+                    console.warn(`第 ${i + 1} 個檔案無法直接打包，略過`, e);
+                }
+            }
+
+            if (completed > 0) {
+                dlAllText.textContent = '產生壓縮檔中...';
+                const zipBlob = await zip.generateAsync({ type: 'blob' });
+                saveAs(zipBlob, `X_${currentAuthor}_${currentMedia.length}個檔案.zip`);
+            } else {
+                // 如果全都遇到 CORS 阻擋（極少見），退回依序開分頁
+                alert('無法自動打包，將嘗試依序開啟下載分頁，請允許快顯視窗。');
+                currentMedia.forEach(m => window.open(m.url, '_blank'));
+            }
+
+            // 還原按鈕狀態
+            dlAllText.textContent = '一鍵打包下載 (ZIP)';
+            dlAllIcon.classList.remove('hidden-element');
+            dlAllSpinner.classList.add('hidden-element');
+            downloadAllBtn.disabled = false;
         }
 
         function setLoading(isLoading) {
@@ -239,12 +290,7 @@
         urlInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') handleAnalyze();
         });
-        downloadAllBtn.addEventListener('click', () => {
-            currentMedia.forEach((media, index) => {
-                // 增加延遲，避免瀏覽器阻擋一次開啟太多分頁
-                setTimeout(() => { downloadMedia(media.url); }, index * 800);
-            });
-        });
+        downloadAllBtn.addEventListener('click', handleDownloadAllZip);
     </script>
 </body>
 </html>
