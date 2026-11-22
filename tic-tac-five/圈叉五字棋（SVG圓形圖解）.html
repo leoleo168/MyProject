@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>圈叉五字棋 | Tic-Tac-Five</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+  :root{
+    --bg:#0f172a; --card:#1e293b; --line:#334155;
+    --text:#f1f5f9; --sub:#94a3b8;
+    --accent:#38bdf8; --x:#38bdf8; --o:#fb923c; --gold:#facc15;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Noto Sans TC',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+  nav{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;
+      border-bottom:1px solid var(--line);position:sticky;top:0;
+      background:rgba(15,23,42,.9);backdrop-filter:blur(8px);z-index:10}
+  nav .logo{font-weight:900;font-size:1.15rem}
+  nav .logo i{color:var(--accent);margin-right:8px}
+  .btn{background:var(--card);color:var(--text);border:1px solid var(--line);padding:8px 16px;
+       border-radius:10px;cursor:pointer;font-family:inherit;font-size:.95rem;transition:.2s}
+  .btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent);transform:translateY(-1px)}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+  .btn.primary{background:var(--accent);color:#0f172a;border-color:var(--accent);font-weight:700}
+  .btn.primary:hover:not(:disabled){color:#0f172a;opacity:.9}
+  main{max-width:1050px;margin:0 auto;padding:24px 16px 60px}
+  h1{text-align:center;font-size:clamp(1.8rem,5vw,2.6rem);font-weight:900;margin-top:6px}
+  h1 .x{color:var(--x)} h1 .o{color:var(--o)}
+  .subtitle{text-align:center;color:var(--sub);margin:8px 0 24px}
+  .layout{display:grid;grid-template-columns:1fr 360px;gap:24px;align-items:start}
+  @media(max-width:880px){.layout{grid-template-columns:1fr}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;
+        box-shadow:0 10px 25px rgba(0,0,0,.25)}
+  .scores{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+  .score{border-radius:14px;padding:12px;text-align:center;border:2px solid var(--line);
+         transition:.25s;background:#0f172a}
+  .score.active{border-color:var(--accent);box-shadow:0 0 18px rgba(56,189,248,.35)}
+  .score .name{font-weight:700}
+  .score .num{font-size:2.2rem;font-weight:900;line-height:1.1}
+  .score.x .name,.score.x .num{color:var(--x)}
+  .score.o .name,.score.o .num{color:var(--o)}
+  .score .small{font-size:.8rem;color:var(--sub)}
+  .status{text-align:center;font-weight:700;margin-bottom:14px;min-height:1.5em}
+  .board{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;max-width:440px;margin:0 auto}
+  .board.disabled{pointer-events:none;opacity:.85}
+  .cell{background:#0f172a;border:2px solid var(--line);border-radius:12px;
+        display:flex;align-items:center;justify-content:center;
+        font-size:clamp(1.8rem,9vw,3rem);font-weight:900;
+        cursor:pointer;transition:.15s;user-select:none;aspect-ratio:1}
+  .cell:hover:not(.filled){border-color:var(--accent);background:#16213a}
+  .cell.filled{cursor:default}
+  .cell.X{color:var(--x)} .cell.O{color:var(--o)}
+  .cell.hit{box-shadow:inset 0 0 0 3px var(--gold),0 0 12px rgba(250,204,21,.5);background:#2a2a10}
+  .cell.pop{animation:pop .25s}
+  @keyframes pop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+  .controls{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:18px}
+  h3{font-size:1.05rem;margin-bottom:12px;color:var(--accent);display:flex;align-items:center;gap:8px}
+  .rules{margin-bottom:14px}
+  .rules li{margin:6px 0 6px 18px;color:var(--sub);font-size:.88rem;line-height:1.55}
+  .rules b{color:var(--text)}
+  .seg{display:flex;gap:8px}
+  .seg .btn{flex:1;padding:8px 6px;font-size:.88rem}
+  .seg .btn.on{background:var(--accent);color:#0f172a;border-color:var(--accent);font-weight:700}
+  .side{display:flex;flex-direction:column;gap:16px}
+  /* 圖解區 */
+  .examples-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .example-item{background:#0f172a;border:1px solid var(--line);border-radius:12px;
+                padding:10px 8px;text-align:center}
+  .example-badge{display:inline-block;background:rgba(250,204,21,.15);color:var(--gold);
+                 font-weight:700;font-size:.78rem;padding:2px 10px;border-radius:6px;
+                 margin-bottom:8px;border:1px solid rgba(250,204,21,.35)}
+  .example-title{font-weight:700;font-size:.85rem;margin-top:7px;color:var(--text)}
+  .example-desc{font-size:.72rem;color:var(--sub);margin-top:3px;line-height:1.35}
+  /* SVG 棋盤容器 */
+  .mini-svg{display:block;margin:0 auto}
+  /* 彈窗 */
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;
+         align-items:center;justify-content:center;z-index:50;padding:16px}
+  .modal.show{display:flex}
+  .modal .box{background:var(--card);border:1px solid var(--accent);border-radius:20px;
+              padding:28px;text-align:center;max-width:360px;width:100%}
+  .modal h2{font-size:1.7rem;margin-bottom:8px}
+  footer{text-align:center;color:var(--sub);font-size:.85rem;padding:24px}
+</style>
+</head>
+<body>
+<nav>
+  <div class="logo"><i class="fa-solid fa-table-cells"></i><span data-i18n="logo"></span></div>
+  <button class="btn" id="langBtn"><i class="fa-solid fa-globe"></i> <span id="langLabel">EN</span></button>
+</nav>
+<main>
+  <h1><span class="x">✕</span> <span data-i18n="title"></span> <span class="o">○</span></h1>
+  <p class="subtitle" data-i18n="subtitle"></p>
+  <div class="layout">
+    <section class="card">
+      <div class="scores">
+        <div class="score x" id="scoreX">
+          <div class="name">✕ <span data-i18n="playerX"></span></div>
+          <div class="num" id="numX">0</div>
+          <div class="small" id="detX"></div>
+        </div>
+        <div class="score o" id="scoreO">
+          <div class="name">○ <span id="nameO"></span></div>
+          <div class="num" id="numO">0</div>
+          <div class="small" id="detO"></div>
+        </div>
+      </div>
+      <div class="status" id="status"></div>
+      <div class="board" id="board"></div>
+      <div class="controls">
+        <button class="btn" id="undoBtn"><i class="fa-solid fa-rotate-left"></i> <span data-i18n="undo"></span></button>
+        <button class="btn primary" id="newBtn"><i class="fa-solid fa-play"></i> <span data-i18n="newGame"></span></button>
+      </div>
+    </section>
+    <aside class="side">
+      <div class="card">
+        <h3><i class="fa-solid fa-users"></i> <span data-i18n="mode"></span></h3>
+        <div class="seg">
+          <button class="btn" id="m2" data-i18n="mode2"></button>
+          <button class="btn on" id="m1" data-i18n="mode1"></button>
+        </div>
+      </div>
+      <div class="card">
+        <h3><i class="fa-solid fa-book-open"></i> <span data-i18n="rulesTitle"></span></h3>
+        <ul class="rules" id="rulesList"></ul>
+        <div class="examples-grid" id="examplesGrid"></div>
+      </div>
+    </aside>
+  </div>
+</main>
+<footer data-i18n="footer"></footer>
+<div class="modal" id="modal">
+  <div class="box">
+    <h2 id="mTitle"></h2>
+    <p id="mText" style="color:var(--sub);margin-bottom:18px"></p>
+    <button class="btn primary" id="mBtn"></button>
+  </div>
+</div>
+<script>
+/* 圖解資料：25格，1=高亮（畫圓），0=空 */
+const DIAG_ZH=[
+  {score:"+5 分",title:"整排／整列",desc:"橫排或直排連滿 5 顆",
+   cells:[0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},
+  {score:"+5 分",title:"完整主斜線",desc:"角落貫通到角落（長度 5）",
+   cells:[1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,1]},
+  {score:"+3 分",title:"次級斜線",desc:"必須邊界到邊界（長度 3）",
+   cells:[0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},
+  {score:"+2 分",title:"方塊相連",desc:"2×2 得 1 分，共用邊疊加（2×3＝2 分）",
+   cells:[0,0,0,0,0,0,1,1,1,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0]}
+];
+const DIAG_EN=[
+  {score:"+5 pts",title:"Full Row / Col",desc:"5 in a complete row or column",
+   cells:[0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},
+  {score:"+5 pts",title:"Main Diagonal",desc:"Corner to corner (length 5)",
+   cells:[1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,1]},
+  {score:"+3 pts",title:"Sub Diagonal",desc:"Edge-to-edge diagonal (length 3)",
+   cells:[0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},
+  {score:"+2 pts",title:"Shared Squares",desc:"2×2 = 1pt, shared edges stack (2×3 = 2pts)",
+   cells:[0,0,0,0,0,0,1,1,1,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0]}
+];
+
+const I18N={
+  zh:{
+    logo:"圈叉五字棋",title:"圈叉五字棋",subtitle:"5×5 棋盤 · 斜線、整排與方塊得分",
+    playerX:"玩家 ✕",playerO:"玩家 ○",cpu:"電腦",
+    undo:"悔棋",newGame:"重新開始",mode:"遊戲模式",mode2:"雙人對戰",mode1:"對電腦",
+    rulesTitle:"規則與得分圖解",
+    rules:["<b>✕ 先手</b>，輪流下滿 25 格，總分高者勝。",
+           "邊界到邊界貫通整條線才得分；黃框標示得分棋子。"],
+    diagrams:DIAG_ZH,
+    turnX:"輪到 ✕ 下棋",turnO:"輪到 ○ 下棋",thinking:"電腦思考中…",
+    lines:"線",squares:"方塊",
+    winX:"✕ 獲勝！",winO:"○ 獲勝！",draw:"平手！",again:"再玩一局",
+    final:"最終比分",footer:"圈叉五字棋 · 純前端小遊戲"
+  },
+  en:{
+    logo:"Tic-Tac-Five",title:"Tic-Tac-Five",subtitle:"5×5 board · Score with diagonals, full rows and squares",
+    playerX:"Player ✕",playerO:"Player ○",cpu:"Computer",
+    undo:"Undo",newGame:"New Game",mode:"Game Mode",mode2:"2 Players",mode1:"vs CPU",
+    rulesTitle:"Scoring Examples",
+    rules:["<b>✕ goes first</b>. Fill 25 cells; highest score wins.",
+           "Lines must connect edge-to-edge. Yellow = scoring cells."],
+    diagrams:DIAG_EN,
+    turnX:"✕ to move",turnO:"○ to move",thinking:"Computer is thinking…",
+    lines:"lines",squares:"squares",
+    winX:"✕ Wins!",winO:"○ Wins!",draw:"It's a draw!",again:"Play again",
+    final:"Final score",footer:"Tic-Tac-Five · Pure front-end game"
+  }
+};
+
+const N=5;
+let lang='zh',mode=1;
+let board,turn,history,over,busy=false;
+const $=id=>document.getElementById(id);
+
+const LINES=[];
+for(let i=0;i<N;i++){
+  LINES.push(Array.from({length:N},(_,k)=>i*N+k));
+  LINES.push(Array.from({length:N},(_,k)=>k*N+i));
+}
+for(let s=1;s<=2*N-3;s++){
+  const c=[];for(let r=0;r<N;r++){const cc=s-r;if(cc>=0&&cc<N)c.push(r*N+cc);}
+  if(c.length>=2)LINES.push(c);
+}
+for(let d=-(N-2);d<=N-2;d++){
+  const c=[];for(let r=0;r<N;r++){const cc=r+d;if(cc>=0&&cc<N)c.push(r*N+cc);}
+  if(c.length>=2)LINES.push(c);
+}
+
+function calc(b){
+  const res={X:{line:0,sq:0,total:0},O:{line:0,sq:0,total:0},hit:new Set()};
+  const at=i=>b[Math.floor(i/N)][i%N];
+  for(const cells of LINES){
+    const p=at(cells[0]);
+    if(p&&cells.every(i=>at(i)===p)){res[p].line+=cells.length;cells.forEach(i=>res.hit.add(i));}
+  }
+  for(let r=0;r<N-1;r++)for(let c=0;c<N-1;c++){
+    const p=b[r][c];
+    if(p&&b[r][c+1]===p&&b[r+1][c]===p&&b[r+1][c+1]===p){
+      res[p].sq++;
+      [r*N+c,r*N+c+1,(r+1)*N+c,(r+1)*N+c+1].forEach(i=>res.hit.add(i));
+    }
+  }
+  res.X.total=res.X.line+res.X.sq;res.O.total=res.O.line+res.O.sq;
+  return res;
+}
+
+function newGame(){
+  board=Array.from({length:N},()=>Array(N).fill(''));
+  turn='X';history=[];over=false;busy=false;
+  $('modal').classList.remove('show');render();
+}
+
+function render(lastIdx){
+  const t=I18N[lang],s=calc(board);
+  const bd=$('board');bd.innerHTML='';
+  bd.classList.toggle('disabled',busy||over);
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){
+    const d=document.createElement('div'),v=board[r][c],idx=r*N+c;
+    d.className='cell'+(v?' filled '+v:'')+(s.hit.has(idx)?' hit':'')+(idx===lastIdx?' pop':'');
+    d.textContent=v==='X'?'✕':v==='O'?'○':'';
+    d.onclick=()=>play(r,c);bd.appendChild(d);
+  }
+  $('numX').textContent=s.X.total;$('numO').textContent=s.O.total;
+  $('detX').textContent=`${t.lines} ${s.X.line} · ${t.squares} ${s.X.sq}`;
+  $('detO').textContent=`${t.lines} ${s.O.line} · ${t.squares} ${s.O.sq}`;
+  $('nameO').textContent=mode===1?t.cpu:t.playerO;
+  $('scoreX').classList.toggle('active',!over&&turn==='X');
+  $('scoreO').classList.toggle('active',!over&&turn==='O');
+  $('status').textContent=over?t.final:(busy?t.thinking:(turn==='X'?t.turnX:t.turnO));
+  $('undoBtn').disabled=busy||history.length===0;
+}
+
+function play(r,c,fromAI=false){
+  if(over||board[r][c]||busy)return;
+  if(mode===1&&turn==='O'&&!fromAI)return;
+  board[r][c]=turn;history.push([r,c]);
+  turn=turn==='X'?'O':'X';
+  if(history.length===N*N)over=true;
+  render(r*N+c);
+  if(over){setTimeout(showResult,350);return;}
+  if(mode===1&&turn==='O'){busy=true;render();setTimeout(aiMove,300);}
+}
+
+function aiMove(){
+  const emp=[];
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++)if(!board[r][c])emp.push([r,c]);
+  if(!emp.length)return;
+  let best=-1e9,picks=[];
+  const eg=emp.length<=12;
+  for(const [r,c] of emp){
+    board[r][c]='O';let score;
+    if(!eg){const s=calc(board);score=s.O.total*2-s.X.total;}
+    else{
+      let worst=1e9;
+      const rest=emp.filter(e=>!(e[0]===r&&e[1]===c));
+      if(!rest.length){const s=calc(board);worst=s.O.total-s.X.total;}
+      else for(const [r2,c2] of rest){
+        board[r2][c2]='X';const s=calc(board);
+        worst=Math.min(worst,s.O.total-s.X.total);board[r2][c2]='';
+      }
+      score=worst;
+    }
+    board[r][c]='';
+    if(score>best){best=score;picks=[[r,c]];}else if(score===best)picks.push([r,c]);
+  }
+  const [r,c]=picks[Math.floor(Math.random()*picks.length)];
+  busy=false;play(r,c,true);
+}
+
+function undo(){
+  if(busy||!history.length)return;
+  let times=1;
+  if(mode===1){
+    if(over&&history.length===N*N)times=1;
+    else if(turn==='X'&&history.length>=2)times=2;
+  }
+  for(let i=0;i<times&&history.length;i++){const [r,c]=history.pop();board[r][c]='';}
+  turn=history.length%2===0?'X':'O';
+  over=false;$('modal').classList.remove('show');render();
+}
+
+function showResult(){
+  const t=I18N[lang],s=calc(board);
+  $('mTitle').textContent=s.X.total>s.O.total?t.winX:s.X.total<s.O.total?t.winO:t.draw;
+  $('mText').textContent=`✕ ${s.X.total}  :  ${s.O.total} ○`;
+  $('mBtn').textContent=t.again;$('modal').classList.add('show');
+}
+
+/* ── SVG 圖解：每格 20×20，間距 2，整體 110×110 ── */
+function makeDiagramSVG(cells){
+  const S=20, G=2, total=S*5+G*4; // =108
+  let svg=`<svg class="mini-svg" width="${total}" height="${total}" viewBox="0 0 ${total} ${total}" xmlns="http://www.w3.org/2000/svg">`;
+  for(let i=0;i<25;i++){
+    const col=i%5, row=Math.floor(i/5);
+    const x=col*(S+G), y=row*(S+G);
+    const hit=cells[i]===1;
+    /* 格子背景 */
+    svg+=`<rect x="${x}" y="${y}" width="${S}" height="${S}" rx="3"
+            fill="${hit?'#2a2410':'#1e293b'}"
+            stroke="${hit?'#facc15':'none'}"
+            stroke-width="${hit?1.5:0}"/>`;
+    /* 圓形：SVG circle，完美向量，不受字型影響 */
+    if(hit){
+      const cx=x+S/2, cy=y+S/2, r=S/2-4;
+      svg+=`<circle cx="${cx}" cy="${cy}" r="${r}"
+              fill="none" stroke="#facc15" stroke-width="2"/>`;
+    }
+  }
+  svg+=`</svg>`;
+  return svg;
+}
+
+function renderDiagrams(){
+  const t=I18N[lang];
+  const container=$('examplesGrid');container.innerHTML='';
+  t.diagrams.forEach(diag=>{
+    const item=document.createElement('div');
+    item.className='example-item';
+    item.innerHTML=`
+      <div class="example-badge">${diag.score}</div>
+      ${makeDiagramSVG(diag.cells)}
+      <div class="example-title">${diag.title}</div>
+      <div class="example-desc">${diag.desc}</div>`;
+    container.appendChild(item);
+  });
+}
+
+function applyLang(){
+  const t=I18N[lang];
+  document.documentElement.lang=lang==='zh'?'zh-Hant':'en';
+  document.querySelectorAll('[data-i18n]').forEach(el=>{el.textContent=t[el.dataset.i18n];});
+  $('rulesList').innerHTML=t.rules.map(x=>`<li>${x}</li>`).join('');
+  $('langLabel').textContent=lang==='zh'?'EN':'中文';
+  document.title=t.title;
+  renderDiagrams();render();
+  if($('modal').classList.contains('show'))showResult();
+}
+
+$('langBtn').onclick=()=>{lang=lang==='zh'?'en':'zh';applyLang();};
+$('newBtn').onclick=newGame;$('undoBtn').onclick=undo;$('mBtn').onclick=newGame;
+$('m2').onclick=()=>{mode=2;$('m2').classList.add('on');$('m1').classList.remove('on');newGame();};
+$('m1').onclick=()=>{mode=1;$('m1').classList.add('on');$('m2').classList.remove('on');newGame();};
+newGame();applyLang();
+</script>
+</body>
+</html>
