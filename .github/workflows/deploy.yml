@@ -25,7 +25,7 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # 使用 Node.js 掃描所有資料夾並產生支援 TAG 即時管理的首頁 index.html
+      # 使用 Node.js 掃描所有資料夾並產生首頁 index.html
       - name: Build Index Page
         run: |
           node -e '
@@ -92,7 +92,6 @@ jobs:
                     </div>
                   </div>
                 </a>
-                <!-- 管理模式下的編輯按鈕 -->
                 <button class="edit-tag-btn" onclick="openTagModal(\x27${p.folder}\x27)">
                   <i class="fa-solid fa-pen-to-square"></i> 編輯 TAG
                 </button>
@@ -105,7 +104,7 @@ jobs:
             <head>
               <meta charset="UTF-8">
               <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <title>我的單頁實驗室 ✨</title>
+              <title>我的單頁實驗室</title>
               
               <link rel="preconnect" href="https://fonts.googleapis.com">
               <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -170,28 +169,30 @@ jobs:
 
                 /* Hero 標題區 */
                 header { margin-bottom: 2.5rem; text-align: center; }
-                .hero-pill {
-                  display: inline-flex;
-                  align-items: center;
-                  gap: 0.4rem;
-                  font-size: 0.8rem;
-                  font-weight: 600;
-                  color: var(--accent);
-                  background: rgba(56, 189, 248, 0.1);
-                  border: 1px solid rgba(56, 189, 248, 0.25);
-                  padding: 0.3rem 0.9rem;
-                  border-radius: 9999px;
-                  margin-bottom: 1rem;
-                }
+                
+                /* 主標題樣式 */
                 h1 {
                   font-size: clamp(2.2rem, 5vw, 3.2rem);
                   font-weight: 800;
                   letter-spacing: -0.03em;
                   margin-bottom: 0.75rem;
+                  display: inline-flex;
+                  align-items: center;
+                  justify-content: center;
+                  gap: 0.5rem;
+                }
+                .title-gradient-text {
                   background: linear-gradient(135deg, #ffffff 40%, #94a3b8 100%);
                   -webkit-background-clip: text;
                   -webkit-text-fill-color: transparent;
                 }
+                .sparkle-icon {
+                  color: #facc15; /* 明亮金色 */
+                  font-size: 0.85em;
+                  filter: drop-shadow(0 0 8px rgba(250, 204, 21, 0.6));
+                  -webkit-text-fill-color: initial;
+                }
+
                 .subtitle { color: var(--text-muted); font-size: 1.1rem; max-width: 600px; margin: 0 auto; }
 
                 /* 聯絡資訊標籤 */
@@ -367,7 +368,7 @@ jobs:
                 .edit-tag-btn:hover { background: #0369a1; }
                 body.admin-mode .edit-tag-btn { display: block; }
 
-                /* Modal 彈出視窗樣式 */
+                /* Modal 樣式 */
                 .modal-backdrop {
                   position: fixed;
                   top: 0; left: 0; width: 100vw; height: 100vh;
@@ -393,11 +394,7 @@ jobs:
                 }
                 .modal-title { font-size: 1.25rem; font-weight: 700; color: #fff; margin-bottom: 0.5rem; }
                 .modal-desc { font-size: 0.875rem; color: var(--text-muted); margin-bottom: 1.25rem; }
-                .tag-input-group {
-                  display: flex;
-                  gap: 0.5rem;
-                  margin-bottom: 1rem;
-                }
+                .tag-input-group { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
                 .tag-input {
                   flex: 1;
                   background: #0f172a;
@@ -418,13 +415,7 @@ jobs:
                   font-weight: 700;
                   cursor: pointer;
                 }
-                .modal-tags {
-                  display: flex;
-                  gap: 0.5rem;
-                  flex-wrap: wrap;
-                  margin-bottom: 1.5rem;
-                  min-height: 40px;
-                }
+                .modal-tags { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.5rem; min-height: 40px; }
                 .modal-tag-chip {
                   background: #334155;
                   color: #38bdf8;
@@ -437,11 +428,7 @@ jobs:
                 }
                 .modal-tag-chip i { cursor: pointer; color: #94a3b8; }
                 .modal-tag-chip i:hover { color: #ef4444; }
-                .modal-actions {
-                  display: flex;
-                  gap: 0.75rem;
-                  justify-content: flex-end;
-                }
+                .modal-actions { display: flex; gap: 0.75rem; justify-content: flex-end; }
                 .btn-modal-cancel {
                   background: transparent;
                   border: 1px solid var(--border-color);
@@ -464,7 +451,7 @@ jobs:
             </head>
             <body>
               <div class="container">
-                <!-- 導覽列：語言切換 + TAG 管理模式 -->
+                <!-- 導覽列 -->
                 <div class="navbar">
                   <button class="nav-btn" onclick="toggleAdminMode()" id="admin-btn">
                     <i class="fa-solid fa-tags"></i> <span id="admin-btn-text">管理標籤</span>
@@ -475,10 +462,11 @@ jobs:
                 </div>
 
                 <header>
-                  <div class="hero-pill">
-                    <i class="fa-solid fa-bolt"></i> <span data-i18n="badge">互動原型實驗庫</span>
-                  </div>
-                  <h1 data-i18n="title">我的單頁實驗室 ✨</h1>
+                  <!-- 標題：移除上方 pill，且將星星獨立為金色發光 icon -->
+                  <h1>
+                    <span class="title-gradient-text" data-i18n="title">我的單頁實驗室</span>
+                    <i class="fa-solid fa-wand-magic-sparkles sparkle-icon"></i>
+                  </h1>
                   <p class="subtitle" data-i18n="subtitle">共收錄 ${projects.length} 個單頁式互動作品</p>
                   
                   <div class="contact-info">
@@ -530,7 +518,6 @@ jobs:
               </div>
 
               <script>
-                // 傳遞所有專案的基礎資料給前端
                 const projectsData = ${JSON.stringify(projects.map(p => ({
                   folder: p.folder,
                   title: p.title,
@@ -541,7 +528,6 @@ jobs:
                 let activeFolder = null;
                 let tempTags = [];
 
-                // 管理模式開關
                 function toggleAdminMode() {
                   document.body.classList.toggle("admin-mode");
                   const isActive = document.body.classList.contains("admin-mode");
@@ -556,7 +542,6 @@ jobs:
                   }
                 }
 
-                // 開啟編輯 Modal
                 function openTagModal(folder) {
                   activeFolder = folder;
                   const project = projectsData.find(p => p.folder === folder);
@@ -596,14 +581,12 @@ jobs:
                   renderModalTags();
                 }
 
-                // 儲存並產出更新後的 meta.json
                 function saveTagChanges() {
                   const project = projectsData.find(p => p.folder === activeFolder);
                   if (!project) return;
 
                   project.tags = [...tempTags];
 
-                  // 更新畫面上卡片的 tag 顯示與 data-tags 屬性
                   const card = document.querySelector(\`.card[data-folder="\${activeFolder}"]\`);
                   if (card) {
                     card.setAttribute("data-tags", tempTags.join(","));
@@ -613,18 +596,14 @@ jobs:
                     }
                   }
 
-                  // 重新整理上方 Filter 列
                   refreshFilterBar();
 
-                  // 組合出該專案最新的 meta.json 內容
                   const updatedMeta = { ...project.rawMeta, tags: tempTags };
                   const jsonStr = JSON.stringify(updatedMeta, null, 2);
 
-                  // 複製到剪貼簿，並詢問是否前往 GitHub 編輯頁面
                   navigator.clipboard.writeText(jsonStr).then(() => {
                     closeTagModal();
                     
-                    // 自動判斷當前 GitHub 儲存庫路徑
                     const host = window.location.hostname;
                     const path = window.location.pathname.split("/").filter(Boolean);
                     
@@ -645,7 +624,6 @@ jobs:
                   });
                 }
 
-                // 即時重新計算與更新篩選標籤按鈕
                 function refreshFilterBar() {
                   const allTags = new Set();
                   projectsData.forEach(p => p.tags.forEach(t => allTags.add(t)));
@@ -665,7 +643,6 @@ jobs:
                   bindFilterEvents();
                 }
 
-                // 篩選按鈕事件綁定
                 function bindFilterEvents() {
                   const filterBtns = document.querySelectorAll(".filter-btn");
                   const cards = document.querySelectorAll(".card");
@@ -693,11 +670,9 @@ jobs:
                   });
                 }
 
-                // 雙語文字字典
                 const i18n = {
                   "zh-TW": {
-                    badge: "互動原型實驗庫",
-                    title: "我的單頁實驗室 ✨",
+                    title: "我的單頁實驗室",
                     subtitle: "共收錄 ${projects.length} 個單頁式互動作品",
                     filterAll: "全部作品",
                     viewProject: "進入體驗",
@@ -705,8 +680,7 @@ jobs:
                     footerText: "持續建造更多有趣的原型與互動 🚀"
                   },
                   "en": {
-                    badge: "Interactive Prototype Hub",
-                    title: "My Single Page Lab ✨",
+                    title: "My Single Page Lab",
                     subtitle: "A collection of ${projects.length} standalone web experiments",
                     filterAll: "All Projects",
                     viewProject: "Explore",
@@ -732,7 +706,6 @@ jobs:
                   });
                 }
 
-                // 複製信箱功能
                 function copyEmail() {
                   navigator.clipboard.writeText("leoleo168@gmail.com").then(() => {
                     const btn = document.getElementById("email-btn");
