@@ -2,8 +2,7 @@
   "title": "圈叉五子棋",
   "description": "5×5 棋盤的得分制圈叉棋，支援雙人對戰與對電腦模式，純 HTML/CSS/JS 製作。",
   "tags": [
-    "小遊戲",
-    "AdegleLab"
+    "小遊戲"
   ],
   "date": "2026-11"
 }
