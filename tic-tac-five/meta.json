@@ -1,5 +1,5 @@
 {
-  "title": "圈叉五字棋",
+  "title": "圈叉五子棋",
   "description": "5×5 棋盤的得分制圈叉棋，支援雙人對戰與對電腦模式，純 HTML/CSS/JS 製作。",
   "tags": ["Game", "HTML", "JavaScript", "Tic-Tac-Toe"],
   "date": "2026-11"
