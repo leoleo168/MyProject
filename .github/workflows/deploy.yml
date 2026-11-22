@@ -25,7 +25,7 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # 使用 Node.js 掃描所有資料夾並產生精美的雙語首頁 index.html
+      # 使用 Node.js 掃描所有資料夾並產生支援 TAG 即時管理的首頁 index.html
       - name: Build Index Page
         run: |
           node -e '
@@ -48,9 +48,11 @@ jobs:
               };
 
               const metaFile = path.join(folderName, "meta.json");
+              let rawMeta = {};
               if (fs.existsSync(metaFile)) {
                 try {
-                  meta = { ...meta, ...JSON.parse(fs.readFileSync(metaFile, "utf8")) };
+                  rawMeta = JSON.parse(fs.readFileSync(metaFile, "utf8"));
+                  meta = { ...meta, ...rawMeta };
                 } catch (e) {
                   console.error("解析 meta.json 失敗:", metaFile);
                 }
@@ -59,7 +61,7 @@ jobs:
               const hasPreview = fs.existsSync(path.join(folderName, "preview.png"));
               const previewImg = hasPreview ? `./${folderName}/preview.png` : "";
 
-              return { ...meta, folder: folderName, previewImg };
+              return { ...meta, folder: folderName, previewImg, rawMeta };
             });
 
             // 2.5 收集所有不重複的 TAG
@@ -71,41 +73,33 @@ jobs:
             });
             const uniqueTags = Array.from(allTags).sort();
 
-            // 生成篩選按鈕 HTML
-            const filterHtml = `
-              <div class="filter-container">
-                <button class="filter-btn active" data-filter="all">
-                  <i class="fa-solid fa-layer-group"></i> <span data-i18n="filterAll">全部作品</span>
-                </button>
-                ${uniqueTags.map(t => `
-                  <button class="filter-btn" data-filter="${t}">
-                    <span>${t}</span>
-                  </button>
-                `).join("")}
-              </div>
-            `;
-
-            // 3. 生成卡片 HTML
+            // 生成卡片 HTML
             const cardsHtml = projects.map(p => `
-              <a href="./${p.folder}/" class="card" target="_blank" rel="noopener noreferrer" data-tags="${(p.tags || []).join(",")}">
-                <div class="card-img-wrapper">
-                  ${p.previewImg ? `<div class="card-img" style="background-image: url(\x27${p.previewImg}\x27);"></div>` : `<div class="card-placeholder"><i class="fa-solid fa-compass-drafting"></i></div>`}
-                  <div class="card-badge"><i class="fa-solid fa-arrow-up-right-from-square"></i></div>
-                </div>
-                <div class="card-content">
-                  <div class="tags">
-                    ${(p.tags || []).map(t => `<span class="tag">${t}</span>`).join("")}
+              <div class="card" data-folder="${p.folder}" data-tags="${(p.tags || []).join(",")}">
+                <a href="./${p.folder}/" class="card-link-wrapper" target="_blank" rel="noopener noreferrer">
+                  <div class="card-img-wrapper">
+                    ${p.previewImg ? `<div class="card-img" style="background-image: url(\x27${p.previewImg}\x27);"></div>` : `<div class="card-placeholder"><i class="fa-solid fa-compass-drafting"></i></div>`}
+                    <div class="card-badge"><i class="fa-solid fa-arrow-up-right-from-square"></i></div>
                   </div>
-                  <h2 class="card-title">${p.title}</h2>
-                  <p class="card-desc">${p.description}</p>
-                  <div class="card-footer">
-                    <span class="card-link"><span data-i18n="viewProject">進入體驗</span> <i class="fa-solid fa-arrow-right"></i></span>
+                  <div class="card-content">
+                    <div class="tags" id="tags-${p.folder}">
+                      ${(p.tags || []).map(t => `<span class="tag">${t}</span>`).join("")}
+                    </div>
+                    <h2 class="card-title">${p.title}</h2>
+                    <p class="card-desc">${p.description}</p>
+                    <div class="card-footer">
+                      <span class="card-link"><span data-i18n="viewProject">進入體驗</span> <i class="fa-solid fa-arrow-right"></i></span>
+                    </div>
                   </div>
-                </div>
-              </a>
+                </a>
+                <!-- 管理模式下的編輯按鈕 -->
+                <button class="edit-tag-btn" onclick="openTagModal(\x27${p.folder}\x27)">
+                  <i class="fa-solid fa-pen-to-square"></i> 編輯 TAG
+                </button>
+              </div>
             `).join("\n");
 
-            // 4. 生成新版首頁 index.html
+            // 4. 生成 index.html
             const fullHtml = `<!DOCTYPE html>
             <html lang="zh-TW">
             <head>
@@ -113,7 +107,6 @@ jobs:
               <meta name="viewport" content="width=device-width, initial-scale=1.0">
               <title>我的單頁實驗室 ✨</title>
               
-              <!-- Google Fonts & Font Awesome 圖示 -->
               <link rel="preconnect" href="https://fonts.googleapis.com">
               <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
               <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
@@ -146,13 +139,14 @@ jobs:
 
                 .container { max-width: 1240px; margin: 0 auto; }
 
-                /* 頂部導覽列（含語言切換） */
+                /* 頂部導覽列 */
                 .navbar {
                   display: flex;
                   justify-content: flex-end;
+                  gap: 0.75rem;
                   margin-bottom: 2rem;
                 }
-                .lang-toggle {
+                .nav-btn {
                   background: rgba(30, 41, 59, 0.8);
                   border: 1px solid var(--border-color);
                   color: var(--text-muted);
@@ -166,8 +160,9 @@ jobs:
                   gap: 0.4rem;
                   transition: all 0.25s ease;
                   backdrop-filter: blur(8px);
+                  font-family: inherit;
                 }
-                .lang-toggle:hover {
+                .nav-btn:hover, .nav-btn.active {
                   color: var(--accent);
                   border-color: var(--accent);
                   box-shadow: 0 0 15px rgba(56, 189, 248, 0.2);
@@ -197,12 +192,7 @@ jobs:
                   -webkit-background-clip: text;
                   -webkit-text-fill-color: transparent;
                 }
-                .subtitle {
-                  color: var(--text-muted);
-                  font-size: 1.1rem;
-                  max-width: 600px;
-                  margin: 0 auto;
-                }
+                .subtitle { color: var(--text-muted); font-size: 1.1rem; max-width: 600px; margin: 0 auto; }
 
                 /* 聯絡資訊標籤 */
                 .contact-info {
@@ -234,10 +224,9 @@ jobs:
                   border-color: var(--accent);
                   background: rgba(30, 41, 59, 1);
                   transform: translateY(-2px);
-                  box-shadow: 0 4px 12px rgba(56, 189, 248, 0.15);
                 }
 
-                /* 標籤分類篩選列 */
+                /* 分類標籤篩選列 */
                 .filter-container {
                   display: flex;
                   justify-content: center;
@@ -260,10 +249,7 @@ jobs:
                   transition: all 0.2s ease;
                   backdrop-filter: blur(8px);
                 }
-                .filter-btn:hover {
-                  color: #fff;
-                  border-color: #64748b;
-                }
+                .filter-btn:hover { color: #fff; border-color: #64748b; }
                 .filter-btn.active {
                   background: var(--accent-gradient);
                   color: #0b1120;
@@ -282,24 +268,26 @@ jobs:
                   border-radius: 20px;
                   overflow: hidden;
                   border: 1px solid var(--border-color);
-                  text-decoration: none;
-                  color: inherit;
                   display: flex;
                   flex-direction: column;
                   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
                   backdrop-filter: blur(12px);
                   position: relative;
                 }
-                .card.hidden {
-                  display: none;
-                }
+                .card.hidden { display: none; }
                 .card:hover {
                   transform: translateY(-6px);
                   border-color: rgba(56, 189, 248, 0.6);
                   box-shadow: 0 16px 32px -10px rgba(56, 189, 248, 0.25);
                 }
+                .card-link-wrapper {
+                  text-decoration: none;
+                  color: inherit;
+                  display: flex;
+                  flex-direction: column;
+                  flex-grow: 1;
+                }
                 
-                /* 卡片圖片與預覽 */
                 .card-img-wrapper {
                   position: relative;
                   overflow: hidden;
@@ -315,9 +303,7 @@ jobs:
                   background-position: center;
                   transition: transform 0.4s ease;
                 }
-                .card:hover .card-img {
-                  transform: scale(1.05);
-                }
+                .card:hover .card-img { transform: scale(1.05); }
                 .card-placeholder {
                   width: 100%;
                   height: 100%;
@@ -343,27 +329,9 @@ jobs:
                   font-size: 0.75rem;
                   color: var(--accent);
                   backdrop-filter: blur(4px);
-                  transition: all 0.2s ease;
                 }
-                .card:hover .card-badge {
-                  background: var(--accent);
-                  color: #0b1120;
-                  transform: rotate(45deg);
-                }
-
-                /* 卡片內容 */
-                .card-content {
-                  padding: 1.5rem;
-                  display: flex;
-                  flex-direction: column;
-                  flex-grow: 1;
-                }
-                .tags {
-                  display: flex;
-                  gap: 0.4rem;
-                  margin-bottom: 0.75rem;
-                  flex-wrap: wrap;
-                }
+                .card-content { padding: 1.5rem; display: flex; flex-direction: column; flex-grow: 1; }
+                .tags { display: flex; gap: 0.4rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
                 .tag {
                   font-size: 0.725rem;
                   background: rgba(56, 189, 248, 0.1);
@@ -373,53 +341,135 @@ jobs:
                   border-radius: 9999px;
                   font-weight: 600;
                 }
-                .card-title {
-                  font-size: 1.25rem;
-                  font-weight: 700;
-                  color: #f8fafc;
-                  margin-bottom: 0.5rem;
-                  line-height: 1.35;
-                }
-                .card-desc {
-                  font-size: 0.925rem;
-                  color: var(--text-muted);
-                  line-height: 1.55;
-                  margin-bottom: 1.5rem;
-                  flex-grow: 1;
-                }
+                .card-title { font-size: 1.25rem; font-weight: 700; color: #f8fafc; margin-bottom: 0.5rem; }
+                .card-desc { font-size: 0.925rem; color: var(--text-muted); line-height: 1.55; margin-bottom: 1.5rem; flex-grow: 1; }
                 .card-footer {
                   display: flex;
                   align-items: center;
                   padding-top: 1rem;
                   border-top: 1px solid rgba(51, 65, 85, 0.4);
                 }
-                .card-link {
-                  font-size: 0.875rem;
-                  font-weight: 600;
-                  color: var(--accent);
+                .card-link { font-size: 0.875rem; font-weight: 600; color: var(--accent); display: inline-flex; align-items: center; gap: 0.4rem; }
+
+                /* 管理模式下的卡片編輯按鈕 */
+                .edit-tag-btn {
+                  display: none;
+                  background: #0284c7;
+                  color: #fff;
+                  border: none;
+                  padding: 0.6rem;
+                  font-size: 0.85rem;
+                  font-weight: 700;
+                  cursor: pointer;
+                  transition: background 0.2s;
+                  font-family: inherit;
+                }
+                .edit-tag-btn:hover { background: #0369a1; }
+                body.admin-mode .edit-tag-btn { display: block; }
+
+                /* Modal 彈出視窗樣式 */
+                .modal-backdrop {
+                  position: fixed;
+                  top: 0; left: 0; width: 100vw; height: 100vh;
+                  background: rgba(11, 17, 32, 0.85);
+                  backdrop-filter: blur(8px);
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  z-index: 999;
+                  opacity: 0;
+                  pointer-events: none;
+                  transition: opacity 0.25s ease;
+                }
+                .modal-backdrop.active { opacity: 1; pointer-events: auto; }
+                .modal-box {
+                  background: #1e293b;
+                  border: 1px solid var(--border-color);
+                  border-radius: 20px;
+                  max-width: 520px;
+                  width: 90%;
+                  padding: 2rem;
+                  box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+                }
+                .modal-title { font-size: 1.25rem; font-weight: 700; color: #fff; margin-bottom: 0.5rem; }
+                .modal-desc { font-size: 0.875rem; color: var(--text-muted); margin-bottom: 1.25rem; }
+                .tag-input-group {
+                  display: flex;
+                  gap: 0.5rem;
+                  margin-bottom: 1rem;
+                }
+                .tag-input {
+                  flex: 1;
+                  background: #0f172a;
+                  border: 1px solid var(--border-color);
+                  padding: 0.6rem 1rem;
+                  border-radius: 10px;
+                  color: #fff;
+                  font-size: 0.9rem;
+                  outline: none;
+                }
+                .tag-input:focus { border-color: var(--accent); }
+                .btn-add-tag {
+                  background: var(--accent);
+                  color: #0b1120;
+                  border: none;
+                  padding: 0.6rem 1.2rem;
+                  border-radius: 10px;
+                  font-weight: 700;
+                  cursor: pointer;
+                }
+                .modal-tags {
+                  display: flex;
+                  gap: 0.5rem;
+                  flex-wrap: wrap;
+                  margin-bottom: 1.5rem;
+                  min-height: 40px;
+                }
+                .modal-tag-chip {
+                  background: #334155;
+                  color: #38bdf8;
+                  padding: 0.35rem 0.75rem;
+                  border-radius: 9999px;
+                  font-size: 0.8rem;
                   display: inline-flex;
                   align-items: center;
                   gap: 0.4rem;
-                  transition: gap 0.2s ease;
                 }
-                .card:hover .card-link {
-                  gap: 0.65rem;
+                .modal-tag-chip i { cursor: pointer; color: #94a3b8; }
+                .modal-tag-chip i:hover { color: #ef4444; }
+                .modal-actions {
+                  display: flex;
+                  gap: 0.75rem;
+                  justify-content: flex-end;
                 }
-
-                /* 頁尾 */
-                footer {
-                  margin-top: 4rem;
-                  text-align: center;
-                  color: #475569;
-                  font-size: 0.85rem;
+                .btn-modal-cancel {
+                  background: transparent;
+                  border: 1px solid var(--border-color);
+                  color: var(--text-muted);
+                  padding: 0.5rem 1rem;
+                  border-radius: 10px;
+                  cursor: pointer;
+                  font-weight: 600;
+                }
+                .btn-modal-save {
+                  background: var(--accent-gradient);
+                  color: #0b1120;
+                  border: none;
+                  padding: 0.5rem 1.25rem;
+                  border-radius: 10px;
+                  cursor: pointer;
+                  font-weight: 700;
                 }
               </style>
             </head>
             <body>
               <div class="container">
-                <!-- 導覽列雙語切換 -->
+                <!-- 導覽列：語言切換 + TAG 管理模式 -->
                 <div class="navbar">
-                  <button class="lang-toggle" onclick="toggleLanguage()" id="lang-btn">
+                  <button class="nav-btn" onclick="toggleAdminMode()" id="admin-btn">
+                    <i class="fa-solid fa-tags"></i> <span id="admin-btn-text">管理標籤</span>
+                  </button>
+                  <button class="nav-btn" onclick="toggleLanguage()" id="lang-btn">
                     <i class="fa-solid fa-globe"></i> <span>EN</span>
                   </button>
                 </div>
@@ -428,11 +478,9 @@ jobs:
                   <div class="hero-pill">
                     <i class="fa-solid fa-bolt"></i> <span data-i18n="badge">互動原型實驗庫</span>
                   </div>
-                  <!-- 依需求設定抬頭為：我的單頁實驗室 ✨ -->
                   <h1 data-i18n="title">我的單頁實驗室 ✨</h1>
                   <p class="subtitle" data-i18n="subtitle">共收錄 ${projects.length} 個單頁式互動作品</p>
                   
-                  <!-- 聯絡資訊區塊（顯示完整短網址） -->
                   <div class="contact-info">
                     <button onclick="copyEmail()" id="email-btn" class="contact-link">
                       <i class="fa-regular fa-envelope"></i> <span>leoleo168@gmail.com</span>
@@ -443,16 +491,208 @@ jobs:
                   </div>
                 </header>
                 
-                ${filterHtml}
+                <div class="filter-container" id="filter-bar">
+                  <button class="filter-btn active" data-filter="all">
+                    <i class="fa-solid fa-layer-group"></i> <span data-i18n="filterAll">全部作品</span>
+                  </button>
+                  ${uniqueTags.map(t => `
+                    <button class="filter-btn" data-filter="${t}">
+                      <span>${t}</span>
+                    </button>
+                  `).join("")}
+                </div>
 
                 <main class="grid">${cardsHtml}</main>
 
-                <footer>
+                <footer style="margin-top: 4rem; text-align: center; color: #475569; font-size: 0.85rem;">
                   <p data-i18n="footerText">持續建造更多有趣的原型與互動 🚀</p>
                 </footer>
               </div>
 
+              <!-- 編輯 TAG 彈出視窗 -->
+              <div class="modal-backdrop" id="tag-modal">
+                <div class="modal-box">
+                  <h3 class="modal-title" id="modal-project-title">調整標籤</h3>
+                  <p class="modal-desc">新增或移除此作品的 TAG，儲存後可一鍵同步到 GitHub 的 meta.json。</p>
+                  
+                  <div class="tag-input-group">
+                    <input type="text" id="new-tag-input" class="tag-input" placeholder="輸入標籤名稱..." onkeydown="if(event.key===\x27Enter\x27) addTagFromInput()">
+                    <button class="btn-add-tag" onclick="addTagFromInput()">新增</button>
+                  </div>
+
+                  <div class="modal-tags" id="modal-tags-container"></div>
+
+                  <div class="modal-actions">
+                    <button class="btn-modal-cancel" onclick="closeTagModal()">取消</button>
+                    <button class="btn-modal-save" onclick="saveTagChanges()">完成並同步到 GitHub</button>
+                  </div>
+                </div>
+              </div>
+
               <script>
+                // 傳遞所有專案的基礎資料給前端
+                const projectsData = ${JSON.stringify(projects.map(p => ({
+                  folder: p.folder,
+                  title: p.title,
+                  tags: p.tags || [],
+                  rawMeta: p.rawMeta || {}
+                })))};
+
+                let activeFolder = null;
+                let tempTags = [];
+
+                // 管理模式開關
+                function toggleAdminMode() {
+                  document.body.classList.toggle("admin-mode");
+                  const isActive = document.body.classList.contains("admin-mode");
+                  const btn = document.getElementById("admin-btn");
+                  const text = document.getElementById("admin-btn-text");
+                  if (isActive) {
+                    btn.classList.add("active");
+                    text.textContent = "退出管理";
+                  } else {
+                    btn.classList.remove("active");
+                    text.textContent = "管理標籤";
+                  }
+                }
+
+                // 開啟編輯 Modal
+                function openTagModal(folder) {
+                  activeFolder = folder;
+                  const project = projectsData.find(p => p.folder === folder);
+                  if (!project) return;
+
+                  tempTags = [...project.tags];
+                  document.getElementById("modal-project-title").textContent = "調整「" + project.title + "」的標籤";
+                  renderModalTags();
+                  document.getElementById("tag-modal").classList.add("active");
+                }
+
+                function closeTagModal() {
+                  document.getElementById("tag-modal").classList.remove("active");
+                }
+
+                function renderModalTags() {
+                  const container = document.getElementById("modal-tags-container");
+                  container.innerHTML = tempTags.map((t, idx) => \`
+                    <span class="modal-tag-chip">
+                      \${t} <i class="fa-solid fa-xmark" onclick="removeTag(\${idx})"></i>
+                    </span>
+                  \`).join("");
+                }
+
+                function addTagFromInput() {
+                  const input = document.getElementById("new-tag-input");
+                  const val = input.value.trim();
+                  if (val && !tempTags.includes(val)) {
+                    tempTags.push(val);
+                    renderModalTags();
+                  }
+                  input.value = "";
+                }
+
+                function removeTag(index) {
+                  tempTags.splice(index, 1);
+                  renderModalTags();
+                }
+
+                // 儲存並產出更新後的 meta.json
+                function saveTagChanges() {
+                  const project = projectsData.find(p => p.folder === activeFolder);
+                  if (!project) return;
+
+                  project.tags = [...tempTags];
+
+                  // 更新畫面上卡片的 tag 顯示與 data-tags 屬性
+                  const card = document.querySelector(\`.card[data-folder="\${activeFolder}"]\`);
+                  if (card) {
+                    card.setAttribute("data-tags", tempTags.join(","));
+                    const tagsContainer = document.getElementById("tags-" + activeFolder);
+                    if (tagsContainer) {
+                      tagsContainer.innerHTML = tempTags.map(t => \`<span class="tag">\${t}</span>\`).join("");
+                    }
+                  }
+
+                  // 重新整理上方 Filter 列
+                  refreshFilterBar();
+
+                  // 組合出該專案最新的 meta.json 內容
+                  const updatedMeta = { ...project.rawMeta, tags: tempTags };
+                  const jsonStr = JSON.stringify(updatedMeta, null, 2);
+
+                  // 複製到剪貼簿，並詢問是否前往 GitHub 編輯頁面
+                  navigator.clipboard.writeText(jsonStr).then(() => {
+                    closeTagModal();
+                    
+                    // 自動判斷當前 GitHub 儲存庫路徑
+                    const host = window.location.hostname;
+                    const path = window.location.pathname.split("/").filter(Boolean);
+                    
+                    if (host.includes("github.io") && path.length > 0) {
+                      const user = host.split(".")[0];
+                      const repo = path[0];
+                      const githubEditUrl = \`https://github.com/\${user}/\${repo}/edit/main/\${activeFolder}/meta.json\`;
+                      
+                      const go = confirm(
+                        "✅ 畫面已即時更新！\\n\\n新的 meta.json 內容已幫你【複製到剪貼簿】。\\n\\n是否立刻開啟 GitHub 頁面貼上並儲存？"
+                      );
+                      if (go) {
+                        window.open(githubEditUrl, "_blank");
+                      }
+                    } else {
+                      alert("✅ 畫面已即時更新！\\n\\n新的 meta.json 已複製到剪貼簿，請將它貼回 " + activeFolder + "/meta.json 中。");
+                    }
+                  });
+                }
+
+                // 即時重新計算與更新篩選標籤按鈕
+                function refreshFilterBar() {
+                  const allTags = new Set();
+                  projectsData.forEach(p => p.tags.forEach(t => allTags.add(t)));
+                  const sortedTags = Array.from(allTags).sort();
+
+                  const bar = document.getElementById("filter-bar");
+                  bar.innerHTML = \`
+                    <button class="filter-btn active" data-filter="all">
+                      <i class="fa-solid fa-layer-group"></i> <span>全部作品</span>
+                    </button>
+                    \${sortedTags.map(t => \`
+                      <button class="filter-btn" data-filter="\${t}">
+                        <span>\${t}</span>
+                      </button>
+                    \`).join("")}
+                  \`;
+                  bindFilterEvents();
+                }
+
+                // 篩選按鈕事件綁定
+                function bindFilterEvents() {
+                  const filterBtns = document.querySelectorAll(".filter-btn");
+                  const cards = document.querySelectorAll(".card");
+
+                  filterBtns.forEach(btn => {
+                    btn.addEventListener("click", () => {
+                      filterBtns.forEach(b => b.classList.remove("active"));
+                      btn.classList.add("active");
+
+                      const filterValue = btn.getAttribute("data-filter");
+
+                      cards.forEach(card => {
+                        if (filterValue === "all") {
+                          card.classList.remove("hidden");
+                        } else {
+                          const tags = (card.getAttribute("data-tags") || "").split(",");
+                          if (tags.includes(filterValue)) {
+                            card.classList.remove("hidden");
+                          } else {
+                            card.classList.add("hidden");
+                          }
+                        }
+                      });
+                    });
+                  });
+                }
+
                 // 雙語文字字典
                 const i18n = {
                   "zh-TW": {
@@ -499,40 +739,12 @@ jobs:
                     const originalHtml = btn.innerHTML;
                     const text = i18n[currentLang].copied;
                     btn.innerHTML = \`<i class="fa-solid fa-check"></i> <span>\${text}</span>\`;
-                    setTimeout(() => {
-                      btn.innerHTML = originalHtml;
-                    }, 2000);
-                  }).catch(err => {
-                    console.error("複製失敗", err);
-                  });
+                    setTimeout(() => { btn.innerHTML = originalHtml; }, 2000);
+                  }).catch(err => { console.error("複製失敗", err); });
                 }
 
-                // 分類篩選功能
                 document.addEventListener("DOMContentLoaded", () => {
-                  const filterBtns = document.querySelectorAll(".filter-btn");
-                  const cards = document.querySelectorAll(".card");
-
-                  filterBtns.forEach(btn => {
-                    btn.addEventListener("click", () => {
-                      filterBtns.forEach(b => b.classList.remove("active"));
-                      btn.classList.add("active");
-
-                      const filterValue = btn.getAttribute("data-filter");
-
-                      cards.forEach(card => {
-                        if (filterValue === "all") {
-                          card.classList.remove("hidden");
-                        } else {
-                          const tags = card.getAttribute("data-tags").split(",");
-                          if (tags.includes(filterValue)) {
-                            card.classList.remove("hidden");
-                          } else {
-                            card.classList.add("hidden");
-                          }
-                        }
-                      });
-                    });
-                  });
+                  bindFilterEvents();
                 });
               </script>
             </body>
