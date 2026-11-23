@@ -179,8 +179,17 @@ const enc = new TextEncoder();
 
 /* ========== 版本與更新紀錄 ==========
    新增版本時：在 CHANGELOG 最上面加一筆，並把 APP_VERSION 改成新版號 */
-const APP_VERSION = "1.4";
+const APP_VERSION = "1.5";
 const CHANGELOG = [
+  {
+    v: "1.5", date: "2026-11-23", title: "序列輸出積木",
+    items: [
+      "新增「📟 序列輸出」類別：可選擇換行或不換行",
+      "新增「文字＋數值」組合積木，方便印出像「光線: 1234」的內容",
+      "輸出會顯示在「終端」分頁",
+      "修正執行後最前面的 print 輸出偶爾不會顯示的問題"
+    ]
+  },
   {
     v: "1.4", date: "2026-11-23", title: "更新紀錄",
     items: [
@@ -275,7 +284,7 @@ function toast(m){
 if ("serviceWorker" in navigator) {
   try {
     const sw = [
-      "const C='c3-blocks-v11';",
+      "const C='c3-blocks-v12';",
       "self.addEventListener('install',()=>self.skipWaiting());",
       "self.addEventListener('activate',e=>e.waitUntil(clients.claim()));",
       "self.addEventListener('fetch',e=>{",
@@ -537,6 +546,15 @@ function defineBlocks(){
         {type: "field_dropdown", name: "U", options: [["秒", "s"], ["毫秒", "ms"]]}
       ],
       previousStatement: null, nextStatement: null, colour: 120, tooltip: "暫停程式"
+    },
+    {
+      type: "c3_print", message0: "📟 序列輸出 %1 %2",
+      args0: [
+        {type: "input_value", name: "TEXT"},
+        {type: "field_dropdown", name: "MODE", options: [["換行", "NL"], ["不換行", "NONL"]]}
+      ],
+      previousStatement: null, nextStatement: null, colour: 175,
+      tooltip: "把內容從 USB 序列埠送出，顯示在「終端」分頁"
     }
   ]);
 
@@ -582,10 +600,19 @@ function defineBlocks(){
       ? "time.sleep(" + t + ")\n"
       : "time.sleep_ms(int(" + t + "))\n";
   };
+  F["c3_print"] = function(b){
+    const v = P.valueToCode(b, "TEXT", P.ORDER_NONE) || "''";
+    return b.getFieldValue("MODE") === "NONL"
+      ? "print(" + v + ", end='')\n"
+      : "print(" + v + ")\n";
+  };
 }
 
 function numShadow(n){
   return {shadow: {type: "math_number", fields: {NUM: n}}};
+}
+function txtShadow(t){
+  return {shadow: {type: "text", fields: {TEXT: t}}};
 }
 
 function makeToolbox(){
@@ -602,6 +629,20 @@ function makeToolbox(){
         {kind: "block", type: "c3_boot"},
         {kind: "block", type: "c3_adc"},
         {kind: "block", type: "c3_pwm", inputs: {DUTY: numShadow(50)}}
+      ]},
+      {kind: "category", name: "📟 序列輸出", colour: 175, contents: [
+        {kind: "block", type: "c3_print", inputs: {TEXT: txtShadow("Hello ESP32-C3")}},
+        /* 文字＋數值：序列輸出 ⟵ 建立文字(「光線: 」, 讀取類比腳位) */
+        {kind: "block", type: "c3_print", inputs: {
+          TEXT: {block: {
+            type: "text_join",
+            extraState: {itemCount: 2},
+            inputs: {
+              ADD0: txtShadow("光線: "),
+              ADD1: {block: {type: "c3_adc", fields: {PIN: "0"}}}
+            }
+          }}
+        }}
       ]},
       {kind: "category", name: "時間", colour: 120, contents: [
         {kind: "block", type: "c3_sleep", inputs: {T: numShadow(1)}}
@@ -823,9 +864,13 @@ $("btnRun").onclick = async () => {
     toast("正在傳送程式…");
     await enterRaw();
     await sendCode(getCode());
+    /* 把 OK 之後已收到的輸出（例如最前面的 print）補顯示到終端 */
+    const i = rxBuf.indexOf("OK");
+    const early = i >= 0 ? rxBuf.slice(i + 2) : "";
     passthru = true;
     termWrite("\n▶ 開始執行\n");
-    toast("執行中");
+    if (early) termWrite(early);
+    toast("執行中，輸出請看「終端」分頁");
   } catch(e) {
     toast(e.message);
   }
