@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>花瓶 STL 產生器 | Vase STL Maker</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+  /* ========== 基本樣式（深色、卡片式） ========== */
+  :root{--bg:#0f172a;--card:#1e293b;--line:#334155;--text:#e2e8f0;--sub:#94a3b8;--accent:#38bdf8;--accent2:#06b6d4}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif}
+  nav{display:flex;justify-content:space-between;align-items:center;padding:14px 24px;border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(15,23,42,.92);backdrop-filter:blur(8px);z-index:10}
+  .logo{font-weight:700;font-size:1.15rem}.logo i{color:var(--accent);margin-right:8px}
+  button{font-family:inherit;cursor:pointer}
+  .btn{background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:8px 14px;font-size:.9rem;transition:.2s}
+  .btn:hover{border-color:var(--accent);color:var(--accent);transform:translateY(-1px)}
+  .btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#0f172a;border:none;font-weight:700}
+  .btn.primary:hover{color:#0f172a;box-shadow:0 6px 20px rgba(56,189,248,.35)}
+  main{max-width:1400px;margin:0 auto;padding:20px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:start}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+  h2{margin:0 0 4px;font-size:1.05rem}h2 i{color:var(--accent);margin-right:6px}
+  .hint{color:var(--sub);font-size:.82rem;margin:0 0 12px;line-height:1.6}
+  canvas{display:block;width:100%;aspect-ratio:1/1;background:#0b1220;border-radius:12px;touch-action:none;cursor:crosshair}
+  #view{cursor:grab}
+  .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .sliders{display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;margin-top:14px}
+  @media(max-width:560px){.sliders{grid-template-columns:1fr}}
+  .sl label{display:flex;justify-content:space-between;font-size:.85rem;color:var(--sub)}
+  .sl label b{color:var(--accent);font-weight:500}
+  input[type=range]{width:100%;accent-color:var(--accent)}
+  .chk{display:flex;align-items:center;gap:6px;font-size:.88rem;margin-top:12px;margin-right:16px}
+  .stats{font-size:.82rem;color:var(--sub);margin-top:10px;line-height:1.7}
+  footer{text-align:center;color:var(--sub);font-size:.8rem;padding:20px}
+  .presets{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px;margin-bottom:16px}
+  .preset{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px;font-size:.8rem;background:#0b1220;border:1px solid var(--line);border-radius:12px;color:var(--text);transition:.2s}
+  .preset .ic{font-size:1.5rem;line-height:1.2;color:var(--accent)}
+  .preset:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 6px 16px rgba(56,189,248,.2)}
+
+  /* ========== 3D 預覽固定（捲動時不會跑掉） ========== */
+  /* 桌機／平板橫向：右側預覽卡片固定在導覽列下方 */
+  @media(min-width:901px){
+    .sticky{position:sticky;top:76px}
+    /* 預覽大小不超過視窗高度，確保整張卡片都看得到 */
+    #view{width:min(100%,calc(100vh - 270px));margin:0 auto}
+  }
+  /* 手機／直向：預覽移到最上方並固定，調參數時一樣看得到 */
+  @media(max-width:900px){
+    main{grid-template-columns:1fr}
+    .sticky{position:sticky;top:60px;z-index:5;order:-1;padding:10px}
+    #view{width:min(100%,34vh);margin:0 auto}
+    .sticky .hint,.sticky .stats,.sticky h2{display:none}
+    .sticky .row{margin-top:8px;justify-content:center}
+  }
+</style>
+</head>
+<body>
+
+<!-- ① 導覽列 -->
+<nav>
+  <div class="logo"><i class="fa-solid fa-wine-glass"></i><span data-i18n="title"></span></div>
+  <button class="btn" id="langBtn">EN</button>
+</nav>
+
+<main>
+  <!-- ② 左側：預設、繪圖與參數 -->
+  <section class="card">
+    <h2><i class="fa-solid fa-shapes"></i><span data-i18n="presetTitle"></span></h2>
+    <p class="hint" data-i18n="presetHint"></p>
+    <div class="presets" id="presets"></div>
+
+    <h2><i class="fa-solid fa-pen-nib"></i><span data-i18n="drawTitle"></span></h2>
+    <p class="hint" data-i18n="drawHint"></p>
+    <canvas id="draw"></canvas>
+    <div class="row">
+      <button class="btn" id="undoBtn"><i class="fa-solid fa-rotate-left"></i> <span data-i18n="undo"></span></button>
+      <button class="btn" id="clearBtn"><i class="fa-solid fa-trash"></i> <span data-i18n="clear"></span></button>
+      <button class="btn" id="resetBtn"><i class="fa-solid fa-arrow-rotate-right"></i> <span data-i18n="reset"></span></button>
+    </div>
+    <div style="display:flex;flex-wrap:wrap">
+      <label class="chk"><input type="checkbox" id="sharp"> <span data-i18n="sharp"></span></label>
+      <label class="chk"><input type="checkbox" id="mirror"> <span data-i18n="mirror"></span></label>
+      <label class="chk"><input type="checkbox" id="hollow" checked> <span data-i18n="hollow"></span></label>
+    </div>
+    <div class="sliders" id="sliders"></div>
+  </section>
+
+  <!-- ③ 右側：3D 預覽與下載（固定不捲動） -->
+  <section class="card sticky">
+    <h2><i class="fa-solid fa-cube"></i><span data-i18n="prevTitle"></span></h2>
+    <p class="hint" data-i18n="prevHint"></p>
+    <canvas id="view"></canvas>
+    <div class="row">
+      <button class="btn primary" id="dlBtn"><i class="fa-solid fa-download"></i> <span data-i18n="download"></span></button>
+      <button class="btn" id="wireBtn"><i class="fa-solid fa-border-all"></i> <span data-i18n="wire"></span></button>
+    </div>
+    <div class="stats" id="stats"></div>
+  </section>
+</main>
+<footer data-i18n="footer"></footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ==================== 雙語文字（集中管理，改文字請改這裡） ==================== */
+const I18N = {
+  zh: {
+    title:'花瓶 STL 產生器', drawTitle:'② 畫出 1/N 輪廓',
+    presetTitle:'① 圖案預設', presetHint:'點選後會自動填入輪廓與參數，之後仍可自由微調或重新繪製。',
+    drawHint:'在亮色扇形區內：點一下新增控制點、拖曳移動、雙擊刪除，也可按住滑鼠直接手繪。系統會自動依圓心旋轉複製成封閉曲線（中心十字為圓心）。',
+    undo:'復原', clear:'清除', reset:'範例', sharp:'尖角（直線連接）', mirror:'相鄰扇形鏡射（N 需為偶數）', hollow:'中空花瓶（有壁厚）',
+    prevTitle:'③ 即時 3D 預覽', prevHint:'拖曳旋轉、滾輪／雙指縮放。調整任何參數都會立即更新。',
+    download:'下載 STL', wire:'線框', footer:'純前端運算，檔案不會上傳。單位：毫米 (mm)',
+    n:'分割數 N（1/N）', viewR:'畫布半徑 (mm)', height:'高度 (mm)', layers:'層數（解析度）',
+    twist:'旋轉角度（總計 °）', topScale:'頂部縮放 (%)', bulge:'中段鼓起 (%)',
+    wall:'壁厚 (mm)', base:'底厚 (mm)', smooth:'曲線平滑度',
+    tris:'三角面', size:'尺寸', file:'檔案大小', needPts:'請至少畫 1 個點'
+  },
+  en: {
+    title:'Vase STL Maker', drawTitle:'② Draw the 1/N profile',
+    presetTitle:'① Shape presets', presetHint:'Click to fill in the profile and settings. You can still tweak or redraw afterwards.',
+    drawHint:'Inside the bright sector: click to add a point, drag to move, double-click to delete, or hold and draw freehand. It is rotated around the center (cross) into a closed curve automatically.',
+    undo:'Undo', clear:'Clear', reset:'Sample', sharp:'Sharp corners (straight lines)', mirror:'Mirror alternate sectors (N must be even)', hollow:'Hollow vase (wall)',
+    prevTitle:'③ Live 3D preview', prevHint:'Drag to rotate, wheel / pinch to zoom. Any change updates instantly.',
+    download:'Download STL', wire:'Wireframe', footer:'Runs fully in your browser, nothing is uploaded. Unit: mm',
+    n:'Divisions N (1/N)', viewR:'Canvas radius (mm)', height:'Height (mm)', layers:'Layers (resolution)',
+    twist:'Twist (total °)', topScale:'Top scale (%)', bulge:'Mid bulge (%)',
+    wall:'Wall (mm)', base:'Base (mm)', smooth:'Curve smoothness',
+    tris:'Triangles', size:'Size', file:'File size', needPts:'Add at least 1 point'
+  }
+};
+let lang = 'zh';
+
+/* ==================== 圖案預設（想新增／修改圖案改這裡） ==================== */
+const PRESETS = [
+  {ic:'■', zh:'正方形',   en:'Square',   n:4,  sharp:true, pts:[{r:50,u:.5}]},
+  {ic:'▲', zh:'三角形',   en:'Triangle', n:3,  sharp:true, pts:[{r:50,u:.5}]},
+  {ic:'⬟', zh:'五邊形',   en:'Pentagon', n:5,  sharp:true, pts:[{r:48,u:.5}]},
+  {ic:'⬢', zh:'六邊形',   en:'Hexagon',  n:6,  sharp:true, pts:[{r:48,u:.5}]},
+  {ic:'⯃', zh:'八邊形',   en:'Octagon',  n:8,  sharp:true, pts:[{r:48,u:.5}]},
+  {ic:'★', zh:'五角星',   en:'5-Star',   n:5,  sharp:true, pts:[{r:24,u:0},{r:54,u:.5}]},
+  {ic:'✸', zh:'八角星',   en:'8-Star',   n:8,  sharp:true, pts:[{r:32,u:0},{r:54,u:.5}]},
+  {ic:'✚', zh:'十字',     en:'Cross',    n:4,  sharp:true, pts:[{r:47.4,u:.204},{r:21.2,u:.5},{r:47.4,u:.796}]},
+  {ic:'⚙', zh:'齒輪',     en:'Gear',     n:10, sharp:true, pts:[{r:36,u:.05},{r:36,u:.2},{r:47,u:.3},{r:47,u:.7},{r:36,u:.8},{r:36,u:.95}]},
+  {ic:'✿', zh:'花朵',     en:'Flower',   n:6,  sharp:false, pts:[{r:28,u:0},{r:40,u:.25},{r:50,u:.5},{r:40,u:.75}]},
+  {ic:'●', zh:'圓形',     en:'Circle',   n:12, sharp:false, pts:[{r:42,u:.5}]},
+  {ic:'🌀', zh:'扭轉三角塔', en:'Twisted tower', n:3, sharp:true, pts:[{r:50,u:.5}], twist:120, topScale:70},
+  {ic:'✧', zh:'扭轉星形', en:'Twisted star', n:5, sharp:true, pts:[{r:24,u:0},{r:54,u:.5}], twist:144, topScale:80},
+  {ic:'❀', zh:'波浪花瓶', en:'Wavy vase', n:8, sharp:false, pts:[{r:30,u:0},{r:40,u:.25},{r:48,u:.5},{r:40,u:.75}], twist:60, bulge:30, topScale:70},
+];
+
+/* ==================== 參數定義（想改預設值／範圍就改這裡） ==================== */
+const PARAMS = [
+  {k:'n',      min:2,   max:24,  step:1,  v:6},
+  {k:'viewR',  min:30,  max:150, step:5,  v:60},
+  {k:'height', min:20,  max:300, step:1,  v:120},
+  {k:'layers', min:10,  max:300, step:1,  v:100},
+  {k:'twist',  min:-720,max:720, step:5,  v:90},
+  {k:'topScale',min:20, max:200, step:1,  v:100},
+  {k:'bulge',  min:-50, max:100, step:1,  v:0},
+  {k:'wall',   min:0.8, max:10,  step:0.1,v:2},
+  {k:'base',   min:1,   max:20,  step:0.5,v:3},
+  {k:'smooth', min:3,   max:16,  step:1,  v:8},
+];
+const P = {};
+PARAMS.forEach(p=>P[p.k]=p.v);
+
+const SAMPLE = [{r:34,u:.12},{r:44,u:.35},{r:30,u:.6},{r:42,u:.85}];
+let pts = JSON.parse(JSON.stringify(SAMPLE));
+let history = [];
+
+/* ==================== 產生滑桿 ==================== */
+const slBox = document.getElementById('sliders');
+function setP(k,v){
+  P[k]=v;
+  document.getElementById('s_'+k).value=v;
+  document.getElementById('v_'+k).textContent=v;
+}
+PARAMS.forEach(p=>{
+  const d=document.createElement('div'); d.className='sl';
+  d.innerHTML=`<label><span data-i18n="${p.k}"></span><b id="v_${p.k}">${p.v}</b></label>
+  <input type="range" id="s_${p.k}" min="${p.min}" max="${p.max}" step="${p.step}" value="${p.v}">`;
+  slBox.appendChild(d);
+  d.querySelector('input').addEventListener('input',e=>{
+    P[p.k]=parseFloat(e.target.value);
+    document.getElementById('v_'+p.k).textContent=P[p.k];
+    requestUpdate();
+  });
+});
+['mirror','hollow','sharp'].forEach(id=>document.getElementById(id).addEventListener('change',requestUpdate));
+
+/* ==================== 圖案預設按鈕 ==================== */
+const presetBox=document.getElementById('presets');
+PRESETS.forEach((pr,i)=>{
+  const b=document.createElement('button'); b.className='preset';
+  b.innerHTML=`<span class="ic">${pr.ic}</span><span class="nm"></span>`;
+  b.onclick=()=>applyPreset(pr);
+  presetBox.appendChild(b);
+});
+function labelPresets(){
+  presetBox.querySelectorAll('.nm').forEach((el,i)=>el.textContent=PRESETS[i][lang]);
+}
+function applyPreset(pr){
+  snap();
+  pts=JSON.parse(JSON.stringify(pr.pts));
+  setP('n',pr.n);
+  setP('twist',pr.twist||0);
+  setP('topScale',pr.topScale||100);
+  setP('bulge',pr.bulge||0);
+  document.getElementById('sharp').checked=!!pr.sharp;
+  document.getElementById('mirror').checked=!!pr.mirror;
+  requestUpdate();
+}
+
+/* ==================== 語言切換 ==================== */
+function applyLang(){
+  document.documentElement.lang = lang==='zh'?'zh-Hant':'en';
+  document.querySelectorAll('[data-i18n]').forEach(el=>el.textContent=I18N[lang][el.dataset.i18n]);
+  document.getElementById('langBtn').textContent = lang==='zh'?'EN':'中文';
+  labelPresets(); updateStats();
+}
+document.getElementById('langBtn').onclick=()=>{lang=lang==='zh'?'en':'zh';applyLang();};
+
+/* ==================== 幾何：由控制點產生封閉曲線 ==================== */
+function buildRing(){
+  const N=P.n, th=2*Math.PI/N, mirror=document.getElementById('mirror').checked;
+  const sharp=document.getElementById('sharp').checked;
+  const sorted=[...pts].sort((a,b)=>a.u-b.u);
+  const ctrl=[];
+  for(let k=0;k<N;k++){
+    let seq=sorted;
+    if(mirror && k%2===1) seq=sorted.map(p=>({r:p.r,u:1-p.u})).reverse();
+    seq.forEach(p=>{const a=(k+p.u)*th; ctrl.push({x:p.r*Math.cos(a),y:p.r*Math.sin(a),k});});
+  }
+  const C=[];
+  ctrl.forEach(c=>{const l=C[C.length-1]; if(!l||Math.hypot(c.x-l.x,c.y-l.y)>0.05)C.push(c);});
+  if(C.length>2&&Math.hypot(C[0].x-C[C.length-1].x,C[0].y-C[C.length-1].y)<=0.05)C.pop();
+  if(C.length<3) return [];
+  if(sharp) return C.map(c=>({x:c.x,y:c.y,k:c.k}));
+  const out=[], M=C.length, S=P.smooth;
+  for(let i=0;i<M;i++){
+    const p0=C[(i-1+M)%M],p1=C[i],p2=C[(i+1)%M],p3=C[(i+2)%M];
+    for(let s=0;s<S;s++){
+      const t=s/S,t2=t*t,t3=t2*t;
+      const f=(a,b,c,d)=>0.5*((2*b)+(-a+c)*t+(2*a-5*b+4*c-d)*t2+(-a+3*b-3*c+d)*t3);
+      out.push({x:f(p0.x,p1.x,p2.x,p3.x),y:f(p0.y,p1.y,p2.y,p3.y),k:p1.k});
+    }
+  }
+  return out;
+}
+
+/* ==================== 幾何：建立實體網格 ==================== */
+function buildMesh(ring){
+  const R=ring.length, L=Math.round(P.layers), H=P.height;
+  const hollow=document.getElementById('hollow').checked;
+  const base=Math.min(P.base,H-1);
+  const nx=new Float32Array(R), ny=new Float32Array(R);
+  for(let i=0;i<R;i++){
+    const a=ring[(i-1+R)%R], b=ring[i], c=ring[(i+1)%R];
+    let t1x=b.x-a.x,t1y=b.y-a.y,l1=Math.hypot(t1x,t1y)||1;
+    let t2x=c.x-b.x,t2y=c.y-b.y,l2=Math.hypot(t2x,t2y)||1;
+    const n1x=t1y/l1,n1y=-t1x/l1,n2x=t2y/l2,n2y=-t2x/l2;
+    let mx=n1x+n2x,my=n1y+n2y; const ml=Math.hypot(mx,my)||1; mx/=ml;my/=ml;
+    const sc=1/Math.max(0.35,mx*n1x+my*n1y);
+    nx[i]=mx*sc; ny[i]=my*sc;
+  }
+  function layer(t,off){
+    const s=(1+(P.topScale/100-1)*t)*(1+P.bulge/100*Math.sin(Math.PI*t));
+    const ang=P.twist*Math.PI/180*t, c=Math.cos(ang), sn=Math.sin(ang);
+    const o=new Float32Array(R*2);
+    for(let i=0;i<R;i++){
+      const x=ring[i].x*s-nx[i]*off, y=ring[i].y*s-ny[i]*off;
+      o[2*i]=x*c-y*sn; o[2*i+1]=x*sn+y*c;
+    }
+    return o;
+  }
+  const tris=[];
+  const V=(r,i,z)=>[r[2*(i%R)],r[2*(i%R)+1],z];
+  const push=(a,b,c)=>tris.push(a,b,c);
+  const cen=z=>[0,0,z];
+
+  let prev=layer(0,0), pz=0;
+  const outerBottom=prev;
+  for(let j=1;j<=L;j++){
+    const z=H*j/L, cur=layer(j/L,0);
+    for(let i=0;i<R;i++){
+      const a=V(prev,i,pz),b=V(prev,i+1,pz),c=V(cur,i+1,z),d=V(cur,i,z);
+      push(a,b,c);push(a,c,d);
+    }
+    prev=cur;pz=z;
+  }
+  const outerTop=prev;
+  for(let i=0;i<R;i++) push(cen(0),V(outerBottom,i+1,0),V(outerBottom,i,0));
+
+  if(!hollow){
+    for(let i=0;i<R;i++) push(cen(H),V(outerTop,i,H),V(outerTop,i+1,H));
+  }else{
+    const w=P.wall;
+    let ip=layer(base/H,w), ipz=base;
+    const innerBottom=ip;
+    for(let j=1;j<=L;j++){
+      const z=base+(H-base)*j/L, cur=layer(z/H,w);
+      for(let i=0;i<R;i++){
+        const a=V(ip,i,ipz),b=V(ip,i+1,ipz),c=V(cur,i+1,z),d=V(cur,i,z);
+        push(a,c,b);push(a,d,c);
+      }
+      ip=cur;ipz=z;
+    }
+    const innerTop=ip;
+    for(let i=0;i<R;i++){
+      const o0=V(outerTop,i,H),o1=V(outerTop,i+1,H),n0=V(innerTop,i,H),n1=V(innerTop,i+1,H);
+      push(o0,o1,n1);push(o0,n1,n0);
+    }
+    for(let i=0;i<R;i++) push(cen(base),V(innerBottom,i,base),V(innerBottom,i+1,base));
+  }
+  return tris;
+}
+
+/* ==================== 2D 繪圖區 ==================== */
+const dc=document.getElementById('draw'), dx=dc.getContext('2d');
+let dpr=window.devicePixelRatio||1;
+function sizeDraw(){
+  const w=dc.clientWidth; dc.width=w*dpr; dc.height=w*dpr; drawCanvas();
+}
+const scl=()=>dc.width/2/P.viewR;
+function toPx(x,y){return [dc.width/2+x*scl(), dc.height/2-y*scl()];}
+
+function drawCanvas(){
+  const W=dc.width, c=W/2, s=scl(), th=2*Math.PI/P.n;
+  dx.clearRect(0,0,W,W);
+  dx.lineWidth=1; dx.strokeStyle='rgba(148,163,184,.12)';
+  for(let r=10;r<=P.viewR*1.5;r+=10){dx.beginPath();dx.arc(c,c,r*s,0,7);dx.stroke();}
+  dx.beginPath();dx.moveTo(c,c);dx.arc(c,c,P.viewR*1.5*s,-0,-th,true);dx.closePath();
+  dx.fillStyle='rgba(56,189,248,.10)';dx.fill();
+  dx.strokeStyle='rgba(56,189,248,.5)';dx.setLineDash([6,5]);dx.stroke();dx.setLineDash([]);
+  dx.strokeStyle='#94a3b8';dx.beginPath();dx.moveTo(c-8,c);dx.lineTo(c+8,c);dx.moveTo(c,c-8);dx.lineTo(c,c+8);dx.stroke();
+  const ring=buildRing();
+  if(ring.length){
+    dx.beginPath();ring.forEach((p,i)=>{const [X,Y]=toPx(p.x,p.y);i?dx.lineTo(X,Y):dx.moveTo(X,Y);});dx.closePath();
+    dx.strokeStyle='rgba(6,182,212,.55)';dx.lineWidth=2*dpr;dx.stroke();
+    dx.beginPath();let started=false;
+    ring.forEach(p=>{if(p.k===0){const [X,Y]=toPx(p.x,p.y);started?dx.lineTo(X,Y):dx.moveTo(X,Y);started=true;}});
+    dx.strokeStyle='#38bdf8';dx.lineWidth=4*dpr;dx.stroke();
+  }
+  pts.forEach(p=>{
+    const [X,Y]=toPx(p.r*Math.cos(p.u*th),p.r*Math.sin(p.u*th));
+    dx.beginPath();dx.arc(X,Y,6*dpr,0,7);dx.fillStyle='#fff';dx.fill();
+    dx.lineWidth=2*dpr;dx.strokeStyle='#0ea5e9';dx.stroke();
+  });
+}
+function pxToPt(e){
+  const r=dc.getBoundingClientRect(), f=dc.width/r.width;
+  const px=(e.clientX-r.left)*f, py=(e.clientY-r.top)*f;
+  const x=(px-dc.width/2)/scl(), y=-(py-dc.height/2)/scl(), th=2*Math.PI/P.n;
+  let a=Math.atan2(y,x); if(a<0)a+=2*Math.PI;
+  let u=a/th; if(u>1) u=(a>(th+2*Math.PI)/2)?0:1;
+  return {r:Math.min(Math.hypot(x,y),P.viewR*1.5), u:Math.min(1,Math.max(0,u))};
+}
+function hit(e){
+  const r=dc.getBoundingClientRect(), f=dc.width/r.width, th=2*Math.PI/P.n;
+  for(let i=pts.length-1;i>=0;i--){
+    const [X,Y]=toPx(pts[i].r*Math.cos(pts[i].u*th),pts[i].r*Math.sin(pts[i].u*th));
+    if(Math.hypot((e.clientX-r.left)*f-X,(e.clientY-r.top)*f-Y)<14*dpr) return i;
+  }
+  return -1;
+}
+const snap=()=>{history.push(JSON.stringify(pts));if(history.length>50)history.shift();};
+let dragging=null, lastAdd=null;
+dc.addEventListener('pointerdown',e=>{
+  dc.setPointerCapture(e.pointerId); snap();
+  const i=hit(e);
+  if(i>=0){dragging=pts[i];}
+  else{const p=pxToPt(e);pts.push(p);dragging=p;lastAdd=p;}
+  requestUpdate();
+});
+dc.addEventListener('pointermove',e=>{
+  if(!dragging)return;
+  const p=pxToPt(e);
+  if(dragging===lastAdd){
+    const th=2*Math.PI/P.n;
+    const d=Math.hypot(p.r*Math.cos(p.u*th)-lastAdd.r*Math.cos(lastAdd.u*th),p.r*Math.sin(p.u*th)-lastAdd.r*Math.sin(lastAdd.u*th));
+    if(d>P.viewR*0.12){pts.push(p);dragging=lastAdd=p;requestUpdate();}
+  }else{dragging.r=p.r;dragging.u=p.u;requestUpdate();}
+});
+dc.addEventListener('pointerup',()=>{dragging=null;lastAdd=null;});
+dc.addEventListener('dblclick',e=>{const i=hit(e);if(i>=0){snap();pts.splice(i,1);requestUpdate();}});
+document.getElementById('undoBtn').onclick=()=>{if(history.length){pts=JSON.parse(history.pop());requestUpdate();}};
+document.getElementById('clearBtn').onclick=()=>{snap();pts=[];requestUpdate();};
+document.getElementById('resetBtn').onclick=()=>{snap();pts=JSON.parse(JSON.stringify(SAMPLE));document.getElementById('sharp').checked=false;requestUpdate();};
+
+/* ==================== 3D 預覽（three.js，Z 軸朝上） ==================== */
+const vc=document.getElementById('view');
+const renderer=new THREE.WebGLRenderer({canvas:vc,antialias:true});
+const scene=new THREE.Scene(); scene.background=new THREE.Color(0x0b1220);
+const camera=new THREE.PerspectiveCamera(40,1,1,3000); camera.up.set(0,0,1);
+scene.add(new THREE.HemisphereLight(0xbfe9ff,0x1e293b,0.9));
+const dl=new THREE.DirectionalLight(0xffffff,0.9); dl.position.set(100,-150,250); scene.add(dl);
+const dl2=new THREE.DirectionalLight(0x38bdf8,0.4); dl2.position.set(-150,100,50); scene.add(dl2);
+const grid=new THREE.GridHelper(300,30,0x38bdf8,0x334155); grid.rotation.x=Math.PI/2; grid.material.opacity=.4; grid.material.transparent=true; scene.add(grid);
+const mat=new THREE.MeshStandardMaterial({color:0x38bdf8,roughness:.45,metalness:.1,flatShading:true,side:THREE.DoubleSide});
+const mesh=new THREE.Mesh(new THREE.BufferGeometry(),mat); scene.add(mesh);
+document.getElementById('wireBtn').onclick=()=>{mat.wireframe=!mat.wireframe;placeCam();};
+
+let az=-0.8, el=0.5, dist=300, target=new THREE.Vector3(0,0,60);
+function placeCam(){
+  camera.position.set(target.x+dist*Math.cos(el)*Math.cos(az),target.y+dist*Math.cos(el)*Math.sin(az),target.z+dist*Math.sin(el));
+  camera.lookAt(target); renderer.render(scene,camera);
+}
+function sizeView(){const w=vc.clientWidth;renderer.setPixelRatio(dpr);renderer.setSize(w,w,false);camera.aspect=1;camera.updateProjectionMatrix();placeCam();}
+const ptrs=new Map(); let pinch=0;
+vc.addEventListener('pointerdown',e=>{vc.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,[e.clientX,e.clientY]);});
+vc.addEventListener('pointermove',e=>{
+  if(!ptrs.has(e.pointerId))return;
+  const o=ptrs.get(e.pointerId); ptrs.set(e.pointerId,[e.clientX,e.clientY]);
+  if(ptrs.size===1){az-=(e.clientX-o[0])*0.01;el=Math.max(-1.5,Math.min(1.5,el+(e.clientY-o[1])*0.01));}
+  else if(ptrs.size===2){const [a,b]=[...ptrs.values()];const d=Math.hypot(a[0]-b[0],a[1]-b[1]);if(pinch)dist=Math.max(30,Math.min(1500,dist*pinch/d));pinch=d;}
+  placeCam();
+});
+const up=e=>{ptrs.delete(e.pointerId);pinch=0;};
+vc.addEventListener('pointerup',up);vc.addEventListener('pointercancel',up);
+vc.addEventListener('wheel',e=>{e.preventDefault();dist=Math.max(30,Math.min(1500,dist*(1+e.deltaY*0.001)));placeCam();},{passive:false});
+
+/* ==================== 更新流程 ==================== */
+let triData=null, pending=false;
+function requestUpdate(){ if(pending)return; pending=true; requestAnimationFrame(()=>{pending=false;update();}); }
+function update(){
+  drawCanvas();
+  const ring=buildRing();
+  if(!ring.length||!pts.length){triData=null;mesh.geometry.setAttribute('position',new THREE.BufferAttribute(new Float32Array(0),3));updateStats();placeCam();return;}
+  triData=buildMesh(ring);
+  const arr=new Float32Array(triData.length*3);
+  triData.forEach((v,i)=>{arr[3*i]=v[0];arr[3*i+1]=v[1];arr[3*i+2]=v[2];});
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.BufferAttribute(arr,3));
+  g.computeVertexNormals(); g.computeBoundingBox();
+  mesh.geometry.dispose(); mesh.geometry=g;
+  target.set(0,0,P.height/2);
+  updateStats(); placeCam();
+}
+function updateStats(){
+  const t=I18N[lang], el=document.getElementById('stats');
+  if(!triData){el.textContent=t.needPts;return;}
+  const bb=mesh.geometry.boundingBox, n=triData.length/3;
+  el.innerHTML=`${t.tris}：${n.toLocaleString()}<br>${t.size}：${(bb.max.x-bb.min.x).toFixed(1)} × ${(bb.max.y-bb.min.y).toFixed(1)} × ${(bb.max.z-bb.min.z).toFixed(1)} mm<br>${t.file}：${((84+50*n)/1048576).toFixed(2)} MB`;
+}
+
+/* ==================== STL 下載（二進位格式） ==================== */
+document.getElementById('dlBtn').onclick=()=>{
+  if(!triData)return;
+  const n=triData.length/3, buf=new ArrayBuffer(84+50*n), dv=new DataView(buf);
+  dv.setUint32(80,n,true);
+  let o=84;
+  for(let i=0;i<n;i++){
+    const a=triData[3*i],b=triData[3*i+1],c=triData[3*i+2];
+    const ux=b[0]-a[0],uy=b[1]-a[1],uz=b[2]-a[2],vx=c[0]-a[0],vy=c[1]-a[1],vz=c[2]-a[2];
+    let nx=uy*vz-uz*vy,ny=uz*vx-ux*vz,nz=ux*vy-uy*vx; const l=Math.hypot(nx,ny,nz)||1;
+    [nx/l,ny/l,nz/l,...a,...b,...c].forEach(v=>{dv.setFloat32(o,v,true);o+=4;});
+    o+=2;
+  }
+  const url=URL.createObjectURL(new Blob([buf],{type:'model/stl'}));
+  const link=document.createElement('a');link.href=url;link.download='vase.stl';link.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+};
+
+/* ==================== 初始化 ==================== */
+window.addEventListener('resize',()=>{sizeDraw();sizeView();});
+applyLang(); sizeDraw(); sizeView(); update();
+</script>
+</body>
+</html>
