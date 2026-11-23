@@ -179,8 +179,19 @@ const enc = new TextEncoder();
 
 /* ========== 版本與更新紀錄 ==========
    新增版本時：在 CHANGELOG 最上面加一筆，並把 APP_VERSION 改成新版號 */
-const APP_VERSION = "1.6";
+const APP_VERSION = "1.7";
 const CHANGELOG = [
+  {
+    v: "1.7", date: "2026-11-23", title: "裝置分類與新積木",
+    items: [
+      "左側積木新增三大分類：輸入裝置、輸出裝置、顯示裝置，底下有子分類",
+      "輸入裝置：紅外線感測器、微動開關、光電開關",
+      "輸出裝置：LED、蜂鳴器（有源／無源）、L298N 馬達",
+      "顯示裝置：OLED（SSD1306 I2C），內建驅動程式，不需另外上傳檔案",
+      "原「輸出入」改名為「基本腳位」",
+      "使用 OLED 顯示文字前，會檢查是否放了「OLED 初始化」"
+    ]
+  },
   {
     v: "1.6", date: "2026-11-23", title: "L298N 馬達積木",
     items: [
@@ -301,7 +312,7 @@ function toast(m){
 if ("serviceWorker" in navigator) {
   try {
     const sw = [
-      "const C='c3-blocks-v14';",
+      "const C='c3-blocks-v15';",
       "self.addEventListener('install',()=>self.skipWaiting());",
       "self.addEventListener('activate',e=>e.waitUntil(clients.claim()));",
       "self.addEventListener('fetch',e=>{",
@@ -510,8 +521,48 @@ const ADCP = [0,1,2,3,4].map(n => ["GPIO" + n, String(n)]);
 /* 馬達可用腳位：排除 GPIO2/8/9（開機腳位）、11~17（Flash）、18/19（USB）、20/21（UART） */
 const MPINS = [0,1,3,4,5,6,7,10].map(n => ["GPIO" + n, String(n)]);
 const ENPINS = MPINS.concat([["不接 (跳線帽)", "-1"]]);
+/* 一般裝置腳位：多加 GPIO20/21（USB 直連的板子通常可用） */
+const DPINS = [0,1,3,4,5,6,7,10,20,21].map(n => ["GPIO" + n, String(n)]);
+const LEDPINS = [["GPIO8 (板載)", "8"]].concat(DPINS);
 /* L298N 預設腳位 */
 const L298_DEF = {IN1: "4", IN2: "5", IN3: "6", IN4: "7", ENA: "0", ENB: "1", INVL: "1", INVR: "1"};
+
+/* 顏色 */
+const C_IN = "#0ea5e9", C_OUT = "#f97316", C_DISP = "#8b5cf6";
+
+/* OLED (SSD1306 I2C) 驅動程式：內建在轉出的 Python 裡 */
+const OLED_CODE = [
+  "class _OLED(framebuf.FrameBuffer):",
+  "    def __init__(self, i2c, addr, w, h):",
+  "        self.i2c = i2c",
+  "        self.addr = addr",
+  "        self.w = w",
+  "        self.h = h",
+  "        self.buf = bytearray(w * h // 8)",
+  "        super().__init__(self.buf, w, h, framebuf.MONO_VLSB)",
+  "        for c in (0xAE, 0x20, 0x00, 0x40, 0xA1, 0xA8, h - 1, 0xC8, 0xD3, 0x00, 0xDA, 0x02 if h == 32 else 0x12, 0xD5, 0x80, 0xD9, 0xF1, 0xDB, 0x30, 0x81, 0xFF, 0xA4, 0xA6, 0x8D, 0x14, 0xAF):",
+  "            self.i2c.writeto(addr, bytes([0x80, c]))",
+  "        self.fill(0)",
+  "        self.show()",
+  "    def show(self):",
+  "        for c in (0x21, 0, self.w - 1, 0x22, 0, self.h // 8 - 1):",
+  "            self.i2c.writeto(self.addr, bytes([0x80, c]))",
+  "        self.i2c.writeto(self.addr, b'\\x40' + self.buf)",
+  "_oled = None",
+  "def oled_init(sda, scl, h, addr):",
+  "    global _oled",
+  "    _oled = _OLED(SoftI2C(sda=Pin(sda), scl=Pin(scl), freq=400000), addr, 128, h)",
+  "def oled_clear():",
+  "    _oled.fill(0)",
+  "    _oled.show()",
+  "def oled_text(t, x, y):",
+  "    _oled.text(str(t), x, y, 1)",
+  "    _oled.show()",
+  "def oled_row(r, t):",
+  "    _oled.fill_rect(0, r * 8, 128, 8, 0)",
+  "    _oled.text(str(t), 0, r * 8, 1)",
+  "    _oled.show()"
+].join("\n");
 
 let blocklyBase = "https://unpkg.com/blockly@10.4.3/";
 
@@ -557,7 +608,7 @@ function defineBlocks(){
           {type: "field_dropdown", name: "INVL", options: [["正常", "1"], ["反向", "-1"]]},
           {type: "field_dropdown", name: "INVR", options: [["正常", "1"], ["反向", "-1"]]}
         ],
-        previousStatement: null, nextStatement: null, colour: 20,
+        previousStatement: null, nextStatement: null, colour: C_OUT,
         tooltip: "設定 L298N 接到 ESP32-C3 的腳位。放一顆就好，放在「一開始只做一次」裡。若馬達轉的方向反了，把該馬達改成「反向」。"
       });
     }
@@ -611,6 +662,73 @@ function defineBlocks(){
       previousStatement: null, nextStatement: null, colour: 175,
       tooltip: "把內容從 USB 序列埠送出，顯示在「終端」分頁"
     },
+
+    /* ----- 輸入裝置 ----- */
+    {
+      type: "c3_ir", message0: "紅外線感測器 腳位 %1 偵測到障礙物 (有障礙時輸出 %2)",
+      args0: [
+        {type: "field_dropdown", name: "PIN", options: DPINS},
+        {type: "field_dropdown", name: "POL", options: [["低 (0)", "0"], ["高 (1)", "1"]]}
+      ],
+      output: "Boolean", colour: C_IN,
+      tooltip: "常見的紅外線避障模組，有障礙時輸出低電位。請看模組上的指示燈，確認有障礙時輸出是高還是低。"
+    },
+    {
+      type: "c3_sw", message0: "微動開關 腳位 %1 被按下 (接法 %2)",
+      args0: [
+        {type: "field_dropdown", name: "PIN", options: DPINS},
+        {type: "field_dropdown", name: "MODE", options: [["一腳接 GND", "0"], ["一腳接 3.3V", "1"]]}
+      ],
+      output: "Boolean", colour: C_IN,
+      tooltip: "一腳接 GND：用內建上拉，按下變低電位。一腳接 3.3V：用內建下拉，按下變高電位。不要接 5V。"
+    },
+    {
+      type: "c3_photo", message0: "光電開關 腳位 %1 被擋住 (擋住時輸出 %2)",
+      args0: [
+        {type: "field_dropdown", name: "PIN", options: DPINS},
+        {type: "field_dropdown", name: "POL", options: [["高 (1)", "1"], ["低 (0)", "0"]]}
+      ],
+      output: "Boolean", colour: C_IN,
+      tooltip: "槽型光電開關。不同模組擋住時的輸出不同，請依模組調整。若模組用 5V 供電，輸出可能是 5V，請改 3.3V 供電或加分壓。"
+    },
+
+    /* ----- 輸出裝置：LED／蜂鳴器 ----- */
+    {
+      type: "c3_led", message0: "LED 腳位 %1 %2",
+      args0: [
+        {type: "field_dropdown", name: "PIN", options: LEDPINS},
+        {type: "field_dropdown", name: "S", options: [["亮", "1"], ["滅", "0"], ["切換", "2"]]}
+      ],
+      previousStatement: null, nextStatement: null, colour: C_OUT,
+      tooltip: "高電位亮。有些板載 LED 是低電位亮，若相反請把腳位改成接外接 LED。"
+    },
+    {
+      type: "c3_buzz_act", message0: "蜂鳴器(有源) 腳位 %1 %2",
+      args0: [
+        {type: "field_dropdown", name: "PIN", options: DPINS},
+        {type: "field_dropdown", name: "S", options: [["響", "1"], ["不響", "0"]]}
+      ],
+      previousStatement: null, nextStatement: null, colour: C_OUT,
+      tooltip: "有源蜂鳴器通電就會響，音調固定。"
+    },
+    {
+      type: "c3_buzz_tone", message0: "蜂鳴器(無源) 腳位 %1 頻率 %2 Hz 持續 %3 毫秒",
+      args0: [
+        {type: "field_dropdown", name: "PIN", options: DPINS},
+        {type: "input_value", name: "F", check: "Number"},
+        {type: "input_value", name: "MS", check: "Number"}
+      ],
+      previousStatement: null, nextStatement: null, colour: C_OUT,
+      tooltip: "無源蜂鳴器要給頻率才會響。例如 1000 Hz。持續時間填 0 代表一直響，直到用「停止」積木。"
+    },
+    {
+      type: "c3_buzz_stop", message0: "蜂鳴器(無源) 腳位 %1 停止",
+      args0: [{type: "field_dropdown", name: "PIN", options: DPINS}],
+      previousStatement: null, nextStatement: null, colour: C_OUT,
+      tooltip: "停止無源蜂鳴器發聲"
+    },
+
+    /* ----- 輸出裝置：L298N ----- */
     {
       type: "c3_car", message0: "車子 %1 速度 %2 ％",
       args0: [
@@ -619,7 +737,7 @@ function defineBlocks(){
         ]},
         {type: "input_value", name: "SPD", check: "Number"}
       ],
-      previousStatement: null, nextStatement: null, colour: 20,
+      previousStatement: null, nextStatement: null, colour: C_OUT,
       tooltip: "同時控制左右兩個馬達。速度 0~100（ENA/ENB 有接 GPIO 才能調速）。"
     },
     {
@@ -629,14 +747,51 @@ function defineBlocks(){
         {type: "field_dropdown", name: "DIR", options: [["正轉", "1"], ["反轉", "-1"], ["停止", "0"]]},
         {type: "input_value", name: "SPD", check: "Number"}
       ],
-      previousStatement: null, nextStatement: null, colour: 20,
+      previousStatement: null, nextStatement: null, colour: C_OUT,
       tooltip: "單獨控制左或右馬達。左＝OUT1/OUT2，右＝OUT3/OUT4。"
+    },
+
+    /* ----- 顯示裝置：OLED ----- */
+    {
+      type: "c3_oled_init", message0: "OLED 初始化 SDA %1 SCL %2 尺寸 %3 位址 %4",
+      args0: [
+        {type: "field_dropdown", name: "SDA", options: DPINS},
+        {type: "field_dropdown", name: "SCL", options: DPINS},
+        {type: "field_dropdown", name: "H", options: [["128x64", "64"], ["128x32", "32"]]},
+        {type: "field_dropdown", name: "ADDR", options: [["0x3C", "60"], ["0x3D", "61"]]}
+      ],
+      previousStatement: null, nextStatement: null, colour: C_DISP,
+      tooltip: "SSD1306 I2C 的 OLED。放在「一開始只做一次」，使用其他 OLED 積木前要先放。"
+    },
+    {
+      type: "c3_oled_clear", message0: "OLED 清除畫面",
+      previousStatement: null, nextStatement: null, colour: C_DISP,
+      tooltip: "把整個畫面清成黑色"
+    },
+    {
+      type: "c3_oled_text", message0: "OLED 在 x %1 y %2 顯示 %3",
+      args0: [
+        {type: "input_value", name: "X", check: "Number"},
+        {type: "input_value", name: "Y", check: "Number"},
+        {type: "input_value", name: "TEXT"}
+      ],
+      previousStatement: null, nextStatement: null, colour: C_DISP,
+      tooltip: "在指定位置顯示文字或數字。x 為 0~127，y 為 0~63。只支援英文、數字和符號，不支援中文。"
+    },
+    {
+      type: "c3_oled_row", message0: "OLED 第 %1 行 顯示 %2",
+      args0: [
+        {type: "field_dropdown", name: "ROW", options: [0,1,2,3,4,5,6,7].map(n => [String(n + 1), String(n)])},
+        {type: "input_value", name: "TEXT"}
+      ],
+      previousStatement: null, nextStatement: null, colour: C_DISP,
+      tooltip: "在第幾行顯示文字，會先清除那一行。128x64 有 8 行，128x32 有 4 行。只支援英文、數字和符號。"
     }
   ]);
 
   const P = Blockly.Python;
   const F = P.forBlock;
-  const mach = () => { P.definitions_["import_machine"] = "from machine import Pin, ADC, PWM"; };
+  const mach = () => { P.definitions_["import_machine"] = "from machine import Pin, ADC, PWM, SoftI2C"; };
 
   F["c3_main"] = function(b){
     const setup = P.statementToCode(b, "SETUP");
@@ -683,14 +838,71 @@ function defineBlocks(){
       : "print(" + v + ")\n";
   };
 
-  /* ----- L298N ----- */
+  /* ----- 輸入裝置 ----- */
+  F["c3_ir"] = function(b){
+    mach();
+    return ["(Pin(" + b.getFieldValue("PIN") + ", Pin.IN, Pin.PULL_UP).value() == " + b.getFieldValue("POL") + ")", P.ORDER_RELATIONAL];
+  };
+  F["c3_photo"] = function(b){
+    mach();
+    return ["(Pin(" + b.getFieldValue("PIN") + ", Pin.IN, Pin.PULL_UP).value() == " + b.getFieldValue("POL") + ")", P.ORDER_RELATIONAL];
+  };
+  F["c3_sw"] = function(b){
+    mach();
+    const p = b.getFieldValue("PIN");
+    return b.getFieldValue("MODE") === "0"
+      ? ["(Pin(" + p + ", Pin.IN, Pin.PULL_UP).value() == 0)", P.ORDER_RELATIONAL]
+      : ["(Pin(" + p + ", Pin.IN, Pin.PULL_DOWN).value() == 1)", P.ORDER_RELATIONAL];
+  };
+
+  /* ----- 輸出裝置：LED／蜂鳴器 ----- */
+  F["c3_led"] = function(b){
+    mach();
+    P.definitions_["func_led"] = "def led(p, s):\n    q = Pin(p, Pin.OUT)\n    q.value((1 - q.value()) if s == 2 else s)";
+    return "led(" + b.getFieldValue("PIN") + ", " + b.getFieldValue("S") + ")\n";
+  };
+  F["c3_buzz_act"] = function(b){
+    mach();
+    return "Pin(" + b.getFieldValue("PIN") + ", Pin.OUT).value(" + b.getFieldValue("S") + ")\n";
+  };
+  function toneDef(){
+    mach();
+    P.definitions_["import_time"] = "import time";
+    P.definitions_["func_tone"] =
+      "_bz = {}\n" +
+      "def tone(p, f, ms):\n" +
+      "    if p in _bz:\n" +
+      "        _bz[p].deinit()\n" +
+      "        del _bz[p]\n" +
+      "    if f <= 0:\n" +
+      "        Pin(p, Pin.OUT).value(0)\n" +
+      "        return\n" +
+      "    _bz[p] = PWM(Pin(p), freq=int(f), duty_u16=32768)\n" +
+      "    if ms > 0:\n" +
+      "        time.sleep_ms(int(ms))\n" +
+      "        _bz[p].deinit()\n" +
+      "        del _bz[p]\n" +
+      "        Pin(p, Pin.OUT).value(0)";
+  }
+  F["c3_buzz_tone"] = function(b){
+    toneDef();
+    const f = P.valueToCode(b, "F", P.ORDER_NONE) || "1000";
+    const ms = P.valueToCode(b, "MS", P.ORDER_NONE) || "500";
+    return "tone(" + b.getFieldValue("PIN") + ", " + f + ", " + ms + ")\n";
+  };
+  F["c3_buzz_stop"] = function(b){
+    toneDef();
+    return "tone(" + b.getFieldValue("PIN") + ", 0, 0)\n";
+  };
+
+  /* ----- 輸出裝置：L298N ----- */
   F["c3_l298n_cfg"] = function(b){ return ""; };
 
   /* 取得目前工作區的 L298N 設定（沒有設定積木就用預設值） */
   function l298(b){
     const list = b.workspace.getBlocksByType("c3_l298n_cfg", false);
     const c = {};
-    for (const k in L298_DEF) c[k] = list.length ? b.workspace.getBlocksByType("c3_l298n_cfg", false)[0].getFieldValue(k) : L298_DEF[k];
+    for (const k in L298_DEF) c[k] = list.length ? list[0].getFieldValue(k) : L298_DEF[k];
     return c;
   }
   function l298Define(b){
@@ -732,6 +944,34 @@ function defineBlocks(){
     return "motor(" + (left ? "_mL" : "_mR") + ", " + b.getFieldValue("DIR") + " * " +
       (left ? "_INV_L" : "_INV_R") + ", " + s + ")\n";
   };
+
+  /* ----- 顯示裝置：OLED ----- */
+  function oledDef(){
+    mach();
+    P.definitions_["import_framebuf"] = "import framebuf";
+    P.definitions_["func_oled"] = OLED_CODE;
+  }
+  F["c3_oled_init"] = function(b){
+    oledDef();
+    return "oled_init(" + b.getFieldValue("SDA") + ", " + b.getFieldValue("SCL") + ", " +
+      b.getFieldValue("H") + ", " + b.getFieldValue("ADDR") + ")\n";
+  };
+  F["c3_oled_clear"] = function(b){
+    oledDef();
+    return "oled_clear()\n";
+  };
+  F["c3_oled_text"] = function(b){
+    oledDef();
+    const x = P.valueToCode(b, "X", P.ORDER_NONE) || "0";
+    const y = P.valueToCode(b, "Y", P.ORDER_NONE) || "0";
+    const t = P.valueToCode(b, "TEXT", P.ORDER_NONE) || "''";
+    return "oled_text(" + t + ", " + x + ", " + y + ")\n";
+  };
+  F["c3_oled_row"] = function(b){
+    oledDef();
+    const t = P.valueToCode(b, "TEXT", P.ORDER_NONE) || "''";
+    return "oled_row(" + b.getFieldValue("ROW") + ", " + t + ")\n";
+  };
 }
 
 function numShadow(n){
@@ -749,18 +989,67 @@ function makeToolbox(){
         {kind: "block", type: "c3_main"}
       ]},
       {kind: "category", name: "函式", colour: 290, custom: "PROCEDURE"},
-      {kind: "category", name: "輸出入", colour: 200, contents: [
+
+      /* 輸入裝置 */
+      {kind: "category", name: "輸入裝置", colour: C_IN, contents: [
+        {kind: "category", name: "紅外線感測器", colour: C_IN, contents: [
+          {kind: "block", type: "c3_ir", fields: {PIN: "3", POL: "0"}}
+        ]},
+        {kind: "category", name: "微動開關", colour: C_IN, contents: [
+          {kind: "block", type: "c3_sw", fields: {PIN: "10", MODE: "0"}}
+        ]},
+        {kind: "category", name: "光電開關", colour: C_IN, contents: [
+          {kind: "block", type: "c3_photo", fields: {PIN: "3", POL: "1"}}
+        ]}
+      ]},
+
+      /* 輸出裝置 */
+      {kind: "category", name: "輸出裝置", colour: C_OUT, contents: [
+        {kind: "category", name: "LED", colour: C_OUT, contents: [
+          {kind: "block", type: "c3_led", fields: {PIN: "8", S: "1"}},
+          {kind: "block", type: "c3_led", fields: {PIN: "8", S: "0"}},
+          {kind: "block", type: "c3_led", fields: {PIN: "8", S: "2"}}
+        ]},
+        {kind: "category", name: "蜂鳴器", colour: C_OUT, contents: [
+          {kind: "block", type: "c3_buzz_act", fields: {PIN: "3", S: "1"}},
+          {kind: "block", type: "c3_buzz_act", fields: {PIN: "3", S: "0"}},
+          {kind: "block", type: "c3_buzz_tone", fields: {PIN: "3"}, inputs: {F: numShadow(1000), MS: numShadow(500)}},
+          {kind: "block", type: "c3_buzz_stop", fields: {PIN: "3"}}
+        ]},
+        {kind: "category", name: "L298N", colour: C_OUT, contents: [
+          {kind: "block", type: "c3_l298n_cfg", fields: L298_DEF},
+          {kind: "block", type: "c3_car", fields: {DIR: "F"}, inputs: {SPD: numShadow(80)}},
+          {kind: "block", type: "c3_car", fields: {DIR: "S"}, inputs: {SPD: numShadow(0)}},
+          {kind: "block", type: "c3_motor", inputs: {SPD: numShadow(80)}}
+        ]}
+      ]},
+
+      /* 顯示裝置 */
+      {kind: "category", name: "顯示裝置", colour: C_DISP, contents: [
+        {kind: "category", name: "OLED", colour: C_DISP, contents: [
+          {kind: "block", type: "c3_oled_init", fields: {SDA: "3", SCL: "10", H: "64", ADDR: "60"}},
+          {kind: "block", type: "c3_oled_clear"},
+          {kind: "block", type: "c3_oled_text", inputs: {X: numShadow(0), Y: numShadow(0), TEXT: txtShadow("Hello")}},
+          {kind: "block", type: "c3_oled_row", fields: {ROW: "0"}, inputs: {TEXT: txtShadow("Hello")}},
+          {kind: "block", type: "c3_oled_row", fields: {ROW: "1"}, inputs: {
+            TEXT: {block: {
+              type: "text_join",
+              extraState: {itemCount: 2},
+              inputs: {
+                ADD0: txtShadow("Light: "),
+                ADD1: {block: {type: "c3_adc", fields: {PIN: "0"}}}
+              }
+            }}
+          }}
+        ]}
+      ]},
+
+      {kind: "category", name: "基本腳位", colour: 200, contents: [
         {kind: "block", type: "c3_pin_out"},
         {kind: "block", type: "c3_pin_in"},
         {kind: "block", type: "c3_boot"},
         {kind: "block", type: "c3_adc"},
         {kind: "block", type: "c3_pwm", inputs: {DUTY: numShadow(50)}}
-      ]},
-      {kind: "category", name: "馬達 L298N", colour: 20, contents: [
-        {kind: "block", type: "c3_l298n_cfg", fields: L298_DEF},
-        {kind: "block", type: "c3_car", fields: {DIR: "F"}, inputs: {SPD: numShadow(80)}},
-        {kind: "block", type: "c3_car", fields: {DIR: "S"}, inputs: {SPD: numShadow(0)}},
-        {kind: "block", type: "c3_motor", inputs: {SPD: numShadow(80)}}
       ]},
       {kind: "category", name: "序列輸出", colour: 175, contents: [
         {kind: "block", type: "c3_print", inputs: {TEXT: txtShadow("Hello ESP32-C3")}},
@@ -838,7 +1127,7 @@ function onChange(e){
   } catch(err) {}
 }
 
-/* 檢查是否有主程式積木、L298N 腳位是否重複；回傳 true 代表可繼續 */
+/* 檢查主程式、L298N 腳位是否重複、OLED 是否已初始化；回傳 true 代表可繼續 */
 function checkMain(){
   if (!ws) return false;
   const tops = ws.getTopBlocks(false);
@@ -855,6 +1144,13 @@ function checkMain(){
       if (used[v]) { toast("L298N 腳位重複了：" + used[v] + " 和 " + k + " 都用 GPIO" + v); return false; }
       used[v] = k;
     }
+  }
+  const oledUsed = ["c3_oled_clear", "c3_oled_text", "c3_oled_row"].some(t => ws.getBlocksByType(t, false).length > 0);
+  const oledInits = ws.getBlocksByType("c3_oled_init", false);
+  if (oledUsed && oledInits.length === 0) { toast("用 OLED 之前，要先放「OLED 初始化」"); return false; }
+  if (oledInits.length > 1) { toast("「OLED 初始化」只需要放一顆喔"); return false; }
+  if (oledInits.length === 1 && oledInits[0].getFieldValue("SDA") === oledInits[0].getFieldValue("SCL")) {
+    toast("OLED 的 SDA 和 SCL 不能用同一個腳位"); return false;
   }
   return true;
 }
@@ -897,7 +1193,7 @@ async function initBlockly(){
     ws = Blockly.inject("ws", {
       toolbox: makeToolbox(), renderer: "zelos", trashcan: true,
       media: blocklyBase + "media/",
-      maxInstances: {c3_main: 1, c3_l298n_cfg: 1},
+      maxInstances: {c3_main: 1, c3_l298n_cfg: 1, c3_oled_init: 1},
       zoom: {controls: true, wheel: false, startScale: 0.85, minScale: 0.4, maxScale: 1.6},
       move: {scrollbars: true, drag: true, wheel: true},
       grid: {spacing: 24, length: 3, colour: "#e2e8f0", snap: true}
