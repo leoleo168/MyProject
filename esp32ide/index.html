@@ -24,6 +24,7 @@
   button.sec{background:#e2e8f0;color:var(--txt)}
   button.red{background:var(--err)}
   button.green{background:var(--ok)}
+  button.warn{background:#f59e0b}
   button.sm{padding:7px 12px;font-size:13px;border-radius:10px}
   header button{background:#fff;color:var(--pri)}
   #install{display:none;background:#fef08a;color:#713f12;text-align:center;border-radius:0;width:100%}
@@ -103,8 +104,9 @@
       <button class="green sm" id="btnRun">▶ 執行</button>
       <button class="red sm" id="btnStop">■ 停止</button>
       <button class="sm" id="btnSave">💾 存到板子</button>
+      <button class="warn sm" id="btnWipe">🧹 清除板子</button>
       <button class="sec sm" id="btnCode">&lt;/&gt; 程式碼</button>
-      <button class="sec sm" id="btnNew">🗑 清空</button>
+      <button class="sec sm" id="btnNew">🗑 清空積木</button>
     </div>
     <div id="wsWrap">
       <div id="ws"></div>
@@ -161,7 +163,7 @@ function toast(m){
 if ("serviceWorker" in navigator) {
   try {
     const sw = [
-      "const C='c3-blocks-v4';",
+      "const C='c3-blocks-v5';",
       "self.addEventListener('install',()=>self.skipWaiting());",
       "self.addEventListener('activate',e=>e.waitUntil(clients.claim()));",
       "self.addEventListener('fetch',e=>{",
@@ -343,6 +345,16 @@ async function sendCode(code){
     throw new Error("板子沒有回應");
   }
 }
+/* 等待程式執行完畢並回傳 [stdout, stderr] */
+async function waitDone(ms){
+  const t = Date.now();
+  while (Date.now() - t < (ms || 5000)) {
+    const m = rxBuf.match(/OK([\s\S]*?)\x04([\s\S]*?)\x04>/);
+    if (m) return [m[1], m[2]];
+    await sleep(30);
+  }
+  return null;
+}
 
 /* ========== 積木 ========== */
 function loadScript(src){
@@ -356,6 +368,7 @@ function loadScript(src){
 
 const PINS = [0,1,2,3,4,5,6,7,8,9,10,20,21].map(n => ["GPIO" + n, String(n)]);
 const ADCP = [0,1,2,3,4].map(n => ["GPIO" + n, String(n)]);
+let blocklyBase = "https://unpkg.com/blockly@10.4.3/";
 
 function defineBlocks(){
   Blockly.common.defineBlocksWithJsonArray([
@@ -531,6 +544,7 @@ async function loadBlocklyFiles(){
       await loadScript(base + "blocks_compressed.js");
       await loadScript(base + "python_compressed.js");
       try { await loadScript(base + "msg/zh-hant.js"); } catch(e) { console.warn("語言檔載入失敗，使用英文"); }
+      blocklyBase = base;
       return;
     } catch(e) {
       lastErr = e;
@@ -551,6 +565,7 @@ async function initBlockly(){
     defineBlocks();
     ws = Blockly.inject("ws", {
       toolbox: makeToolbox(), renderer: "zelos", trashcan: true,
+      media: blocklyBase + "media/",
       zoom: {controls: true, wheel: false, startScale: 0.85, minScale: 0.4, maxScale: 1.6},
       move: {scrollbars: true, drag: true, wheel: true},
       grid: {spacing: 24, length: 3, colour: "#e2e8f0", snap: true}
@@ -612,20 +627,37 @@ $("btnSave").onclick = async () => {
     await enterRaw();
     const py = "f=open('main.py','w')\nf.write(" + JSON.stringify(getCode()) + ")\nf.close()\n";
     await sendCode(py);
-    const t = Date.now();
-    let m = null;
-    while (Date.now() - t < 5000) {
-      m = rxBuf.match(/OK([\s\S]*?)\x04([\s\S]*?)\x04>/);
-      if (m) break;
-      await sleep(30);
-    }
-    if (!m) throw new Error("儲存逾時");
-    if (m[2].trim()) throw new Error("儲存失敗：" + m[2].trim().split("\n").pop());
+    const r = await waitDone(5000);
+    if (!r) throw new Error("儲存逾時");
+    if (r[1].trim()) throw new Error("儲存失敗：" + r[1].trim().split("\n").pop());
     passthru = true;
     await send("\x02"); await sleep(150); await send("\x04");
     inRaw = false;
     termWrite("\n💾 已存成 main.py，重新啟動執行\n");
     toast("已儲存，開機會自動執行");
+  } catch(e) {
+    passthru = true; toast(e.message);
+  }
+};
+
+/* 清除板子：刪除 main.py 並重啟 */
+$("btnWipe").onclick = async () => {
+  if (!needConn()) return;
+  if (!confirm("要刪除板子上的 main.py 嗎？\n板子之後開機將不會自動執行程式。\n（MicroPython 韌體不會被刪除）")) return;
+  try {
+    toast("正在清除…");
+    await enterRaw();
+    const py = "import os\ntry:\n    os.remove('main.py')\n    print('removed')\nexcept OSError:\n    print('no main.py')\n";
+    await sendCode(py);
+    const r = await waitDone(5000);
+    if (!r) throw new Error("清除逾時");
+    if (r[1].trim()) throw new Error("清除失敗：" + r[1].trim().split("\n").pop());
+    const msg = r[0].indexOf("removed") >= 0 ? "已刪除 main.py" : "板子上本來就沒有 main.py";
+    passthru = true;
+    await send("\x02"); await sleep(150); await send("\x04");
+    inRaw = false;
+    termWrite("\n🧹 " + msg + "，板子重啟中\n");
+    toast("🧹 " + msg);
   } catch(e) {
     passthru = true; toast(e.message);
   }
