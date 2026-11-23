@@ -179,8 +179,19 @@ const enc = new TextEncoder();
 
 /* ========== 版本與更新紀錄 ==========
    新增版本時：在 CHANGELOG 最上面加一筆，並把 APP_VERSION 改成新版號 */
-const APP_VERSION = "1.5.1";
+const APP_VERSION = "1.6";
 const CHANGELOG = [
+  {
+    v: "1.6", date: "2026-11-23", title: "L298N 馬達積木",
+    items: [
+      "新增「馬達 L298N」類別：腳位設定、車子動作、左右馬達單獨控制",
+      "L298N 腳位可自訂 IN1～IN4、ENA、ENB，預設為 4、5、6、7、0、1",
+      "腳位選單已排除 ESP32-C3 不能用或容易出問題的腳位（開機腳位、Flash、USB、UART）",
+      "ENA／ENB 可選「不接 (跳線帽)」，左右馬達可個別設定反向",
+      "執行或存檔前會檢查是否有重複使用的腳位",
+      "積木上的圖示全部移除，畫面更乾淨"
+    ]
+  },
   {
     v: "1.5.1", date: "2026-11-23", title: "類別名稱簡化",
     items: [
@@ -224,7 +235,7 @@ const CHANGELOG = [
   {
     v: "1.1", date: "2026-11",  title: "主程式與板子管理",
     items: [
-      "新增「🚩 主程式」積木：一開始只做一次，然後一直重複",
+      "新增「主程式」積木：一開始只做一次，然後一直重複",
       "新增「💾 存到板子」：存成 main.py，開機自動執行",
       "新增「🧹 清除板子」：刪除板子上的 main.py（不會刪除韌體）",
       "Raw REPL 連線加入自動重試與錯誤訊息，改善連線穩定度",
@@ -290,7 +301,7 @@ function toast(m){
 if ("serviceWorker" in navigator) {
   try {
     const sw = [
-      "const C='c3-blocks-v13';",
+      "const C='c3-blocks-v14';",
       "self.addEventListener('install',()=>self.skipWaiting());",
       "self.addEventListener('activate',e=>e.waitUntil(clients.claim()));",
       "self.addEventListener('fetch',e=>{",
@@ -495,14 +506,21 @@ function loadScript(src){
 
 const PINS = [0,1,2,3,4,5,6,7,8,9,10,20,21].map(n => ["GPIO" + n, String(n)]);
 const ADCP = [0,1,2,3,4].map(n => ["GPIO" + n, String(n)]);
+
+/* 馬達可用腳位：排除 GPIO2/8/9（開機腳位）、11~17（Flash）、18/19（USB）、20/21（UART） */
+const MPINS = [0,1,3,4,5,6,7,10].map(n => ["GPIO" + n, String(n)]);
+const ENPINS = MPINS.concat([["不接 (跳線帽)", "-1"]]);
+/* L298N 預設腳位 */
+const L298_DEF = {IN1: "4", IN2: "5", IN3: "6", IN4: "7", ENA: "0", ENB: "1", INVL: "1", INVR: "1"};
+
 let blocklyBase = "https://unpkg.com/blockly@10.4.3/";
 
 function defineBlocks(){
-  /* 🚩 主程式：帽子積木，無上方接點 */
+  /* 主程式：帽子積木，無上方接點 */
   Blockly.Blocks["c3_main"] = {
     init: function(){
       this.jsonInit({
-        message0: "🚩 主程式",
+        message0: "主程式",
         message1: "一開始只做一次 %1",
         args1: [{type: "input_statement", name: "SETUP"}],
         message2: "然後一直重複 %1",
@@ -511,6 +529,37 @@ function defineBlocks(){
         tooltip: "程式從這裡開始。上面的只做一次，下面的會一直重複。"
       });
       this.hat = "cap";
+    }
+  };
+
+  /* L298N 腳位設定 */
+  Blockly.Blocks["c3_l298n_cfg"] = {
+    init: function(){
+      this.jsonInit({
+        message0: "L298N 腳位設定",
+        message1: "IN1 %1 IN2 %2",
+        args1: [
+          {type: "field_dropdown", name: "IN1", options: MPINS},
+          {type: "field_dropdown", name: "IN2", options: MPINS}
+        ],
+        message2: "IN3 %1 IN4 %2",
+        args2: [
+          {type: "field_dropdown", name: "IN3", options: MPINS},
+          {type: "field_dropdown", name: "IN4", options: MPINS}
+        ],
+        message3: "ENA %1 ENB %2",
+        args3: [
+          {type: "field_dropdown", name: "ENA", options: ENPINS},
+          {type: "field_dropdown", name: "ENB", options: ENPINS}
+        ],
+        message4: "左馬達 %1 右馬達 %2",
+        args4: [
+          {type: "field_dropdown", name: "INVL", options: [["正常", "1"], ["反向", "-1"]]},
+          {type: "field_dropdown", name: "INVR", options: [["正常", "1"], ["反向", "-1"]]}
+        ],
+        previousStatement: null, nextStatement: null, colour: 20,
+        tooltip: "設定 L298N 接到 ESP32-C3 的腳位。放一顆就好，放在「一開始只做一次」裡。若馬達轉的方向反了，把該馬達改成「反向」。"
+      });
     }
   };
 
@@ -554,13 +603,34 @@ function defineBlocks(){
       previousStatement: null, nextStatement: null, colour: 120, tooltip: "暫停程式"
     },
     {
-      type: "c3_print", message0: "📟 序列輸出 %1 %2",
+      type: "c3_print", message0: "序列輸出 %1 %2",
       args0: [
         {type: "input_value", name: "TEXT"},
         {type: "field_dropdown", name: "MODE", options: [["換行", "NL"], ["不換行", "NONL"]]}
       ],
       previousStatement: null, nextStatement: null, colour: 175,
       tooltip: "把內容從 USB 序列埠送出，顯示在「終端」分頁"
+    },
+    {
+      type: "c3_car", message0: "車子 %1 速度 %2 ％",
+      args0: [
+        {type: "field_dropdown", name: "DIR", options: [
+          ["前進", "F"], ["後退", "B"], ["左轉", "L"], ["右轉", "R"], ["停止", "S"]
+        ]},
+        {type: "input_value", name: "SPD", check: "Number"}
+      ],
+      previousStatement: null, nextStatement: null, colour: 20,
+      tooltip: "同時控制左右兩個馬達。速度 0~100（ENA/ENB 有接 GPIO 才能調速）。"
+    },
+    {
+      type: "c3_motor", message0: "%1 馬達 %2 速度 %3 ％",
+      args0: [
+        {type: "field_dropdown", name: "SIDE", options: [["左", "L"], ["右", "R"]]},
+        {type: "field_dropdown", name: "DIR", options: [["正轉", "1"], ["反轉", "-1"], ["停止", "0"]]},
+        {type: "input_value", name: "SPD", check: "Number"}
+      ],
+      previousStatement: null, nextStatement: null, colour: 20,
+      tooltip: "單獨控制左或右馬達。左＝OUT1/OUT2，右＝OUT3/OUT4。"
     }
   ]);
 
@@ -612,6 +682,56 @@ function defineBlocks(){
       ? "print(" + v + ", end='')\n"
       : "print(" + v + ")\n";
   };
+
+  /* ----- L298N ----- */
+  F["c3_l298n_cfg"] = function(b){ return ""; };
+
+  /* 取得目前工作區的 L298N 設定（沒有設定積木就用預設值） */
+  function l298(b){
+    const list = b.workspace.getBlocksByType("c3_l298n_cfg", false);
+    const c = {};
+    for (const k in L298_DEF) c[k] = list.length ? b.workspace.getBlocksByType("c3_l298n_cfg", false)[0].getFieldValue(k) : L298_DEF[k];
+    return c;
+  }
+  function l298Define(b){
+    mach();
+    const c = l298(b);
+    const pw = v => v === "-1" ? "None" : "PWM(Pin(" + v + "), freq=1000)";
+    P.definitions_["func_l298n"] =
+      "_mL = (Pin(" + c.IN1 + ", Pin.OUT), Pin(" + c.IN2 + ", Pin.OUT), " + pw(c.ENA) + ")\n" +
+      "_mR = (Pin(" + c.IN3 + ", Pin.OUT), Pin(" + c.IN4 + ", Pin.OUT), " + pw(c.ENB) + ")\n" +
+      "_INV_L = " + c.INVL + "\n" +
+      "_INV_R = " + c.INVR + "\n" +
+      "def motor(m, d, s):\n" +
+      "    a, b, e = m\n" +
+      "    if d == 0 or s <= 0:\n" +
+      "        a.value(0)\n" +
+      "        b.value(0)\n" +
+      "        if e is not None:\n" +
+      "            e.duty_u16(0)\n" +
+      "        return\n" +
+      "    a.value(1 if d > 0 else 0)\n" +
+      "    b.value(0 if d > 0 else 1)\n" +
+      "    if e is not None:\n" +
+      "        e.duty_u16(int(min(s, 100) * 65535 / 100))\n" +
+      "def car(dl, dr, s):\n" +
+      "    motor(_mL, dl * _INV_L, s)\n" +
+      "    motor(_mR, dr * _INV_R, s)\n" +
+      "car(0, 0, 0)";
+  }
+  F["c3_car"] = function(b){
+    l298Define(b);
+    const s = P.valueToCode(b, "SPD", P.ORDER_NONE) || "100";
+    const m = {F: "1, 1", B: "-1, -1", L: "-1, 1", R: "1, -1", S: "0, 0"}[b.getFieldValue("DIR")];
+    return "car(" + m + ", " + s + ")\n";
+  };
+  F["c3_motor"] = function(b){
+    l298Define(b);
+    const s = P.valueToCode(b, "SPD", P.ORDER_NONE) || "100";
+    const left = b.getFieldValue("SIDE") === "L";
+    return "motor(" + (left ? "_mL" : "_mR") + ", " + b.getFieldValue("DIR") + " * " +
+      (left ? "_INV_L" : "_INV_R") + ", " + s + ")\n";
+  };
 }
 
 function numShadow(n){
@@ -635,6 +755,12 @@ function makeToolbox(){
         {kind: "block", type: "c3_boot"},
         {kind: "block", type: "c3_adc"},
         {kind: "block", type: "c3_pwm", inputs: {DUTY: numShadow(50)}}
+      ]},
+      {kind: "category", name: "馬達 L298N", colour: 20, contents: [
+        {kind: "block", type: "c3_l298n_cfg", fields: L298_DEF},
+        {kind: "block", type: "c3_car", fields: {DIR: "F"}, inputs: {SPD: numShadow(80)}},
+        {kind: "block", type: "c3_car", fields: {DIR: "S"}, inputs: {SPD: numShadow(0)}},
+        {kind: "block", type: "c3_motor", inputs: {SPD: numShadow(80)}}
       ]},
       {kind: "category", name: "序列輸出", colour: 175, contents: [
         {kind: "block", type: "c3_print", inputs: {TEXT: txtShadow("Hello ESP32-C3")}},
@@ -712,13 +838,24 @@ function onChange(e){
   } catch(err) {}
 }
 
-/* 檢查是否有主程式積木；回傳 true 代表可繼續 */
+/* 檢查是否有主程式積木、L298N 腳位是否重複；回傳 true 代表可繼續 */
 function checkMain(){
   if (!ws) return false;
   const tops = ws.getTopBlocks(false);
-  if (tops.length === 0) { toast("還沒有積木喔，先拖一顆 🚩 主程式 出來"); return false; }
+  if (tops.length === 0) { toast("還沒有積木喔，先拖一顆「主程式」出來"); return false; }
   const hasMain = ws.getBlocksByType("c3_main", false).length > 0;
-  if (!hasMain) { toast("記得把積木接在 🚩 主程式 下面喔"); return false; }
+  if (!hasMain) { toast("記得把積木接在「主程式」下面喔"); return false; }
+  const cfgs = ws.getBlocksByType("c3_l298n_cfg", false);
+  if (cfgs.length > 1) { toast("「L298N 腳位設定」只需要放一顆喔"); return false; }
+  if (cfgs.length === 1) {
+    const used = {};
+    for (const k of ["IN1", "IN2", "IN3", "IN4", "ENA", "ENB"]) {
+      const v = cfgs[0].getFieldValue(k);
+      if (v === "-1") continue;
+      if (used[v]) { toast("L298N 腳位重複了：" + used[v] + " 和 " + k + " 都用 GPIO" + v); return false; }
+      used[v] = k;
+    }
+  }
   return true;
 }
 
@@ -760,7 +897,7 @@ async function initBlockly(){
     ws = Blockly.inject("ws", {
       toolbox: makeToolbox(), renderer: "zelos", trashcan: true,
       media: blocklyBase + "media/",
-      maxInstances: {c3_main: 1},
+      maxInstances: {c3_main: 1, c3_l298n_cfg: 1},
       zoom: {controls: true, wheel: false, startScale: 0.85, minScale: 0.4, maxScale: 1.6},
       move: {scrollbars: true, drag: true, wheel: true},
       grid: {spacing: 24, length: 3, colour: "#e2e8f0", snap: true}
