@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#4f46e5">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>C3 積木工坊</title>
+<link rel="manifest" id="manifestLink">
+<style>
+  :root{--pri:#4f46e5;--pri2:#6366f1;--bg:#f1f5f9;--card:#fff;--txt:#0f172a;--sub:#64748b;--line:#e2e8f0;--ok:#22c55e;--err:#ef4444}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;margin:0;overflow:hidden}
+  body{background:var(--bg);color:var(--txt);font-family:-apple-system,"Noto Sans TC",sans-serif;
+    display:flex;flex-direction:column;padding:env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);height:100dvh}
+  header{background:var(--pri);color:#fff;padding:10px 14px;display:flex;align-items:center;gap:10px;box-shadow:0 2px 10px #0003;z-index:5}
+  header h1{font-size:17px;margin:0;flex:1}
+  .dot{width:10px;height:10px;border-radius:50%;background:#fca5a5;flex:none}
+  .dot.on{background:#86efac;box-shadow:0 0 8px #86efac}
+  button{font:inherit;border:0;border-radius:12px;padding:10px 14px;font-weight:600;background:var(--pri);color:#fff;transition:transform .08s,opacity .2s;cursor:pointer}
+  button:active{transform:scale(.95)}
+  button:disabled{opacity:.4}
+  button.sec{background:#e2e8f0;color:var(--txt)}
+  button.red{background:var(--err)}
+  button.green{background:var(--ok)}
+  button.sm{padding:7px 12px;font-size:13px;border-radius:10px}
+  header button{background:#fff;color:var(--pri)}
+  #install{display:none;background:#fef08a;color:#713f12;text-align:center;border-radius:0;width:100%}
+  main{flex:1;min-height:0;position:relative}
+  .page{display:none;position:absolute;inset:0;flex-direction:column}
+  .page.on{display:flex}
+  nav{display:flex;background:#fff;border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+  nav button{flex:1;background:none;color:var(--sub);border-radius:0;padding:10px 0 8px;font-size:12px;display:flex;flex-direction:column;align-items:center;gap:2px}
+  nav button span{font-size:20px}
+  nav button.on{color:var(--pri)}
+  .scroll{overflow:auto;padding:14px;flex:1}
+  .card{background:var(--card);border-radius:18px;padding:16px;margin-bottom:14px;box-shadow:0 4px 14px #0001}
+  .card h3{margin:0 0 8px;font-size:15px}
+  .card p{margin:6px 0;font-size:13px;color:var(--sub);line-height:1.6}
+  label{display:block;font-size:12px;color:var(--sub);margin:10px 0 4px}
+  input[type=text],input[type=file]{width:100%;padding:11px;border-radius:12px;border:1px solid var(--line);background:#f8fafc;font-size:14px}
+  .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .row>button{flex:1}
+  .bar{height:14px;background:#e2e8f0;border-radius:99px;overflow:hidden;margin-top:12px}
+  .bar>div{height:100%;width:0;background:linear-gradient(90deg,#6366f1,#22c55e);transition:width .15s}
+  .chk{display:flex;gap:8px;align-items:center;font-size:14px;margin-top:10px}
+  a{color:var(--pri)}
+  /* blocks */
+  .tools{display:flex;gap:6px;padding:8px;background:#fff;border-bottom:1px solid var(--line);overflow-x:auto}
+  .tools button{white-space:nowrap}
+  #ws{flex:1;min-height:0}
+  #codeBox{display:none;background:#0f172a;color:#a5f3fc;font:12px/1.5 ui-monospace,monospace;padding:10px;height:32%;overflow:auto;margin:0;white-space:pre}
+  /* terminal */
+  #term{flex:1;margin:0;background:#020617;color:#e2e8f0;font:13px/1.5 ui-monospace,monospace;padding:12px;overflow:auto;white-space:pre-wrap;word-break:break-all}
+  .tin{display:flex;gap:6px;padding:8px;background:#fff;border-top:1px solid var(--line)}
+  .tin input{flex:1;padding:10px;border-radius:10px;border:1px solid var(--line);font:14px ui-monospace,monospace}
+  #toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#0f172acc;color:#fff;padding:10px 18px;border-radius:99px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .25s;z-index:99;max-width:90%;text-align:center}
+  #toast.show{opacity:1}
+</style>
+</head>
+<body>
+<header>
+  <span class="dot" id="dot"></span>
+  <h1>⚡ C3 積木工坊</h1>
+  <button class="sm" id="btnConn">連線板子</button>
+</header>
+<button id="install">📲 安裝為手機 App</button>
+
+<main>
+  <!-- 燒錄頁 -->
+  <section class="page" id="p-flash">
+    <div class="scroll">
+      <div class="card">
+        <h3>① 燒錄 MicroPython 韌體</h3>
+        <p>每塊板子只需做一次。ESP32-C3 的 MicroPython 韌體位址為 <b>0x0</b>。</p>
+        <p>📥 請先到 <a href="https://micropython.org/download/ESP32_GENERIC_C3/" target="_blank" rel="noopener">micropython.org</a> 下載 <code>.bin</code>，再用下方選檔。</p>
+        <label>韌體檔案 (.bin)</label>
+        <input type="file" id="fw" accept=".bin">
+        <div class="row"><button class="sec" id="btnFetch">嘗試線上下載</button></div>
+        <label>線上下載網址（若因跨網域被擋，請改用手動選檔）</label>
+        <input type="text" id="fwUrl" value="https://micropython.org/resources/firmware/ESP32_GENERIC_C3-20250415-v1.25.0.bin">
+        <div class="chk"><input type="checkbox" id="erase" checked><label style="margin:0;font-size:14px;color:var(--txt)">燒錄前先清除整個 Flash（建議）</label></div>
+        <div class="row"><button id="btnFlash">🔥 連接並開始燒錄</button></div>
+        <div class="bar"><div id="prog"></div></div>
+        <p id="fstat">尚未選擇韌體</p>
+      </div>
+      <div class="card">
+        <h3>連線不上？</h3>
+        <p>按住板子上的 <b>BOOT</b> 鍵，再插上 USB，放開後重試。使用 OTG 線接手機，並用 <b>Android Chrome</b>。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 積木頁 -->
+  <section class="page on" id="p-blocks">
+    <div class="tools">
+      <button class="green sm" id="btnRun">▶ 執行</button>
+      <button class="red sm" id="btnStop">■ 停止</button>
+      <button class="sm" id="btnSave">💾 存到板子</button>
+      <button class="sec sm" id="btnCode">&lt;/&gt; 程式碼</button>
+      <button class="sec sm" id="btnNew">🗑 清空</button>
+    </div>
+    <div id="ws"></div>
+    <pre id="codeBox"></pre>
+  </section>
+
+  <!-- 終端頁 -->
+  <section class="page" id="p-term">
+    <pre id="term"></pre>
+    <div class="tin">
+      <input id="tline" placeholder="輸入 Python 指令，例如 print(1+1)" autocapitalize="off" autocomplete="off">
+      <button class="sm" id="tsend">送出</button>
+    </div>
+    <div class="tin" style="padding-top:0">
+      <button class="sec sm" id="tCc">Ctrl-C 中斷</button>
+      <button class="sec sm" id="tCd">Ctrl-D 重啟</button>
+      <button class="sec sm" id="tClr">清除</button>
+    </div>
+  </section>
+</main>
+
+<nav>
+  <button data-p="flash"><span>🔥</span>燒錄</button>
+  <button data-p="blocks" class="on"><span>🧩</span>積木</button>
+  <button data-p="term"><span>💻</span>終端</button>
+</nav>
+<div id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const enc = new TextEncoder();
+function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("show"); clearTimeout(toast.t); toast.t=setTimeout(()=>t.classList.remove("show"),2600); }
+
+/* ========== PWA：Manifest (Data URL) ========== */
+(function(){
+  const icon = "data:image/svg+xml," + encodeURIComponent(
+   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="110" fill="#4f46e5"/><rect x="110" y="130" width="170" height="110" rx="24" fill="#fff"/><rect x="230" y="270" width="170" height="110" rx="24" fill="#a5b4fc"/></svg>`);
+  const m = {name:"C3 積木工坊", short_name:"C3積木", display:"standalone",
+    start_url: location.href.split("#")[0], background_color:"#4f46e5", theme_color:"#4f46e5",
+    icons:[{src:icon,sizes:"any",type:"image/svg+xml",purpose:"any"}]};
+  $("manifestLink").href = "data:application/manifest+json," + encodeURIComponent(JSON.stringify(m));
+})();
+
+/* ========== Service Worker (Blob URL) ========== */
+if ("serviceWorker" in navigator) {
+  try {
+    const sw = `const C='c3-blocks-v1';
+    self.addEventListener('install',()=>self.skipWaiting());
+    self.addEventListener('activate',e=>e.waitUntil(clients.claim()));
+    self.addEventListener('fetch',e=>{ if(e.request.method!=='GET')return;
+      e.respondWith(fetch(e.request).then(r=>{const c=r.clone();caches.open(C).then(x=>x.put(e.request,c));return r;})
+      .catch(()=>caches.match(e.request))); });`;
+    navigator.serviceWorker.register(URL.createObjectURL(new Blob([sw],{type:"text/javascript"})))
+      .catch(()=>console.info("此瀏覽器不接受 Blob Service Worker，改以一般網頁運作"));
+  } catch(e){}
+}
+
+/* ========== 安裝按鈕 ========== */
+let deferred;
+window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); deferred=e; $("install").style.display="block"; });
+$("install").onclick = async () => { if(!deferred)return; deferred.prompt(); await deferred.userChoice; deferred=null; $("install").style.display="none"; };
+
+/* ========== 分頁 ========== */
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
+  document.querySelectorAll("nav button").forEach(x => x.classList.toggle("on", x===b));
+  document.querySelectorAll(".page").forEach(p => p.classList.toggle("on", p.id==="p-"+b.dataset.p));
+  if (b.dataset.p==="blocks" && ws) setTimeout(()=>Blockly.svgResize(ws),50);
+});
+function goTab(n){ document.querySelector(`nav button[data-p=${n}]`).click(); }
+
+/* ========== 序列埠取得 ========== */
+async function getSerial() {
+  if ("serial" in navigator) return navigator.serial;
+  if ("usb" in navigator) { const p = await import("https://esm.sh/web-serial-polyfill@1.0.15"); return p.serial; }
+  throw new Error("此瀏覽器不支援 Web Serial / WebUSB，請用 Android Chrome 或電腦 Chrome / Edge");
+}
+async function pickPort() {
+  const s = await getSerial();
+  try { return await s.requestPort({filters:[{usbVendorId:0x303a}]}); }
+  catch(e){ if (e.name==="NotFoundError") throw e; return await s.requestPort({}); }
+}
+
+/* ========== 終端輸出 ========== */
+const term = $("term");
+function termWrite(s){
+  s = s.replace(/\x1b\[[0-9;?]*[A-Za-z]/g,"").replace(/\r/g,"").replace(/\x04/g,"");
+  if(!s) return;
+  term.textContent += s;
+  if (term.textContent.length > 30000) term.textContent = term.textContent.slice(-20000);
+  term.scrollTop = term.scrollHeight;
+}
+$("tClr").onclick = () => term.textContent = "";
+
+/* ========== REPL 連線 ========== */
+let port=null, reader=null, writer=null, rxBuf="", passthru=true, inRaw=false, reading=false;
+
+function setConn(on){
+  $("dot").classList.toggle("on", on);
+  $("btnConn").textContent = on ? "中斷連線" : "連線板子";
+}
+async function send(s){ await writer.write(typeof s==="string" ? enc.encode(s) : s); }
+
+async function readLoop(){
+  const dec = new TextDecoder(); reading = true;
+  try {
+    while (port && port.readable) {
+      reader = port.readable.getReader();
+      try {
+        while (true) {
+          const {value, done} = await reader.read();
+          if (done) break;
+          const s = dec.decode(value, {stream:true});
+          rxBuf += s; if (rxBuf.length > 60000) rxBuf = rxBuf.slice(-30000);
+          if (passthru) termWrite(s);
+        }
+      } finally { reader.releaseLock(); }
+      break;
+    }
+  } catch(e){}
+  reading = false;
+  if (port) { await cleanup(); toast("裝置已中斷"); }
+}
+
+async function connectRepl(){
+  port = await pickPort();
+  await port.open({baudRate:115200});
+  try { await port.setSignals({dataTerminalReady:false, requestToSend:false}); } catch(e){}
+  writer = port.writable.getWriter();
+  passthru = true; rxBuf = ""; inRaw = false;
+  readLoop(); setConn(true);
+  await send("\x03\x03"); await sleep(200); await send("\x02");
+  toast("已連線");
+}
+async function cleanup(){
+  const p = port; port = null; inRaw = false;
+  try { await reader?.cancel(); } catch(e){}
+  try { writer?.releaseLock(); } catch(e){}
+  try { await p?.close(); } catch(e){}
+  reader = writer = null; setConn(false);
+}
+$("btnConn").onclick = async () => {
+  try { port ? await cleanup() : await connectRepl(); }
+  catch(e){ port=null; if(e.name!=="NotFoundError") toast("連線失敗：" + e.message); }
+};
+if ("serial" in navigator) navigator.serial.addEventListener("disconnect", () => { if (port) cleanup(); });
+
+async function waitFor(str, ms=3000){
+  const t = Date.now();
+  while (Date.now()-t < ms) { if (rxBuf.includes(str)) return true; await sleep(20); }
+  return false;
+}
+function needConn(){ if(!port){ toast("請先按右上角「連線板子」"); return false; } return true; }
+
+async function enterRaw(){
+  passthru = false;
+  await send("\x03\x03"); await sleep(250); rxBuf = "";
+  await send("\x01");
+  if (!await waitFor("raw REPL; CTRL-B to exit\r\n>", 2500)) { passthru=true; throw new Error("無法進入 Raw REPL，板子是否已燒錄 MicroPython？"); }
+  inRaw = true;
+}
+async function sendCode(code){
+  const b = enc.encode(code);
+  for (let i=0; i<b.length; i+=128) { await writer.write(b.slice(i,i+128)); await sleep(15); }
+  rxBuf = "";
+  await send("\x04");
+  if (!await waitFor("OK", 3000)) { passthru=true; throw new Error("板子沒有回應"); }
+}
+
+/* ========== 積木 ========== */
+let ws = null;
+function loadScript(src){ return new Promise((res,rej)=>{ const s=document.createElement("script"); s.src=src; s.onload=res; s.onerror=()=>rej(new Error("載入失敗："+src)); document.head.appendChild(s); }); }
+
+const PINS = [0,1,2,3,4,5,6,7,8,9,10,20,21].map(n=>["GPIO"+n,String(n)]);
+const ADCP = [0,1,2,3,4].map(n=>["GPIO"+n,String(n)]);
+
+function defineBlocks(){
+  Blockly.common.defineBlocksWithJsonArray([
+    {type:"c3_pin_out",message0:"腳位 %1 輸出 %2",
+      args0:[{type:"field_dropdown",name:"PIN",options:PINS},{type:"field_dropdown",name:"VAL",options:[["高 (1)","1"],["低 (0)","0"]]}],
+      previousStatement:null,nextStatement:null,colour:200,tooltip:"設定數位腳位輸出"},
+    {type:"c3_pin_in",message0:"讀取數位腳位 %1",args0:[{type:"field_dropdown",name:"PIN",options:PINS}],
+      output:"Number",colour:200,tooltip:"讀取 0 或 1（內建上拉）"},
+    {type:"c3_boot",message0:"BOOT 按鈕被按下",output:"Boolean",colour:200,tooltip:"GPIO9 按鈕"},
+    {type:"c3_adc",message0:"讀取類比腳位 %1 (0~4095)",args0:[{type:"field_dropdown",name:"PIN",options:ADCP}],
+      output:"Number",colour:230,tooltip:"ADC 讀值"},
+    {type:"c3_pwm",message0:"PWM 腳位 %1 亮度 %2 %%",
+      args0:[{type:"field_dropdown",name:"PIN",options:PINS},{type:"input_value",name:"DUTY",check:"Number"}],
+      previousStatement:null,nextStatement:null,colour:230,tooltip:"0~100，可做呼吸燈"},
+    {type:"c3_sleep",message0:"等待 %1 %2",
+      args0:[{type:"input_value",name:"T",check:"Number"},{type:"field_dropdown",name:"U",options:[["秒","s"],["毫秒","ms"]]}],
+      previousStatement:null,nextStatement:null,colour:120,tooltip:"暫停程式"}
+  ]);
+  const P = Blockly.Python, F = P.forBlock;
+  const mach = () => P.definitions_["import_machine"] = "from machine import Pin, ADC, PWM";
+  F.c3_pin_out = b => { mach(); return `Pin(${b.getFieldValue("PIN")}, Pin.OUT).value(${b.getFieldValue("VAL")})\n`; };
+  F.c3_pin_in  = b => { mach(); return [`Pin(${b.getFieldValue("PIN")}, Pin.IN, Pin.PULL_UP).value()`, P.ORDER_FUNCTION_CALL]; };
+  F.c3_boot    = b => { mach(); return ["(Pin(9, Pin.IN, Pin.PULL_UP).value() == 0)", P.ORDER_RELATIONAL]; };
+  F.c3_adc     = b => { mach();
+    P.definitions_["func_adc"] = "def adc_read(p):\n    a = ADC(Pin(p))\n    a.atten(ADC.ATTN_11DB)\n    return a.read()";
+    return [`adc_read(${b.getFieldValue("PIN")})`, P.ORDER_FUNCTION_CALL]; };
+  F.c3_pwm     = b => { mach();
+    P.definitions_["func_pwm"] = "_pwm = {}\ndef pwm_set(p, d):\n    if p not in _pwm:\n        _pwm[p] = PWM(Pin(p), freq=1000)\n    _pwm[p].duty_u16(int(d * 65535 / 100))";
+    const d = P.valueToCode(b,"DUTY",P.ORDER_NONE) || "0";
+    return `pwm_set(${b.getFieldValue("PIN")}, ${d})\n`; };
+  F.c3_sleep   = b => { P.definitions_["import_time"] = "import time";
+    const t = P.valueToCode(b,"T",P.ORDER_NONE) || "1";
+    return b.getFieldValue("U")==="s" ? `time.sleep(${t})\n` : `time.sleep_ms(int(${t}))\n`; };
+}
+
+const num = n => ({shadow:{type:"math_number",fields:{NUM:n}}});
+const toolbox = {kind:"categoryToolbox",contents:[
+  {kind:"category",name:"輸出入",colour:200,contents:[
+    {kind:"block",type:"c3_pin_out"},{kind:"block",type:"c3_pin_in"},{kind:"block",type:"c3_boot"},
+    {kind:"block",type:"c3_adc"},{kind:"block",type:"c3_pwm",inputs:{DUTY:num(50)}}]},
+  {kind:"category",name:"時間",colour:120,contents:[{kind:"block",type:"c3_sleep",inputs:{T:num(1)}}]},
+  {kind:"category",name:"控制",colour:"#5ba55b",contents:[
+    {kind:"block",type:"controls_whileUntil"},
+    {kind:"block",type:"controls_repeat_ext",inputs:{TIMES:num(10)}},
+    {kind:"block",type:"controls_for",inputs:{FROM:num(1),TO:num(10),BY:num(1)}},
+    {kind:"block",type:"controls_if"},{kind:"block",type:"controls_flow_statements"}]},
+  {kind:"category",name:"邏輯",colour:210,contents:[
+    {kind:"block",type:"logic_compare"},{kind:"block",type:"logic_operation"},
+    {kind:"block",type:"logic_negate"},{kind:"block",type:"logic_boolean"}]},
+  {kind:"category",name:"數學",colour:230,contents:[
+    {kind:"block",type:"math_number"},{kind:"block",type:"math_arithmetic"},
+    {kind:"block",type:"math_random_int",inputs:{FROM:num(1),TO:num(100)}},
+    {kind:"block",type:"math_modulo",inputs:{DIVIDEND:num(10),DIVISOR:num(3)}}]},
+  {kind:"category",name:"文字",colour:160,contents:[
+    {kind:"block",type:"text"},{kind:"block",type:"text_print"},{kind:"block",type:"text_join"}]},
+  {kind:"category",name:"變數",colour:330,custom:"VARIABLE"}
+]};
+
+function defaultState(){
+  const out=(v,next)=>({type:"c3_pin_out",fields:{PIN:"8",VAL:v},next:{block:next}});
+  const slp=(t,next)=>{const o={type:"c3_sleep",fields:{U:"s"},inputs:{T:{block:{type:"math_number",fields:{NUM:t}}}}}; if(next)o.next={block:next}; return o;};
+  return {blocks:{languageVersion:0,blocks:[{type:"controls_whileUntil",x:20,y:20,fields:{MODE:"WHILE"},
+    inputs:{BOOL:{block:{type:"logic_boolean",fields:{BOOL:"TRUE"}}},
+      DO:{block:{type:"c3_pin_out",fields:{PIN:"8",VAL:"1"},next:{block:slp(0.5,
+        {type:"c3_pin_out",fields:{PIN:"8",VAL:"0"},next:{block:slp(0.5)}})}}}}}}]}};
+}
+
+function getCode(){ return ws ? Blockly.Python.workspaceToCode(ws) : ""; }
+function onChange(e){
+  if (e.isUiEvent) return;
+  $("codeBox").textContent = getCode();
+  localStorage.setItem("c3ws", JSON.stringify(Blockly.serialization.workspaces.save(ws)));
+}
+
+async function initBlockly(){
+  const base = "https://unpkg.com/blockly@10.4.3/";
+  try {
+    await loadScript(base+"blockly_compressed.js");
+    await loadScript(base+"blocks_compressed.js");
+    await loadScript(base+"python_compressed.js");
+    await loadScript(base+"msg/zh-hant.js");
+  } catch(e){ toast("積木引擎載入失敗，請確認網路後重新整理"); return; }
+  defineBlocks();
+  ws = Blockly.inject("ws", {toolbox, renderer:"zelos", trashcan:true,
+    zoom:{controls:true,wheel:false,startScale:0.85,minScale:0.4,maxScale:1.6},
+    move:{scrollbars:true,drag:true,wheel:true}, grid:{spacing:24,length:3,colour:"#e2e8f0",snap:true}});
+  let st; try { st = JSON.parse(localStorage.getItem("c3ws")); } catch(e){}
+  Blockly.serialization.workspaces.load(st || defaultState(), ws);
+  ws.addChangeListener(onChange);
+  $("codeBox").textContent = getCode();
+  new ResizeObserver(()=>Blockly.svgResize(ws)).observe($("ws"));
+}
+initBlockly();
+
+$("btnCode").onclick = () => { const c=$("codeBox"); c.style.display = c.style.display==="block" ? "none" : "block"; Blockly.svgResize(ws); };
+$("btnNew").onclick = () => { if (ws && confirm("要清空所有積木嗎？")) ws.clear(); };
+
+$("btnRun").onclick = async () => {
+  if (!ws || !needConn()) return;
+  try {
+    await enterRaw(); await sendCode(getCode());
+    termWrite("\n▶ 開始執行\n");
+    termWrite(rxBuf.slice(rxBuf.indexOf("OK")+2));
+    passthru = true; toast("執行中");
+  } catch(e){ toast(e.message); }
+};
+$("btnStop").onclick = async () => {
+  if (!needConn()) return;
+  passthru = true; await send("\x03\x03"); await sleep(150); await send("\x02"); inRaw = false;
+  termWrite("\n■ 已停止\n"); toast("已停止");
+};
+$("btnSave").onclick = async () => {
+  if (!ws || !needConn()) return;
+  try {
+    await enterRaw();
+    const py = "f=open('main.py','w')\nf.write(" + JSON.stringify(getCode()) + ")\nf.close()\n";
+    await sendCode(py);
+    const t = Date.now(); let m;
+    while (Date.now()-t < 5000 && !(m = rxBuf.match(/OK([\s\S]*?)\x04([\s\S]*?)\x04>/))) await sleep(30);
+    if (!m) throw new Error("儲存逾時");
+    if (m[2].trim()) throw new Error("儲存失敗：" + m[2].trim().split("\n").pop());
+    passthru = true; await send("\x02"); await sleep(100); await send("\x04"); inRaw = false;
+    termWrite("\n💾 已存成 main.py，重新啟動執行\n"); toast("已儲存，開機會自動執行");
+  } catch(e){ passthru = true; toast(e.message); }
+};
+
+/* ========== 終端輸入 ========== */
+async function termSend(){
+  if (!needConn()) return;
+  const v = $("tline").value; $("tline").value = "";
+  if (inRaw) { await send("\x03\x02"); inRaw = false; await sleep(200); }
+  passthru = true; await send(v + "\r\n");
+}
+$("tsend").onclick = termSend;
+$("tline").onkeydown = e => { if (e.key==="Enter") termSend(); };
+$("tCc").onclick = async () => { if (needConn()) { passthru=true; await send("\x03"); } };
+$("tCd").onclick = async () => { if (needConn()) { if (inRaw) { await send("\x02"); inRaw=false; await sleep(100);} passthru=true; await send("\x04"); } };
+
+/* ========== 燒錄 ========== */
+let fwData = null;
+const bin2str = u8 => { let s=""; for (let i=0;i<u8.length;i+=0x8000) s += String.fromCharCode.apply(null, u8.subarray(i,i+0x8000)); return s; };
+function setFw(u8, name){ fwData = bin2str(u8); $("fstat").textContent = `已就緒：${name}（${(u8.length/1048576).toFixed(2)} MB）`; }
+
+$("fw").onchange = async e => { const f=e.target.files[0]; if(!f)return; setFw(new Uint8Array(await f.arrayBuffer()), f.name); };
+$("btnFetch").onclick = async () => {
+  $("fstat").textContent = "下載中…";
+  try {
+    const r = await fetch($("fwUrl").value); if(!r.ok) throw new Error("HTTP "+r.status);
+    setFw(new Uint8Array(await r.arrayBuffer()), "線上韌體");
+  } catch(e){ $("fstat").textContent = "線上下載失敗（可能被跨網域限制），請改用手動選檔"; }
+};
+
+$("btnFlash").onclick = async () => {
+  if (!fwData) return toast("請先選擇韌體 .bin");
+  if (port) await cleanup();
+  const btn = $("btnFlash"); btn.disabled = true;
+  let transport;
+  try {
+    $("fstat").textContent = "載入燒錄工具…";
+    const {ESPLoader, Transport} = await import("https://esm.sh/esptool-js@0.5.4");
+    const p = await pickPort();
+    transport = new Transport(p, true);
+    const loader = new ESPLoader({transport, baudrate:460800, romBaudrate:115200,
+      terminal:{clean(){}, writeLine:l=>termWrite(l+"\n"), write:s=>termWrite(s)}});
+    $("fstat").textContent = "連線中…";
+    const chip = await loader.main();
+    $("fstat").textContent = "已連線：" + chip + "，燒錄中…";
+    await loader.writeFlash({
+      fileArray:[{data:fwData, address:0x0}], flashSize:"keep", flashMode:"keep", flashFreq:"keep",
+      eraseAll: $("erase").checked, compress:true,
+      reportProgress:(i,w,t)=>{ $("prog").style.width = (w/t*100)+"%"; }
+    });
+    $("prog").style.width = "100%";
+    try { await loader.after("hard_reset"); } catch(e){}
+    $("fstat").textContent = "✅ 燒錄完成！請拔插 USB 一次，然後到「積木」分頁連線。";
+    toast("燒錄完成");
+  } catch(e){
+    $("fstat").textContent = "❌ " + e.message + "（可按住 BOOT 再插 USB 後重試）";
+  } finally {
+    try { await transport?.disconnect(); } catch(e){}
+    btn.disabled = false;
+  }
+};
+</script>
+</body>
+</html>
