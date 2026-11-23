@@ -3,180 +3,330 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>純前端 JPG 轉 SVG (黑白專用版 + Tinkercad 去背)</title>
+    <title>JPG 轉 SVG 轉換器 | JPG to SVG Converter</title>
+
+    <!-- Google Fonts：Noto Sans TC -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome 圖示 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <!-- 向量化核心函式庫 -->
     <script src="https://cdn.jsdelivr.net/gh/jankovicsandras/imagetracerjs@master/imagetracer_v1.2.6.js"></script>
+
     <style>
-        #svg-container svg {
-            max-width: 100%;
-            height: auto;
+        /* ========== 全站基本樣式（想換主色就改這裡）========== */
+        :root {
+            --bg: #0f172a;          /* 背景色 */
+            --card: #1e293b;        /* 卡片色 */
+            --card-2: #162033;      /* 較深的卡片色 */
+            --border: #334155;      /* 邊框色 */
+            --accent: #38bdf8;      /* 強調色 */
+            --text: #f1f5f9;        /* 主文字 */
+            --muted: #94a3b8;       /* 次要文字 */
         }
-        /* 自訂捲軸樣式 */
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            background-image: radial-gradient(circle at 15% 0%, rgba(56,189,248,.10), transparent 40%),
+                              radial-gradient(circle at 90% 10%, rgba(6,182,212,.08), transparent 35%);
+            background-attachment: fixed;
+        }
+
+        /* 卡片 */
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(0,0,0,.25);
+            transition: transform .25s, box-shadow .25s, border-color .25s;
+        }
+        .card:hover { border-color: rgba(56,189,248,.5); }
+
+        /* 預設集按鈕 */
+        .preset-btn {
+            background: rgba(15,23,42,.6);
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-size: 12px; font-weight: 500;
+            padding: 8px 10px; border-radius: 10px;
+            transition: all .2s; text-align: center;
+        }
+        .preset-btn:hover { transform: translateY(-2px); border-color: var(--accent); color: var(--accent); }
+        .preset-btn.active { background: var(--accent); color: #0f172a; border-color: var(--accent); font-weight: 700; }
+
+        /* 分類小卡 */
+        .group { border-radius: 12px; padding: 12px; border: 1px solid; }
+        .g-blue   { background: rgba(56,189,248,.07);  border-color: rgba(56,189,248,.3);  } .g-blue h4   { color:#7dd3fc; }
+        .g-green  { background: rgba(52,211,153,.07);  border-color: rgba(52,211,153,.3);  } .g-green h4  { color:#6ee7b7; }
+        .g-purple { background: rgba(167,139,250,.07); border-color: rgba(167,139,250,.3); } .g-purple h4 { color:#c4b5fd; }
+        .g-orange { background: rgba(251,146,60,.07);  border-color: rgba(251,146,60,.3);  } .g-orange h4 { color:#fdba74; }
+
+        /* 滑桿 */
+        input[type=range] { -webkit-appearance: none; appearance: none; height: 6px; border-radius: 99px; background: var(--border); outline: none; width: 100%; margin-top: 6px; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--accent); cursor: pointer; box-shadow: 0 0 0 4px rgba(56,189,248,.2); }
+        input[type=range]::-moz-range-thumb { width: 18px; height: 18px; border: 0; border-radius: 50%; background: var(--accent); cursor: pointer; }
+
+        /* 主要按鈕 */
+        .btn-primary {
+            background: linear-gradient(135deg, #38bdf8, #06b6d4);
+            color: #0f172a; font-weight: 700; border-radius: 12px;
+            transition: all .2s;
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(56,189,248,.35); }
+
+        /* 檔案上傳按鈕 */
+        input[type=file]::file-selector-button {
+            background: var(--accent); color: #0f172a; border: 0; padding: 8px 14px;
+            margin-right: 12px; border-radius: 8px; font-weight: 700; cursor: pointer;
+        }
+
+        /* 自訂捲軸 */
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 8px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 8px; }
-        
-        /* 透明棋盤格背景，用來辨識是否成功去背 */
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 8px; }
+
+        /* 透明棋盤格（用來辨識去背是否成功，刻意保持淺色，黑色圖形才看得清楚）*/
         .checkerboard {
             background-color: #ffffff;
-            background-image: 
+            background-image:
                 linear-gradient(45deg, #e5e7eb 25%, transparent 25%, transparent 75%, #e5e7eb 75%, #e5e7eb),
                 linear-gradient(45deg, #e5e7eb 25%, transparent 25%, transparent 75%, #e5e7eb 75%, #e5e7eb);
             background-size: 20px 20px;
             background-position: 0 0, 10px 10px;
         }
+        #svg-container svg { max-width: 100%; height: auto; }
+
+        /* 語言切換按鈕 */
+        .lang-btn { border: 1px solid var(--border); border-radius: 99px; padding: 6px 14px; font-size: 13px; color: var(--text); transition: all .2s; }
+        .lang-btn:hover { border-color: var(--accent); color: var(--accent); }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen p-4 md:p-8">
-    <div class="max-w-[1400px] mx-auto bg-white p-6 rounded-lg shadow-md">
-        <h1 class="text-2xl font-bold mb-2 text-gray-800">JPG 轉 SVG 轉換器 (進階分類預設版)</h1>
-        <p class="text-gray-600 mb-6">針對不同情境提供 4 大類預設集，快速將點陣圖轉換為完美的黑白向量色塊。</p>
+<body class="min-h-screen">
+
+    <!-- ① 導覽列 -->
+    <nav class="sticky top-0 z-30 backdrop-blur bg-slate-900/80 border-b border-slate-700">
+        <div class="max-w-[1400px] mx-auto px-4 md:px-8 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-2 font-bold text-lg">
+                <i class="fa-solid fa-vector-square" style="color:var(--accent)"></i>
+                <span data-i18n="logo">JPG → SVG</span>
+            </div>
+            <button id="lang-toggle" class="lang-btn" type="button">
+                <i class="fa-solid fa-globe mr-1"></i><span id="lang-label">English</span>
+            </button>
+        </div>
+    </nav>
+
+    <main class="max-w-[1400px] mx-auto px-4 md:px-8 py-8">
+
+        <!-- ② Hero 區塊 -->
+        <header class="mb-8 text-center md:text-left">
+            <h1 class="text-3xl md:text-4xl font-bold mb-3">
+                <span data-i18n="title">JPG 轉 SVG 轉換器</span>
+                <span class="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-cyan-400" data-i18n="titleSub">黑白專用版</span>
+            </h1>
+            <p class="text-slate-400 max-w-3xl" data-i18n="subtitle">針對不同情境提供 4 大類預設集，快速將點陣圖轉換為完美的黑白向量色塊。</p>
+        </header>
 
         <div class="grid grid-cols-1 xl:grid-cols-12 gap-6 mb-6">
+
             <!-- 左側：控制面板 -->
-            <div class="xl:col-span-4 space-y-5 bg-gray-50 p-5 rounded-lg border max-h-[85vh] overflow-y-auto custom-scrollbar relative">
-                <!-- 上傳區塊 -->
-                <div class="sticky top-0 bg-gray-50 pt-1 pb-3 z-10 border-b border-gray-200">
-                    <label class="block mb-2 text-sm font-bold text-gray-900">1. 選擇圖片</label>
-                    <input type="file" id="upload" accept="image/jpeg, image/png, image/webp" 
-                           class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-white focus:outline-none p-2">
+            <section class="xl:col-span-4 card p-5 space-y-5 max-h-[85vh] overflow-y-auto custom-scrollbar relative">
+
+                <!-- 1. 上傳 -->
+                <div class="sticky top-0 z-10 -mx-5 -mt-5 px-5 pt-5 pb-3 border-b border-slate-700" style="background:var(--card)">
+                    <label class="block mb-2 text-sm font-bold"><i class="fa-solid fa-image mr-1" style="color:var(--accent)"></i> <span data-i18n="step1">1. 選擇圖片</span></label>
+                    <input type="file" id="upload" accept="image/jpeg, image/png, image/webp"
+                           class="block w-full text-sm text-slate-300 border border-slate-600 rounded-lg cursor-pointer bg-slate-900/60 p-2 focus:outline-none">
                 </div>
 
-                <!-- 預設集區塊 -->
+                <!-- 2. 預設集 -->
                 <div>
-                    <label class="block mb-3 text-sm font-bold text-gray-900">2. 情境預設集 (點擊自動套用)</label>
-                    
-                    <div class="space-y-4">
-                        <div class="bg-blue-50 p-3 rounded-lg border border-blue-100">
-                            <h4 class="text-xs font-bold text-blue-800 mb-2 flex items-center">✏️ 線稿與草圖 (保留細節)</h4>
+                    <label class="block mb-3 text-sm font-bold"><i class="fa-solid fa-wand-magic-sparkles mr-1" style="color:var(--accent)"></i> <span data-i18n="step2">2. 情境預設集 (點擊自動套用)</span></label>
+                    <div class="space-y-3">
+                        <div class="group g-blue">
+                            <h4 class="text-xs font-bold mb-2" data-i18n="g1">✏️ 線稿與草圖 (保留細節)</h4>
                             <div class="grid grid-cols-2 gap-2">
-                                <button class="preset-btn bg-white border border-blue-200 hover:bg-blue-100 text-blue-700 text-xs font-semibold py-1.5 px-2 rounded" data-blur="0" data-omit="0" data-tolerance="0.5">極細緻 (原汁原味)</button>
-                                <button class="preset-btn bg-white border border-blue-200 hover:bg-blue-100 text-blue-700 text-xs font-semibold py-1.5 px-2 rounded" data-blur="0" data-omit="2" data-tolerance="1.0">標準線稿</button>
-                                <button class="preset-btn bg-white border border-blue-200 hover:bg-blue-100 text-blue-700 text-xs font-semibold py-1.5 px-2 rounded" data-blur="1" data-omit="4" data-tolerance="1.5">平滑線稿 (微抗鋸齒)</button>
-                                <button class="preset-btn bg-white border border-blue-200 hover:bg-blue-100 text-blue-700 text-xs font-semibold py-1.5 px-2 rounded" data-blur="2" data-omit="2" data-tolerance="1.0">粗體線稿 (加粗)</button>
+                                <button class="preset-btn" data-blur="0" data-omit="0" data-tolerance="0.5" data-i18n="g1a">極細緻 (原汁原味)</button>
+                                <button class="preset-btn" data-blur="0" data-omit="2" data-tolerance="1.0" data-i18n="g1b">標準線稿</button>
+                                <button class="preset-btn" data-blur="1" data-omit="4" data-tolerance="1.5" data-i18n="g1c">平滑線稿 (微抗鋸齒)</button>
+                                <button class="preset-btn" data-blur="2" data-omit="2" data-tolerance="1.0" data-i18n="g1d">粗體線稿 (加粗)</button>
                             </div>
                         </div>
-
-                        <div class="bg-emerald-50 p-3 rounded-lg border border-emerald-100">
-                            <h4 class="text-xs font-bold text-emerald-800 mb-2 flex items-center">💠 標誌與圖示 (幾何與邊緣)</h4>
+                        <div class="group g-green">
+                            <h4 class="text-xs font-bold mb-2" data-i18n="g2">💠 標誌與圖示 (幾何與邊緣)</h4>
                             <div class="grid grid-cols-2 gap-2">
-                                <button class="preset-btn bg-white border border-emerald-200 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold py-1.5 px-2 rounded" data-blur="0" data-omit="4" data-tolerance="0.1">銳利邊緣 (直角多)</button>
-                                <button class="preset-btn bg-white border border-emerald-200 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold py-1.5 px-2 rounded" data-blur="1" data-omit="8" data-tolerance="1.0">標準標誌</button>
-                                <button class="preset-btn bg-white border border-emerald-200 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold py-1.5 px-2 rounded" data-blur="2" data-omit="10" data-tolerance="2.0">圓滑標誌 (圓角多)</button>
-                                <button class="preset-btn bg-white border border-emerald-200 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold py-1.5 px-2 rounded" data-blur="3" data-omit="15" data-tolerance="3.0">極簡化 (忽略小細節)</button>
+                                <button class="preset-btn" data-blur="0" data-omit="4" data-tolerance="0.1" data-i18n="g2a">銳利邊緣 (直角多)</button>
+                                <button class="preset-btn" data-blur="1" data-omit="8" data-tolerance="1.0" data-i18n="g2b">標準標誌</button>
+                                <button class="preset-btn" data-blur="2" data-omit="10" data-tolerance="2.0" data-i18n="g2c">圓滑標誌 (圓角多)</button>
+                                <button class="preset-btn" data-blur="3" data-omit="15" data-tolerance="3.0" data-i18n="g2d">極簡化 (忽略小細節)</button>
                             </div>
                         </div>
-
-                        <div class="bg-purple-50 p-3 rounded-lg border border-purple-100">
-                            <h4 class="text-xs font-bold text-purple-800 mb-2 flex items-center">👤 剪影與大色塊 (強力融合)</h4>
+                        <div class="group g-purple">
+                            <h4 class="text-xs font-bold mb-2" data-i18n="g3">👤 剪影與大色塊 (強力融合)</h4>
                             <div class="grid grid-cols-2 gap-2">
-                                <button class="preset-btn bg-white border border-purple-200 hover:bg-purple-100 text-purple-700 text-xs font-semibold py-1.5 px-2 rounded" data-blur="3" data-omit="10" data-tolerance="1.5">輕度融合</button>
-                                <button class="preset-btn bg-white border border-purple-200 hover:bg-purple-100 text-purple-700 text-xs font-semibold py-1.5 px-2 rounded" data-blur="4" data-omit="20" data-tolerance="2.0">標準剪影</button>
-                                <button class="preset-btn bg-white border border-purple-200 hover:bg-purple-100 text-purple-700 text-xs font-semibold py-1.5 px-2 rounded" data-blur="6" data-omit="40" data-tolerance="3.0">強力融合 (黏合斷線)</button>
-                                <button class="preset-btn bg-white border border-purple-200 hover:bg-purple-100 text-purple-700 text-xs font-semibold py-1.5 px-2 rounded" data-blur="8" data-omit="60" data-tolerance="4.0">極致色塊 (僅留主體)</button>
+                                <button class="preset-btn" data-blur="3" data-omit="10" data-tolerance="1.5" data-i18n="g3a">輕度融合</button>
+                                <button class="preset-btn" data-blur="4" data-omit="20" data-tolerance="2.0" data-i18n="g3b">標準剪影</button>
+                                <button class="preset-btn" data-blur="6" data-omit="40" data-tolerance="3.0" data-i18n="g3c">強力融合 (黏合斷線)</button>
+                                <button class="preset-btn" data-blur="8" data-omit="60" data-tolerance="4.0" data-i18n="g3d">極致色塊 (僅留主體)</button>
                             </div>
                         </div>
-
-                        <div class="bg-orange-50 p-3 rounded-lg border border-orange-100">
-                            <h4 class="text-xs font-bold text-orange-800 mb-2 flex items-center">🧹 雜訊去除 (掃描檔/粗糙圖)</h4>
+                        <div class="group g-orange">
+                            <h4 class="text-xs font-bold mb-2" data-i18n="g4">🧹 雜訊去除 (掃描檔/粗糙圖)</h4>
                             <div class="grid grid-cols-2 gap-2">
-                                <button class="preset-btn bg-white border border-orange-200 hover:bg-orange-100 text-orange-700 text-xs font-semibold py-1.5 px-2 rounded" data-blur="1" data-omit="15" data-tolerance="1.0">輕度去噪</button>
-                                <button class="preset-btn bg-white border border-orange-200 hover:bg-orange-100 text-orange-700 text-xs font-semibold py-1.5 px-2 rounded" data-blur="2" data-omit="30" data-tolerance="1.5">中度去噪</button>
-                                <button class="preset-btn bg-white border border-orange-200 hover:bg-orange-100 text-orange-700 text-xs font-semibold py-1.5 px-2 rounded" data-blur="3" data-omit="60" data-tolerance="2.0">強力去噪 (刪除斑點)</button>
-                                <button class="preset-btn bg-white border border-orange-200 hover:bg-orange-100 text-orange-700 text-xs font-semibold py-1.5 px-2 rounded" data-blur="4" data-omit="100" data-tolerance="2.5">極限去噪 (破壞性)</button>
+                                <button class="preset-btn" data-blur="1" data-omit="15" data-tolerance="1.0" data-i18n="g4a">輕度去噪</button>
+                                <button class="preset-btn" data-blur="2" data-omit="30" data-tolerance="1.5" data-i18n="g4b">中度去噪</button>
+                                <button class="preset-btn" data-blur="3" data-omit="60" data-tolerance="2.0" data-i18n="g4c">強力去噪 (刪除斑點)</button>
+                                <button class="preset-btn" data-blur="4" data-omit="100" data-tolerance="2.5" data-i18n="g4d">極限去噪 (破壞性)</button>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <hr class="border-gray-300">
+                <hr class="border-slate-700">
 
-                <!-- 手動微調區塊 -->
+                <!-- 3. 手動微調 -->
                 <div>
-                    <label class="block mb-1 text-sm font-bold text-gray-900">3. 手動微調參數</label>
-                    
-                    <div class="mt-3">
-                        <div class="flex justify-between">
-                            <span class="text-xs font-semibold text-gray-700">模糊融合度 (Blur)</span>
-                            <span class="text-xs text-blue-600 font-bold" id="blur-val">2</span>
-                        </div>
-                        <input type="range" id="blur" min="0" max="10" step="1" value="2" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer mt-1">
-                    </div>
+                    <label class="block mb-1 text-sm font-bold"><i class="fa-solid fa-sliders mr-1" style="color:var(--accent)"></i> <span data-i18n="step3">3. 手動微調參數</span></label>
 
                     <div class="mt-3">
                         <div class="flex justify-between">
-                            <span class="text-xs font-semibold text-gray-700">忽略微小碎塊 (Omit)</span>
-                            <span class="text-xs text-blue-600 font-bold" id="omit-val">8</span>
+                            <span class="text-xs font-medium text-slate-300" data-i18n="blur">模糊融合度 (Blur)</span>
+                            <span class="text-xs font-bold" style="color:var(--accent)" id="blur-val">2</span>
                         </div>
-                        <input type="range" id="omit" min="0" max="100" step="1" value="8" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer mt-1">
+                        <input type="range" id="blur" min="0" max="10" step="1" value="2">
                     </div>
-
                     <div class="mt-3">
                         <div class="flex justify-between">
-                            <span class="text-xs font-semibold text-gray-700">邊緣平滑度 (Tolerance)</span>
-                            <span class="text-xs text-blue-600 font-bold" id="tolerance-val">1.0</span>
+                            <span class="text-xs font-medium text-slate-300" data-i18n="omit">忽略微小碎塊 (Omit)</span>
+                            <span class="text-xs font-bold" style="color:var(--accent)" id="omit-val">8</span>
                         </div>
-                        <input type="range" id="tolerance" min="0.1" max="5" step="0.1" value="1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer mt-1">
+                        <input type="range" id="omit" min="0" max="100" step="1" value="8">
+                    </div>
+                    <div class="mt-3">
+                        <div class="flex justify-between">
+                            <span class="text-xs font-medium text-slate-300" data-i18n="tol">邊緣平滑度 (Tolerance)</span>
+                            <span class="text-xs font-bold" style="color:var(--accent)" id="tolerance-val">1.0</span>
+                        </div>
+                        <input type="range" id="tolerance" min="0.1" max="5" step="0.1" value="1">
                     </div>
                 </div>
 
-                <hr class="border-gray-300">
+                <hr class="border-slate-700">
 
-                <!-- Tinkercad 專用設定 -->
-                <div class="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
-                    <label class="block mb-2 text-sm font-bold text-gray-900">4. 3D 列印 / Tinkercad 設定</label>
-                    <label class="flex items-start space-x-2 cursor-pointer">
-                        <input type="checkbox" id="remove-white" checked class="mt-1 w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
+                <!-- 4. Tinkercad 設定 -->
+                <div class="rounded-xl p-3 border border-yellow-500/30 bg-yellow-500/5">
+                    <label class="block mb-2 text-sm font-bold"><i class="fa-solid fa-cube mr-1 text-yellow-400"></i> <span data-i18n="step4">4. 3D 列印 / Tinkercad 設定</span></label>
+                    <label class="flex items-start gap-2 cursor-pointer">
+                        <input type="checkbox" id="remove-white" checked class="mt-1 w-4 h-4 accent-sky-400">
                         <div>
-                            <span class="text-sm font-bold text-gray-800">移除白色背景 (僅保留黑色塊)</span>
-                            <p class="text-xs text-gray-600 mt-1">匯入 Tinkercad 若出現「反向擠出」或變成一塊大方塊，請務必勾選此項。右側預覽若呈現棋盤格，代表去背成功。</p>
+                            <span class="text-sm font-bold" data-i18n="rmWhite">移除白色背景 (僅保留黑色塊)</span>
+                            <p class="text-xs text-slate-400 mt-1" data-i18n="rmWhiteDesc">匯入 Tinkercad 若出現「反向擠出」或變成一塊大方塊，請務必勾選此項。右側預覽若呈現棋盤格，代表去背成功。</p>
                         </div>
                     </label>
                 </div>
 
-                <button id="recalculate" class="w-full bg-gray-800 hover:bg-gray-900 text-white font-bold py-2 px-4 rounded transition duration-200 sticky bottom-0">
-                    手動套用參數
+                <button id="recalculate" class="btn-primary w-full py-2.5 px-4 sticky bottom-0">
+                    <i class="fa-solid fa-rotate mr-1"></i> <span data-i18n="apply">手動套用參數</span>
                 </button>
-            </div>
+            </section>
 
             <!-- 右側：預覽區 -->
-            <div class="xl:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="border rounded-lg p-4 bg-gray-50 flex flex-col items-center justify-center min-h-[400px]">
-                    <h3 class="text-sm font-semibold mb-2 text-gray-700 w-full text-left">原始圖片</h3>
-                    <img id="preview" class="max-w-full max-h-[600px] hidden rounded shadow-sm">
-                    <span id="preview-text" class="text-gray-400">尚未選擇圖片</span>
+            <section class="xl:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="card p-4 flex flex-col items-center justify-center min-h-[400px]">
+                    <h3 class="text-sm font-semibold mb-2 w-full text-left text-slate-300"><i class="fa-regular fa-image mr-1" style="color:var(--accent)"></i> <span data-i18n="original">原始圖片</span></h3>
+                    <img id="preview" class="max-w-full max-h-[600px] hidden rounded-lg">
+                    <span id="preview-text" class="text-slate-500" data-i18n="noImage">尚未選擇圖片</span>
                 </div>
 
-                <!-- 這裡加入了 checkerboard 類別，用來顯示透明背景 -->
-                <div class="border rounded-lg p-4 checkerboard flex flex-col items-center justify-center min-h-[400px] relative shadow-inner">
-                    <h3 class="text-sm font-semibold mb-2 text-gray-700 w-full text-left bg-white/80 p-1 rounded">SVG 黑白轉換結果</h3>
+                <div class="card p-4 checkerboard !border-slate-600 flex flex-col items-center justify-center min-h-[400px] relative">
+                    <h3 class="text-sm font-semibold mb-2 w-full text-left text-slate-800 bg-white/80 p-1 rounded"><i class="fa-solid fa-vector-square mr-1 text-sky-600"></i> <span data-i18n="result">SVG 黑白轉換結果</span></h3>
                     <div id="svg-container" class="w-full flex justify-center items-center">
-                        <span id="svg-text" class="text-gray-400 bg-white/80 p-1 rounded">等待轉換...</span>
+                        <span id="svg-text" class="text-slate-600 bg-white/80 p-1 rounded" data-i18n="waiting">等待轉換...</span>
                     </div>
                 </div>
-            </div>
+            </section>
         </div>
 
         <div class="flex justify-end">
-            <button id="download" class="hidden bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded transition duration-200">
-                下載 SVG 檔案
+            <button id="download" class="hidden btn-primary py-2.5 px-6">
+                <i class="fa-solid fa-download mr-1"></i> <span data-i18n="download">下載 SVG 檔案</span>
             </button>
         </div>
-    </div>
+    </main>
+
+    <!-- 頁尾 -->
+    <footer class="border-t border-slate-700 mt-10 py-6 text-center text-sm text-slate-500">
+        <span data-i18n="footer">© 2026 JPG 轉 SVG 轉換器．所有運算皆在瀏覽器內完成，圖片不會上傳</span>
+    </footer>
 
     <script>
+        /* ========== 雙語文字集中管理（要改文字改這裡）========== */
+        const I18N = {
+            zh: {
+                logo: 'JPG → SVG', title: 'JPG 轉 SVG 轉換器', titleSub: '黑白專用版',
+                subtitle: '針對不同情境提供 4 大類預設集，快速將點陣圖轉換為完美的黑白向量色塊。',
+                step1: '1. 選擇圖片', step2: '2. 情境預設集 (點擊自動套用)', step3: '3. 手動微調參數', step4: '4. 3D 列印 / Tinkercad 設定',
+                g1: '✏️ 線稿與草圖 (保留細節)', g1a: '極細緻 (原汁原味)', g1b: '標準線稿', g1c: '平滑線稿 (微抗鋸齒)', g1d: '粗體線稿 (加粗)',
+                g2: '💠 標誌與圖示 (幾何與邊緣)', g2a: '銳利邊緣 (直角多)', g2b: '標準標誌', g2c: '圓滑標誌 (圓角多)', g2d: '極簡化 (忽略小細節)',
+                g3: '👤 剪影與大色塊 (強力融合)', g3a: '輕度融合', g3b: '標準剪影', g3c: '強力融合 (黏合斷線)', g3d: '極致色塊 (僅留主體)',
+                g4: '🧹 雜訊去除 (掃描檔/粗糙圖)', g4a: '輕度去噪', g4b: '中度去噪', g4c: '強力去噪 (刪除斑點)', g4d: '極限去噪 (破壞性)',
+                blur: '模糊融合度 (Blur)', omit: '忽略微小碎塊 (Omit)', tol: '邊緣平滑度 (Tolerance)',
+                rmWhite: '移除白色背景 (僅保留黑色塊)',
+                rmWhiteDesc: '匯入 Tinkercad 若出現「反向擠出」或變成一塊大方塊，請務必勾選此項。右側預覽若呈現棋盤格，代表去背成功。',
+                apply: '手動套用參數', original: '原始圖片', noImage: '尚未選擇圖片', result: 'SVG 黑白轉換結果',
+                waiting: '等待轉換...', loading: '正在進行黑白向量化運算中...', download: '下載 SVG 檔案',
+                footer: '© 2026 JPG 轉 SVG 轉換器．所有運算皆在瀏覽器內完成，圖片不會上傳',
+                langBtn: 'English', docTitle: 'JPG 轉 SVG 轉換器'
+            },
+            en: {
+                logo: 'JPG → SVG', title: 'JPG to SVG Converter', titleSub: 'Black & White Edition',
+                subtitle: 'Four preset categories for different scenarios — turn raster images into clean black-and-white vector shapes in seconds.',
+                step1: '1. Choose Image', step2: '2. Scenario Presets (click to apply)', step3: '3. Manual Fine-tuning', step4: '4. 3D Printing / Tinkercad',
+                g1: '✏️ Line Art & Sketches (keep details)', g1a: 'Ultra Fine (as original)', g1b: 'Standard Line Art', g1c: 'Smooth Line Art (anti-alias)', g1d: 'Bold Line Art (thicker)',
+                g2: '💠 Logos & Icons (geometry & edges)', g2a: 'Sharp Edges (more corners)', g2b: 'Standard Logo', g2c: 'Rounded Logo (more curves)', g2d: 'Minimal (ignore details)',
+                g3: '👤 Silhouettes & Big Blocks (strong merge)', g3a: 'Light Merge', g3b: 'Standard Silhouette', g3c: 'Strong Merge (join breaks)', g3d: 'Max Blocks (main shape only)',
+                g4: '🧹 Noise Removal (scans / rough images)', g4a: 'Light Denoise', g4b: 'Medium Denoise', g4c: 'Strong Denoise (remove specks)', g4d: 'Extreme Denoise (destructive)',
+                blur: 'Blur Merge', omit: 'Ignore Tiny Specks (Omit)', tol: 'Edge Smoothness (Tolerance)',
+                rmWhite: 'Remove white background (keep black only)',
+                rmWhiteDesc: 'If Tinkercad shows an "inverted extrude" or one big block, keep this checked. A checkerboard in the preview means the background was removed.',
+                apply: 'Apply Settings', original: 'Original Image', noImage: 'No image selected', result: 'SVG Black & White Result',
+                waiting: 'Waiting for conversion...', loading: 'Vectorizing in black & white...', download: 'Download SVG',
+                footer: '© 2026 JPG to SVG Converter. Everything runs in your browser — images are never uploaded.',
+                langBtn: '繁體中文', docTitle: 'JPG to SVG Converter'
+            }
+        };
+
+        let lang = localStorage.getItem('lang') || 'zh';
+        const t = (k) => I18N[lang][k];
+
+        // 套用語言：更新所有 data-i18n 元素
+        function applyLang() {
+            document.documentElement.lang = lang === 'zh' ? 'zh-TW' : 'en';
+            document.title = t('docTitle');
+            document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+            document.getElementById('lang-label').textContent = t('langBtn');
+        }
+        document.getElementById('lang-toggle').addEventListener('click', () => {
+            lang = lang === 'zh' ? 'en' : 'zh';
+            localStorage.setItem('lang', lang);
+            applyLang();
+        });
+        applyLang();
+
+        /* ========== 轉換功能 ========== */
         const upload = document.getElementById('upload');
         const preview = document.getElementById('preview');
         const previewText = document.getElementById('preview-text');
         const svgContainer = document.getElementById('svg-container');
         const downloadBtn = document.getElementById('download');
         const recalculateBtn = document.getElementById('recalculate');
-        
         const blurInput = document.getElementById('blur');
         const omitInput = document.getElementById('omit');
         const toleranceInput = document.getElementById('tolerance');
         const removeWhiteCheckbox = document.getElementById('remove-white');
-        
         const blurVal = document.getElementById('blur-val');
         const omitVal = document.getElementById('omit-val');
         const toleranceVal = document.getElementById('tolerance-val');
@@ -186,42 +336,36 @@
             omitVal.innerText = omitInput.value;
             toleranceVal.innerText = parseFloat(toleranceInput.value).toFixed(1);
         }
-
-        blurInput.addEventListener('input', updateDisplayValues);
-        omitInput.addEventListener('input', updateDisplayValues);
-        toleranceInput.addEventListener('input', updateDisplayValues);
+        [blurInput, omitInput, toleranceInput].forEach(i => i.addEventListener('input', updateDisplayValues));
 
         let currentSvgString = '';
         let currentImageSrc = '';
 
-        document.querySelectorAll('.preset-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                document.querySelectorAll('.preset-btn').forEach(b => {
-                    b.classList.remove('ring-2', 'ring-offset-1', 'ring-gray-400');
-                });
-                this.classList.add('ring-2', 'ring-offset-1', 'ring-gray-400');
+        function clearActive() {
+            document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+        }
 
+        // 預設集按鈕
+        document.querySelectorAll('.preset-btn').forEach(btn => {
+            btn.addEventListener('click', function () {
+                clearActive();
+                this.classList.add('active');
                 blurInput.value = this.dataset.blur;
                 omitInput.value = this.dataset.omit;
                 toleranceInput.value = this.dataset.tolerance;
-                
                 updateDisplayValues();
-                
                 if (currentImageSrc) convertToSVG();
             });
         });
 
-        // 監聽去背選項改變
-        removeWhiteCheckbox.addEventListener('change', function() {
-            if (currentImageSrc) convertToSVG();
-        });
+        removeWhiteCheckbox.addEventListener('change', () => { if (currentImageSrc) convertToSVG(); });
 
         function convertToSVG() {
             if (!currentImageSrc) return;
 
-            svgContainer.innerHTML = '<span class="text-blue-500 font-bold animate-pulse bg-white/80 p-1 rounded">正在進行黑白向量化運算中...</span>';
+            svgContainer.innerHTML = '<span class="font-bold animate-pulse bg-white/80 p-1 rounded text-sky-600">' + t('loading') + '</span>';
             downloadBtn.classList.add('hidden');
-            
+
             const customOptions = {
                 pal: [{r:0,g:0,b:0,a:255}, {r:255,g:255,b:255,a:255}],
                 colorquantcycles: 1,
@@ -238,70 +382,48 @@
             };
 
             setTimeout(() => {
-                ImageTracer.imageToSVG(
-                    currentImageSrc,
-                    function(svgstr) {
-                        let finalSvgStr = svgstr;
+                ImageTracer.imageToSVG(currentImageSrc, function (svgstr) {
+                    let finalSvgStr = svgstr;
 
-                        // 如果勾選了「移除白色背景」
-                        if (removeWhiteCheckbox.checked) {
-                            // 將 SVG 字串解析為 DOM 以便操作
-                            const parser = new DOMParser();
-                            const doc = parser.parseFromString(finalSvgStr, "image/svg+xml");
-                            
-                            // 尋找所有帶有 fill 屬性的元素 (通常是 <path> 或 <g>)
-                            const elements = doc.querySelectorAll('[fill]');
-                            elements.forEach(el => {
-                                const fillValue = el.getAttribute('fill').replace(/\s/g, '').toLowerCase();
-                                // 如果填色是純白，就將該節點從 SVG 中刪除
-                                if (fillValue === 'rgb(255,255,255)' || fillValue === '#ffffff') {
-                                    el.remove();
-                                }
-                            });
-                            
-                            // 將處理後的 DOM 轉回字串
-                            const serializer = new XMLSerializer();
-                            finalSvgStr = serializer.serializeToString(doc);
-                        }
+                    // 移除白色背景
+                    if (removeWhiteCheckbox.checked) {
+                        const doc = new DOMParser().parseFromString(finalSvgStr, "image/svg+xml");
+                        doc.querySelectorAll('[fill]').forEach(el => {
+                            const f = el.getAttribute('fill').replace(/\s/g, '').toLowerCase();
+                            if (f === 'rgb(255,255,255)' || f === '#ffffff') el.remove();
+                        });
+                        finalSvgStr = new XMLSerializer().serializeToString(doc);
+                    }
 
-                        currentSvgString = finalSvgStr;
-                        svgContainer.innerHTML = finalSvgStr;
-                        downloadBtn.classList.remove('hidden');
-                    },
-                    customOptions
-                );
+                    currentSvgString = finalSvgStr;
+                    svgContainer.innerHTML = finalSvgStr;
+                    downloadBtn.classList.remove('hidden');
+                }, customOptions);
             }, 50);
         }
 
-        upload.addEventListener('change', function(e) {
+        // 上傳圖片
+        upload.addEventListener('change', function (e) {
             const file = e.target.files[0];
             if (!file) return;
             const reader = new FileReader();
-            reader.onload = function(event) {
+            reader.onload = function (event) {
                 currentImageSrc = event.target.result;
                 preview.src = currentImageSrc;
                 preview.classList.remove('hidden');
                 previewText.classList.add('hidden');
-                
-                document.querySelectorAll('.preset-btn').forEach(b => {
-                    b.classList.remove('ring-2', 'ring-offset-1', 'ring-gray-400');
-                });
-
+                clearActive();
                 convertToSVG();
             };
             reader.readAsDataURL(file);
         });
 
-        recalculateBtn.addEventListener('click', function() {
-            document.querySelectorAll('.preset-btn').forEach(b => {
-                b.classList.remove('ring-2', 'ring-offset-1', 'ring-gray-400');
-            });
-            convertToSVG();
-        });
+        recalculateBtn.addEventListener('click', () => { clearActive(); convertToSVG(); });
 
-        downloadBtn.addEventListener('click', function() {
+        // 下載 SVG
+        downloadBtn.addEventListener('click', function () {
             if (!currentSvgString) return;
-            const blob = new Blob([currentSvgString], {type: 'image/svg+xml;charset=utf-8'});
+            const blob = new Blob([currentSvgString], { type: 'image/svg+xml;charset=utf-8' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
