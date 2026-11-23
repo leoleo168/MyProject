@@ -1,6 +1,6 @@
 {
-  "title": "PWA ESP32",
-  "description": "IDE",
-  "tags": ["ESP32", "實用工具"],
+  "title": "ESP32-C3 積木編程",
+  "description": "用手機或電腦拖積木寫程式，直接燒錄 MicroPython 並控制 ESP32-C3，支援離線安裝成 App。",
+  "tags": ["ESP32", "積木編程", "MicroPython", "教學工具"],
   "date": "2026-11"
 }
