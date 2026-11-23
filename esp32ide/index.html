@@ -163,7 +163,7 @@ function toast(m){
 if ("serviceWorker" in navigator) {
   try {
     const sw = [
-      "const C='c3-blocks-v6';",
+      "const C='c3-blocks-v7';",
       "self.addEventListener('install',()=>self.skipWaiting());",
       "self.addEventListener('activate',e=>e.waitUntil(clients.claim()));",
       "self.addEventListener('fetch',e=>{",
@@ -371,6 +371,22 @@ const ADCP = [0,1,2,3,4].map(n => ["GPIO" + n, String(n)]);
 let blocklyBase = "https://unpkg.com/blockly@10.4.3/";
 
 function defineBlocks(){
+  /* 🚩 主程式：帽子積木，無上方接點 */
+  Blockly.Blocks["c3_main"] = {
+    init: function(){
+      this.jsonInit({
+        message0: "🚩 主程式",
+        message1: "一開始只做一次 %1",
+        args1: [{type: "input_statement", name: "SETUP"}],
+        message2: "然後一直重複 %1",
+        args2: [{type: "input_statement", name: "LOOP"}],
+        colour: 45,
+        tooltip: "程式從這裡開始。上面的只做一次，下面的會一直重複。"
+      });
+      this.hat = "cap";
+    }
+  };
+
   Blockly.common.defineBlocksWithJsonArray([
     {
       type: "c3_pin_out", message0: "腳位 %1 輸出 %2",
@@ -416,6 +432,14 @@ function defineBlocks(){
   const F = P.forBlock;
   const mach = () => { P.definitions_["import_machine"] = "from machine import Pin, ADC, PWM"; };
 
+  F["c3_main"] = function(b){
+    const setup = P.statementToCode(b, "SETUP");
+    const loop = P.statementToCode(b, "LOOP");
+    let code = "";
+    if (setup.trim()) code += "# 一開始只做一次\n" + setup;
+    code += "# 然後一直重複\nwhile True:\n" + (loop.trim() ? loop : P.INDENT + "pass\n");
+    return code;
+  };
   F["c3_pin_out"] = function(b){
     mach();
     return "Pin(" + b.getFieldValue("PIN") + ", Pin.OUT).value(" + b.getFieldValue("VAL") + ")\n";
@@ -456,6 +480,9 @@ function makeToolbox(){
   return {
     kind: "categoryToolbox",
     contents: [
+      {kind: "category", name: "🚩 主程式", colour: 45, contents: [
+        {kind: "block", type: "c3_main"}
+      ]},
       {kind: "category", name: "輸出入", colour: 200, contents: [
         {kind: "block", type: "c3_pin_out"},
         {kind: "block", type: "c3_pin_in"},
@@ -495,6 +522,7 @@ function makeToolbox(){
   };
 }
 
+/* 預設範例：主程式 → 一直重複 → LED 閃爍 */
 function defaultState(){
   const num = n => ({block: {type: "math_number", fields: {NUM: n}}});
   const out = v => ({type: "c3_pin_out", fields: {PIN: "8", VAL: v}});
@@ -506,15 +534,11 @@ function defaultState(){
   a.next = {block: b};
   b.next = {block: c};
   c.next = {block: d};
-  const loop = {
-    type: "controls_whileUntil", x: 20, y: 20,
-    fields: {MODE: "WHILE"},
-    inputs: {
-      BOOL: {block: {type: "logic_boolean", fields: {BOOL: "TRUE"}}},
-      DO: {block: a}
-    }
+  const main = {
+    type: "c3_main", x: 20, y: 20,
+    inputs: {LOOP: {block: a}}
   };
-  return {blocks: {languageVersion: 0, blocks: [loop]}};
+  return {blocks: {languageVersion: 0, blocks: [main]}};
 }
 
 function getCode(){
@@ -526,6 +550,16 @@ function onChange(e){
     $("codeBox").textContent = getCode();
     localStorage.setItem("c3ws", JSON.stringify(Blockly.serialization.workspaces.save(ws)));
   } catch(err) {}
+}
+
+/* 檢查是否有主程式積木；回傳 true 代表可繼續 */
+function checkMain(){
+  if (!ws) return false;
+  const tops = ws.getTopBlocks(false);
+  if (tops.length === 0) { toast("還沒有積木喔，先拖一顆 🚩 主程式 出來"); return false; }
+  const hasMain = ws.getBlocksByType("c3_main", false).length > 0;
+  if (!hasMain) { toast("記得把積木接在 🚩 主程式 下面喔"); return false; }
+  return true;
 }
 
 function showWsMsg(html){
@@ -566,6 +600,7 @@ async function initBlockly(){
     ws = Blockly.inject("ws", {
       toolbox: makeToolbox(), renderer: "zelos", trashcan: true,
       media: blocklyBase + "media/",
+      maxInstances: {c3_main: 1},
       zoom: {controls: true, wheel: false, startScale: 0.85, minScale: 0.4, maxScale: 1.6},
       move: {scrollbars: true, drag: true, wheel: true},
       grid: {spacing: 24, length: 3, colour: "#e2e8f0", snap: true}
@@ -602,6 +637,7 @@ $("btnNew").onclick = () => {
 
 $("btnRun").onclick = async () => {
   if (!ws || !needConn()) return;
+  if (!checkMain()) return;
   try {
     toast("正在傳送程式…");
     await enterRaw();
@@ -622,6 +658,7 @@ $("btnStop").onclick = async () => {
 };
 $("btnSave").onclick = async () => {
   if (!ws || !needConn()) return;
+  if (!checkMain()) return;
   try {
     toast("正在儲存…");
     await enterRaw();
