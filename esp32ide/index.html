@@ -144,7 +144,11 @@
 const $ = id => document.getElementById(id);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const enc = new TextEncoder();
+<<<<<<< HEAD
 const APP_VERSION = "1.2", APP_DATE = "2026-11-23";
+=======
+const APP_VERSION = "1.1", APP_DATE = "2026-11-23";
+>>>>>>> fe0180b95d6e0e66fbe6cf9f09c6597f6ca79aab
 $("verTag").textContent = "v" + APP_VERSION;
 $("verFoot").textContent = "ESP32-C3 積木編程 v" + APP_VERSION + "（" + APP_DATE + "）";
 function toast(m){
@@ -169,7 +173,11 @@ function toast(m){
 if ("serviceWorker" in navigator) {
   try {
     const sw = [
+<<<<<<< HEAD
       "const C='c3-blocks-v9';",
+=======
+      "const C='c3-blocks-v8';",
+>>>>>>> fe0180b95d6e0e66fbe6cf9f09c6597f6ca79aab
       "self.addEventListener('install',()=>self.skipWaiting());",
       "self.addEventListener('activate',e=>e.waitUntil(clients.claim()));",
       "self.addEventListener('fetch',e=>{",
