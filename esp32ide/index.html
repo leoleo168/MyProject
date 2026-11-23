@@ -86,9 +86,13 @@
         <div id="flog"></div>
       </div>
       <div class="card">
+        <h3>燒錄完成後</h3>
+        <p>請<b>拔掉 USB，不要按 BOOT</b>，重新插上並等待約 10 秒，再按右上角「連線板子」。第一次開機會格式化檔案系統，需要多等一下。</p>
+      </div>
+      <div class="card">
         <h3>連線不上？</h3>
-        <p>按住板子上的 <b>BOOT</b> 鍵，再插上 USB，放開後重試。手機請用 OTG 線與 <b>Android Chrome</b>；電腦請用 Chrome 或 Edge。</p>
-        <p>燒錄前請先按右上角「中斷連線」，並關閉其他占用序列埠的程式（Arduino、Thonny 等）。</p>
+        <p>燒錄時才需要按住 <b>BOOT</b> 再插 USB。手機請用 OTG 線與 <b>Android Chrome</b>；電腦請用 Chrome 或 Edge。</p>
+        <p>請先按右上角「中斷連線」，並關閉其他占用序列埠的程式（Arduino、Thonny 等）。</p>
       </div>
     </div>
   </section>
@@ -137,7 +141,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const enc = new TextEncoder();
 function toast(m){
   const t = $("toast"); t.textContent = m; t.classList.add("show");
-  clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove("show"), 3000);
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove("show"), 3500);
 }
 
 /* ========== PWA：Manifest (Data URL) ========== */
@@ -157,7 +161,7 @@ function toast(m){
 if ("serviceWorker" in navigator) {
   try {
     const sw = [
-      "const C='c3-blocks-v3';",
+      "const C='c3-blocks-v4';",
       "self.addEventListener('install',()=>self.skipWaiting());",
       "self.addEventListener('activate',e=>e.waitUntil(clients.claim()));",
       "self.addEventListener('fetch',e=>{",
@@ -260,12 +264,13 @@ async function readLoop(){
 async function connectRepl(){
   port = await pickPort();
   await port.open({baudRate: 115200});
-  try { await port.setSignals({dataTerminalReady: false, requestToSend: false}); } catch(e) {}
   writer = port.writable.getWriter();
   passthru = true; rxBuf = ""; inRaw = false;
   readLoop(); setConn(true);
-  await send("\x03\x03"); await sleep(200); await send("\x02");
-  toast("已連線");
+  await sleep(300);
+  await send("\x03"); await sleep(150); await send("\x03"); await sleep(300);
+  await send("\r\n");
+  toast("已連線，若無回應請看「終端」分頁");
 }
 async function cleanup(){
   const p = port; port = null; inRaw = false;
@@ -299,15 +304,30 @@ function needConn(){
   return true;
 }
 
+function showable(s){
+  return s.replace(/\x04/g, "<EOT>").replace(/\r/g, "").slice(-300);
+}
+
+/* 進入 Raw REPL：自動重試 3 次 */
 async function enterRaw(){
   passthru = false;
-  await send("\x03\x03"); await sleep(250); rxBuf = "";
-  await send("\x01");
-  if (!await waitFor("raw REPL; CTRL-B to exit\r\n>", 2500)) {
-    passthru = true;
-    throw new Error("無法進入 Raw REPL，板子是否已燒錄 MicroPython？");
+  let lastRx = "";
+  for (let i = 0; i < 3; i++) {
+    await send("\x03"); await sleep(120);
+    await send("\x03"); await sleep(400);
+    rxBuf = "";
+    await send("\x01");
+    if (await waitFor("raw REPL", 2500)) {
+      await sleep(150);
+      inRaw = true;
+      return;
+    }
+    lastRx = rxBuf;
+    await send("\x02"); await sleep(400);
   }
-  inRaw = true;
+  passthru = true;
+  termWrite("\n⚠️ 無法進入 Raw REPL，板子最後回傳：\n" + (showable(lastRx) || "（完全沒有資料）") + "\n");
+  throw new Error("無法進入 Raw REPL，請看「終端」分頁；若無回傳請重新插拔 USB（不要按 BOOT）");
 }
 async function sendCode(code){
   const b = enc.encode(code);
@@ -317,7 +337,11 @@ async function sendCode(code){
   }
   rxBuf = "";
   await send("\x04");
-  if (!await waitFor("OK", 3000)) { passthru = true; throw new Error("板子沒有回應"); }
+  if (!await waitFor("OK", 4000)) {
+    passthru = true;
+    termWrite("\n⚠️ 送出程式後沒有收到 OK，回傳：\n" + showable(rxBuf) + "\n");
+    throw new Error("板子沒有回應");
+  }
 }
 
 /* ========== 積木 ========== */
@@ -564,11 +588,11 @@ $("btnNew").onclick = () => {
 $("btnRun").onclick = async () => {
   if (!ws || !needConn()) return;
   try {
+    toast("正在傳送程式…");
     await enterRaw();
     await sendCode(getCode());
-    termWrite("\n▶ 開始執行\n");
-    termWrite(rxBuf.slice(rxBuf.indexOf("OK") + 2));
     passthru = true;
+    termWrite("\n▶ 開始執行\n");
     toast("執行中");
   } catch(e) {
     toast(e.message);
@@ -577,13 +601,14 @@ $("btnRun").onclick = async () => {
 $("btnStop").onclick = async () => {
   if (!needConn()) return;
   passthru = true;
-  await send("\x03\x03"); await sleep(150); await send("\x02");
+  await send("\x03"); await sleep(120); await send("\x03"); await sleep(200); await send("\x02");
   inRaw = false;
   termWrite("\n■ 已停止\n"); toast("已停止");
 };
 $("btnSave").onclick = async () => {
   if (!ws || !needConn()) return;
   try {
+    toast("正在儲存…");
     await enterRaw();
     const py = "f=open('main.py','w')\nf.write(" + JSON.stringify(getCode()) + ")\nf.close()\n";
     await sendCode(py);
@@ -597,7 +622,7 @@ $("btnSave").onclick = async () => {
     if (!m) throw new Error("儲存逾時");
     if (m[2].trim()) throw new Error("儲存失敗：" + m[2].trim().split("\n").pop());
     passthru = true;
-    await send("\x02"); await sleep(100); await send("\x04");
+    await send("\x02"); await sleep(150); await send("\x04");
     inRaw = false;
     termWrite("\n💾 已存成 main.py，重新啟動執行\n");
     toast("已儲存，開機會自動執行");
@@ -610,7 +635,7 @@ $("btnSave").onclick = async () => {
 async function termSend(){
   if (!needConn()) return;
   const v = $("tline").value; $("tline").value = "";
-  if (inRaw) { await send("\x03\x02"); inRaw = false; await sleep(200); }
+  if (inRaw) { await send("\x03\x02"); inRaw = false; await sleep(250); }
   passthru = true;
   await send(v + "\r\n");
 }
@@ -642,7 +667,6 @@ $("fw").onchange = async e => {
   $("fstat").textContent = "已就緒：" + f.name + "（" + (fwBytes.length / 1048576).toFixed(2) + " MB）";
 };
 
-/* 依序嘗試多個來源載入 esptool-js（官方預先打包版，內含 C3 stub） */
 let esptoolMod = null;
 async function loadEsptool(){
   if (esptoolMod) return esptoolMod;
@@ -698,7 +722,7 @@ $("btnFlash").onclick = async () => {
     });
     $("prog").style.width = "100%";
     try { await loader.after("hard_reset"); } catch(e) {}
-    $("fstat").textContent = "✅ 燒錄完成！請拔插 USB 一次，然後按右上角「連線板子」。";
+    $("fstat").textContent = "✅ 燒錄完成！請拔掉 USB（不要按 BOOT）重新插上，等 10 秒後按右上角「連線板子」。";
     toast("燒錄完成");
   } catch(e) {
     $("fstat").textContent = "❌ " + e.message + "（可按住 BOOT 再插 USB 後重試）";
