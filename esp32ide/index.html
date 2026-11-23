@@ -58,6 +58,7 @@
   .tin input{flex:1;padding:10px;border-radius:10px;border:1px solid var(--line);font:14px ui-monospace,monospace}
   #toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#0f172acc;color:#fff;padding:10px 18px;border-radius:99px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .25s;z-index:99;max-width:90%;text-align:center}
   #toast.show{opacity:1}
+  #flog{background:#020617;color:#a5f3fc;font:12px/1.5 ui-monospace,monospace;padding:10px;border-radius:12px;height:150px;overflow:auto;white-space:pre-wrap;margin-top:12px}
 </style>
 </head>
 <body>
@@ -82,6 +83,7 @@
         <div class="row"><button id="btnFlash">🔥 連接並開始燒錄</button></div>
         <div class="bar"><div id="prog"></div></div>
         <p id="fstat">尚未選擇韌體</p>
+        <div id="flog"></div>
       </div>
       <div class="card">
         <h3>連線不上？</h3>
@@ -155,7 +157,7 @@ function toast(m){
 if ("serviceWorker" in navigator) {
   try {
     const sw = [
-      "const C='c3-blocks-v2';",
+      "const C='c3-blocks-v3';",
       "self.addEventListener('install',()=>self.skipWaiting());",
       "self.addEventListener('activate',e=>e.waitUntil(clients.claim()));",
       "self.addEventListener('fetch',e=>{",
@@ -622,7 +624,10 @@ $("tCd").onclick = async () => {
 };
 
 /* ========== 燒錄 ========== */
-let fwData = null;
+let fwBytes = null;
+function flog(s){
+  const l = $("flog"); l.textContent += s + "\n"; l.scrollTop = l.scrollHeight;
+}
 function bin2str(u8){
   let s = "";
   for (let i = 0; i < u8.length; i += 0x8000) {
@@ -633,30 +638,60 @@ function bin2str(u8){
 $("fw").onchange = async e => {
   const f = e.target.files[0];
   if (!f) return;
-  const u8 = new Uint8Array(await f.arrayBuffer());
-  fwData = bin2str(u8);
-  $("fstat").textContent = "已就緒：" + f.name + "（" + (u8.length / 1048576).toFixed(2) + " MB）";
+  fwBytes = new Uint8Array(await f.arrayBuffer());
+  $("fstat").textContent = "已就緒：" + f.name + "（" + (fwBytes.length / 1048576).toFixed(2) + " MB）";
 };
 
+/* 依序嘗試多個來源載入 esptool-js（官方預先打包版，內含 C3 stub） */
+let esptoolMod = null;
+async function loadEsptool(){
+  if (esptoolMod) return esptoolMod;
+  const list = [
+    {u: "https://unpkg.com/esptool-js@0.4.7/bundle.js", str: true},
+    {u: "https://cdn.jsdelivr.net/npm/esptool-js@0.4.7/bundle.js", str: true},
+    {u: "https://unpkg.com/esptool-js@0.5.4/bundle.js", str: false},
+    {u: "https://cdn.jsdelivr.net/npm/esptool-js@0.5.4/bundle.js", str: false}
+  ];
+  for (const it of list) {
+    try {
+      flog("嘗試載入：" + it.u);
+      const m = await import(it.u);
+      if (m.ESPLoader && m.Transport) {
+        esptoolMod = {ESPLoader: m.ESPLoader, Transport: m.Transport, str: it.str};
+        flog("✅ 載入成功");
+        return esptoolMod;
+      }
+      flog("⚠️ 模組內容不完整");
+    } catch(e) {
+      flog("❌ " + e.message);
+    }
+  }
+  throw new Error("無法載入燒錄工具，請檢查網路是否能連到 unpkg.com 或 cdn.jsdelivr.net");
+}
+
 $("btnFlash").onclick = async () => {
-  if (!fwData) return toast("請先選擇韌體 .bin");
+  if (!fwBytes) return toast("請先選擇韌體 .bin");
   if (port) await cleanup();
   const btn = $("btnFlash"); btn.disabled = true;
+  $("flog").textContent = "";
+  $("prog").style.width = "0%";
   let transport = null;
   try {
     $("fstat").textContent = "載入燒錄工具…";
-    const mod = await import("https://esm.sh/esptool-js@0.5.4");
+    const mod = await loadEsptool();
+    $("fstat").textContent = "請在跳出的視窗選擇裝置…";
     const p = await pickPort();
     transport = new mod.Transport(p, true);
     const loader = new mod.ESPLoader({
       transport: transport, baudrate: 460800, romBaudrate: 115200,
-      terminal: {clean(){}, writeLine: l => termWrite(l + "\n"), write: s => termWrite(s)}
+      terminal: {clean(){}, writeLine: l => flog(l), write: s => flog(s)}
     });
     $("fstat").textContent = "連線中…";
     const chip = await loader.main();
     $("fstat").textContent = "已連線：" + chip + "，燒錄中…";
+    const data = mod.str ? bin2str(fwBytes) : fwBytes;
     await loader.writeFlash({
-      fileArray: [{data: fwData, address: 0x0}],
+      fileArray: [{data: data, address: 0x0}],
       flashSize: "keep", flashMode: "keep", flashFreq: "keep",
       eraseAll: $("erase").checked, compress: true,
       reportProgress: (i, w, t) => { $("prog").style.width = (w / t * 100) + "%"; }
@@ -667,6 +702,7 @@ $("btnFlash").onclick = async () => {
     toast("燒錄完成");
   } catch(e) {
     $("fstat").textContent = "❌ " + e.message + "（可按住 BOOT 再插 USB 後重試）";
+    flog("錯誤：" + e.message);
   } finally {
     try { await transport?.disconnect(); } catch(e) {}
     btn.disabled = false;
