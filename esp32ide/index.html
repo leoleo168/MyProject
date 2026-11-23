@@ -16,6 +16,8 @@
     display:flex;flex-direction:column;padding:env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);height:100dvh}
   header{background:var(--pri);color:#fff;padding:10px 14px;display:flex;align-items:center;gap:10px;box-shadow:0 2px 10px #0003;z-index:5}
   header h1{font-size:16px;margin:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ver{font-size:11px;font-weight:400;opacity:.75;margin-left:6px}
+  .verCard{text-align:center;font-size:12px;color:var(--sub);padding:6px 0 18px}
   .dot{width:10px;height:10px;border-radius:50%;background:#fca5a5;flex:none}
   .dot.on{background:#86efac;box-shadow:0 0 8px #86efac}
   button{font:inherit;border:0;border-radius:12px;padding:10px 14px;font-weight:600;background:var(--pri);color:#fff;transition:transform .08s,opacity .2s;cursor:pointer}
@@ -65,7 +67,7 @@
 <body>
 <header>
   <span class="dot" id="dot"></span>
-  <h1>⚡ ESP32-C3 積木編程</h1>
+  <h1>⚡ ESP32-C3 積木編程<span class="ver" id="verTag"></span></h1>
   <button class="sm" id="btnConn">連線板子</button>
 </header>
 <button id="install">📲 安裝為手機 App</button>
@@ -95,6 +97,7 @@
         <p>燒錄時才需要按住 <b>BOOT</b> 再插 USB。手機請用 OTG 線與 <b>Android Chrome</b>；電腦請用 Chrome 或 Edge。</p>
         <p>請先按右上角「中斷連線」，並關閉其他占用序列埠的程式（Arduino、Thonny 等）。</p>
       </div>
+      <div class="verCard" id="verFoot"></div>
     </div>
   </section>
 
@@ -141,6 +144,9 @@
 const $ = id => document.getElementById(id);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const enc = new TextEncoder();
+const APP_VERSION = "1.1", APP_DATE = "2026-11-23";
+$("verTag").textContent = "v" + APP_VERSION;
+$("verFoot").textContent = "ESP32-C3 積木編程 v" + APP_VERSION + "（" + APP_DATE + "）";
 function toast(m){
   const t = $("toast"); t.textContent = m; t.classList.add("show");
   clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove("show"), 3500);
@@ -163,7 +169,7 @@ function toast(m){
 if ("serviceWorker" in navigator) {
   try {
     const sw = [
-      "const C='c3-blocks-v7';",
+      "const C='c3-blocks-v8';",
       "self.addEventListener('install',()=>self.skipWaiting());",
       "self.addEventListener('activate',e=>e.waitUntil(clients.claim()));",
       "self.addEventListener('fetch',e=>{",
