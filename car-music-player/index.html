@@ -11,6 +11,7 @@
 <title>車用音樂播放器</title>
 <link rel="manifest" id="manifestLink" href="">
 <link rel="apple-touch-icon" id="appleIcon" href="">
+<link rel="icon" id="favIcon" href="">
 <style>
 :root{--bg:#0f1115;--card:#1a1d24;--card2:#242832;--text:#f2f4f8;--sub:#8b93a3;--accent:#4f8cff;--ok:#31c48d;--warn:#f5a623}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
@@ -55,7 +56,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;heigh
 .bar{display:flex;gap:8px;margin-bottom:8px}
 .bar button,.bar label{flex:1;background:var(--card);color:var(--text);padding:12px 6px;border-radius:14px;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
 .bar svg{width:20px;height:20px}
-/* 常亮按鈕狀態 */
 #wlBtn.on{background:#173a2e;color:var(--ok)}
 #wlBtn.wait{background:#3d2f12;color:var(--warn)}
 #wlBtn.off{background:var(--card);color:var(--sub)}
@@ -143,18 +143,90 @@ const I={
   set('addLabel',I.plus,true);set('wlBtn',I.sun,true);set('clearBtn',I.trash,true);
 })();
 
+/* ========== App 圖示（用 Canvas 即時繪製 PNG，iOS / Android 都相容）========== */
+function drawIcon(size){
+  const c=document.createElement('canvas');c.width=c.height=size;
+  const g=c.getContext('2d');
+  const s=size,cx=s/2,cy=s/2;
+
+  // 背景：深藍漸層 + 中心藍色光暈（滿版方形，系統會自動套圓角）
+  let bg=g.createLinearGradient(0,0,s,s);
+  bg.addColorStop(0,'#1c2b63');bg.addColorStop(.55,'#101733');bg.addColorStop(1,'#070a16');
+  g.fillStyle=bg;g.fillRect(0,0,s,s);
+  let glow=g.createRadialGradient(cx,cy,s*.1,cx,cy,s*.62);
+  glow.addColorStop(0,'rgba(79,140,255,.55)');glow.addColorStop(1,'rgba(79,140,255,0)');
+  g.fillStyle=glow;g.fillRect(0,0,s,s);
+
+  // 黑膠唱片（半徑 0.37，維持在 maskable 安全區內）
+  const R=s*.37;
+  g.save();
+  g.shadowColor='rgba(0,0,0,.55)';g.shadowBlur=s*.04;g.shadowOffsetY=s*.015;
+  g.beginPath();g.arc(cx,cy,R,0,Math.PI*2);
+  let dg=g.createRadialGradient(cx-R*.3,cy-R*.3,R*.1,cx,cy,R);
+  dg.addColorStop(0,'#2a2f3d');dg.addColorStop(1,'#0b0d14');
+  g.fillStyle=dg;g.fill();
+  g.restore();
+
+  // 唱片紋路
+  g.lineWidth=Math.max(1,s*.004);
+  for(let r=R*.5;r<R*.97;r+=R*.07){
+    g.beginPath();g.arc(cx,cy,r,0,Math.PI*2);
+    g.strokeStyle='rgba(255,255,255,'+(.05+((r/R*100)%3)*.015)+')';g.stroke();
+  }
+
+  // 反光扇形
+  try{
+    const cg=g.createConicGradient(-0.6,cx,cy);
+    cg.addColorStop(0,'rgba(255,255,255,0)');cg.addColorStop(.06,'rgba(120,170,255,.38)');
+    cg.addColorStop(.12,'rgba(255,255,255,0)');cg.addColorStop(.5,'rgba(255,255,255,0)');
+    cg.addColorStop(.56,'rgba(120,170,255,.3)');cg.addColorStop(.62,'rgba(255,255,255,0)');cg.addColorStop(1,'rgba(255,255,255,0)');
+    g.save();g.beginPath();g.arc(cx,cy,R,0,Math.PI*2);g.clip();
+    g.fillStyle=cg;g.fillRect(0,0,s,s);g.restore();
+  }catch(e){}
+
+  // 中央標籤
+  const L=R*.56;
+  g.save();
+  g.shadowColor='rgba(79,140,255,.7)';g.shadowBlur=s*.04;
+  g.beginPath();g.arc(cx,cy,L,0,Math.PI*2);
+  let lg=g.createLinearGradient(cx-L,cy-L,cx+L,cy+L);
+  lg.addColorStop(0,'#8cb8ff');lg.addColorStop(1,'#3866e8');
+  g.fillStyle=lg;g.fill();
+  g.restore();
+
+  // 音符（白色八分音符）
+  const u=L*.5;
+  g.fillStyle='#fff';
+  g.beginPath();g.ellipse(cx-u*.55,cy+u*.85,u*.62,u*.46,-.4,0,Math.PI*2);g.fill();
+  const sx=cx-u*.55+u*.52, top=cy-u*.95, bot=cy+u*.75;
+  g.fillRect(sx-u*.12,top,u*.24,bot-top);
+  g.beginPath();
+  g.moveTo(sx+u*.12,top);
+  g.bezierCurveTo(sx+u*.7,top+u*.15,sx+u*1.15,top+u*.55,sx+u*.95,top+u*1.2);
+  g.bezierCurveTo(sx+u*.9,top+u*.8,sx+u*.55,top+u*.55,sx+u*.12,top+u*.55);
+  g.closePath();g.fill();
+
+  return c.toDataURL('image/png');
+}
+
 /* ========== PWA：Manifest（Data URL）========== */
 (function(){
-  const s=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="110" fill="#0f1115"/><circle cx="256" cy="256" r="170" fill="#4f8cff"/><circle cx="256" cy="256" r="48" fill="#0f1115"/></svg>`;
-  const icon="data:image/svg+xml,"+encodeURIComponent(s);
+  let i192,i512,i180;
+  try{i192=drawIcon(192);i512=drawIcon(512);i180=drawIcon(180)}catch(e){}
+  if(i512){
+    $('appleIcon').href=i180;
+    $('favIcon').href=i192;
+  }
   const manifest={
     name:"車用音樂播放器",short_name:"車用音樂",display:"standalone",
     background_color:"#0f1115",theme_color:"#0f1115",start_url:".",orientation:"any",
-    icons:[{src:icon,sizes:"any",type:"image/svg+xml",purpose:"any"},
-           {src:icon,sizes:"512x512",type:"image/svg+xml",purpose:"maskable"}]
+    icons:i512?[
+      {src:i192,sizes:"192x192",type:"image/png",purpose:"any"},
+      {src:i512,sizes:"512x512",type:"image/png",purpose:"any"},
+      {src:i512,sizes:"512x512",type:"image/png",purpose:"maskable"}
+    ]:[]
   };
   $('manifestLink').href="data:application/manifest+json,"+encodeURIComponent(JSON.stringify(manifest));
-  $('appleIcon').href=icon;
 })();
 
 /* ========== PWA：Service Worker（Blob URL）========== */
