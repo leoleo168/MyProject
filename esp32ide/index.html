@@ -179,12 +179,18 @@ const enc = new TextEncoder();
 
 /* ========== 版本與更新紀錄 ==========
    新增版本時：在 CHANGELOG 最上面加一筆，並把 APP_VERSION 改成新版號 */
-const APP_VERSION = "1.5";
+const APP_VERSION = "1.5.1";
 const CHANGELOG = [
+  {
+    v: "1.5.1", date: "2026-11-23", title: "類別名稱簡化",
+    items: [
+      "左側類別「主程式」「函式」「序列輸出」移除前面的圖示，畫面更整齊"
+    ]
+  },
   {
     v: "1.5", date: "2026-11-23", title: "序列輸出積木",
     items: [
-      "新增「📟 序列輸出」類別：可選擇換行或不換行",
+      "新增「序列輸出」類別：可選擇換行或不換行",
       "新增「文字＋數值」組合積木，方便印出像「光線: 1234」的內容",
       "輸出會顯示在「終端」分頁",
       "修正執行後最前面的 print 輸出偶爾不會顯示的問題"
@@ -209,7 +215,7 @@ const CHANGELOG = [
   {
     v: "1.2", date: "2026-11-23", title: "副函式積木",
     items: [
-      "新增「⭐ 函式」類別，可自訂副函式並快速呼叫",
+      "新增「函式」類別，可自訂副函式並快速呼叫",
       "支援只做事情的函式，以及會回傳數值的函式",
       "函式可加入參數",
       "轉出的 Python 會把函式放在主程式前面"
@@ -284,7 +290,7 @@ function toast(m){
 if ("serviceWorker" in navigator) {
   try {
     const sw = [
-      "const C='c3-blocks-v12';",
+      "const C='c3-blocks-v13';",
       "self.addEventListener('install',()=>self.skipWaiting());",
       "self.addEventListener('activate',e=>e.waitUntil(clients.claim()));",
       "self.addEventListener('fetch',e=>{",
@@ -619,10 +625,10 @@ function makeToolbox(){
   return {
     kind: "categoryToolbox",
     contents: [
-      {kind: "category", name: "🚩 主程式", colour: 45, contents: [
+      {kind: "category", name: "主程式", colour: 45, contents: [
         {kind: "block", type: "c3_main"}
       ]},
-      {kind: "category", name: "⭐ 函式", colour: 290, custom: "PROCEDURE"},
+      {kind: "category", name: "函式", colour: 290, custom: "PROCEDURE"},
       {kind: "category", name: "輸出入", colour: 200, contents: [
         {kind: "block", type: "c3_pin_out"},
         {kind: "block", type: "c3_pin_in"},
@@ -630,7 +636,7 @@ function makeToolbox(){
         {kind: "block", type: "c3_adc"},
         {kind: "block", type: "c3_pwm", inputs: {DUTY: numShadow(50)}}
       ]},
-      {kind: "category", name: "📟 序列輸出", colour: 175, contents: [
+      {kind: "category", name: "序列輸出", colour: 175, contents: [
         {kind: "block", type: "c3_print", inputs: {TEXT: txtShadow("Hello ESP32-C3")}},
         /* 文字＋數值：序列輸出 ⟵ 建立文字(「光線: 」, 讀取類比腳位) */
         {kind: "block", type: "c3_print", inputs: {
