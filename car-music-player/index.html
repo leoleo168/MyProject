@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0f1115">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="車用音樂">
+<title>車用音樂播放器</title>
+<link rel="manifest" id="manifestLink" href="">
+<link rel="apple-touch-icon" id="appleIcon" href="">
+<style>
+:root{--bg:#0f1115;--card:#1a1d24;--card2:#242832;--text:#f2f4f8;--sub:#8b93a3;--accent:#4f8cff;--ok:#31c48d;--warn:#f5a623}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC","PingFang TC",sans-serif;overflow:hidden}
+#app{height:100%;display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top) + 10px) 14px calc(env(safe-area-inset-bottom) + 12px)}
+svg{fill:currentColor;display:block}
+.top{display:flex;justify-content:flex-end;margin-bottom:0}
+.top.show{margin-bottom:8px}
+button{font:inherit;color:inherit;border:0;cursor:pointer;transition:transform .08s,background .15s,color .15s}
+button:active{transform:scale(.93)}
+#installBtn{display:none;background:var(--accent);color:#fff;padding:8px 14px;border-radius:20px;font-size:14px;font-weight:600;box-shadow:0 4px 14px rgba(79,140,255,.4)}
+
+.now{background:linear-gradient(160deg,#1f2430,#161920);border-radius:24px;padding:18px;box-shadow:0 8px 24px rgba(0,0,0,.4);text-align:center;touch-action:pan-y;overflow:hidden}
+.swipeArea{transition:transform .22s ease,opacity .22s ease}
+.swipeArea.outL{transform:translateX(-60%);opacity:0}
+.swipeArea.outR{transform:translateX(60%);opacity:0}
+.swipeArea.inL{animation:inL .25s ease}
+.swipeArea.inR{animation:inR .25s ease}
+@keyframes inL{from{transform:translateX(60%);opacity:0}to{transform:none;opacity:1}}
+@keyframes inR{from{transform:translateX(-60%);opacity:0}to{transform:none;opacity:1}}
+.disc{width:min(34vh,200px);aspect-ratio:1;margin:4px auto 12px;border-radius:50%;background:conic-gradient(from 0deg,#2b3140,#4f8cff,#2b3140,#1a1d24,#2b3140);display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:0 8px 24px rgba(79,140,255,.25)}
+.disc svg{width:36%;height:36%;opacity:.95}
+.disc.spin{animation:spin 8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#title{font-size:20px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#sub{font-size:13px;color:var(--sub);margin-top:4px}
+.hint{font-size:11px;color:#5d6676;margin-top:8px}
+.seek{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;color:var(--sub)}
+input[type=range]{-webkit-appearance:none;appearance:none;flex:1;height:8px;border-radius:8px;background:var(--card2);outline:none;margin:0}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;height:26px;border-radius:50%;background:var(--accent);box-shadow:0 2px 8px rgba(0,0,0,.5)}
+
+.ctrl{display:flex;align-items:center;justify-content:space-around;margin:14px 0 8px}
+.ctrl button{background:var(--card2);color:var(--text);border-radius:50%;width:68px;height:68px;padding:0;display:flex;align-items:center;justify-content:center}
+.ctrl button svg{width:34px;height:34px}
+.ctrl button.big{width:92px;height:92px;background:var(--accent);color:#fff;box-shadow:0 6px 20px rgba(79,140,255,.45)}
+.ctrl button.big svg{width:48px;height:48px}
+.ctrl button.on{color:var(--accent);background:#25324f}
+.ctrl button.sm svg{width:30px;height:30px}
+
+.vol{display:flex;align-items:center;gap:10px;margin-bottom:8px;color:var(--sub)}
+.vol svg{width:24px;height:24px}
+.bar{display:flex;gap:8px;margin-bottom:8px}
+.bar button,.bar label{flex:1;background:var(--card);color:var(--text);padding:12px 6px;border-radius:14px;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
+.bar svg{width:20px;height:20px}
+/* 常亮按鈕狀態 */
+#wlBtn.on{background:#173a2e;color:var(--ok)}
+#wlBtn.wait{background:#3d2f12;color:var(--warn)}
+#wlBtn.off{background:var(--card);color:var(--sub)}
+
+#list{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;background:var(--card);border-radius:18px;padding:6px}
+.item{display:flex;align-items:center;gap:10px;padding:14px 12px;border-radius:12px;font-size:16px}
+.item svg{width:20px;height:20px;flex:none;color:var(--sub)}
+.item.cur{background:#25324f;color:var(--accent)}
+.item.cur svg{color:var(--accent)}
+.item .n{flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.item .x{background:none;color:var(--sub);padding:4px 8px;display:flex}
+.item .x svg{width:20px;height:20px}
+.empty{color:var(--sub);text-align:center;padding:30px 10px;line-height:1.7}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="top" id="topBar">
+    <button id="installBtn">安裝為手機 App</button>
+  </div>
+
+  <div class="now" id="nowCard">
+    <div class="swipeArea" id="swipeArea">
+      <div class="disc" id="disc"></div>
+      <div id="title">尚未選擇歌曲</div>
+      <div id="sub">請點「加入音樂」選取手機內的歌曲</div>
+    </div>
+    <div class="hint">← 左右滑動唱盤切換歌曲 →</div>
+    <div class="seek">
+      <span id="cur">0:00</span>
+      <input type="range" id="seek" min="0" max="1000" value="0">
+      <span id="dur">0:00</span>
+    </div>
+  </div>
+
+  <div class="ctrl">
+    <button id="modeBtn" class="sm" title="播放模式"></button>
+    <button id="prevBtn" title="上一首"></button>
+    <button id="playBtn" class="big" title="播放/暫停"></button>
+    <button id="nextBtn" title="下一首"></button>
+    <button id="shufBtn" class="sm" title="隨機"></button>
+  </div>
+
+  <div class="vol"><span id="volLo"></span><input type="range" id="vol" min="0" max="100" value="80"><span id="volHi"></span></div>
+
+  <div class="bar">
+    <label id="addLabel"><input type="file" id="file" accept="audio/*,.mp3,.m4a,.aac,.flac,.wav,.ogg" multiple hidden><span>加入音樂</span></label>
+    <button id="wlBtn" class="off"><span id="wlText">常亮：關</span></button>
+    <button id="clearBtn"><span>清空</span></button>
+  </div>
+
+  <div id="list"></div>
+</div>
+
+<audio id="audio" preload="auto" playsinline></audio>
+<video id="nosleep" muted loop playsinline style="position:fixed;width:1px;height:1px;opacity:.01;pointer-events:none;left:0;top:0"></video>
+<canvas id="nsCanvas" width="2" height="2" style="display:none"></canvas>
+
+<script>
+const $=id=>document.getElementById(id);
+
+/* ========== 統一 SVG 圖示 ========== */
+const svg=(p,vb='0 0 24 24')=>`<svg viewBox="${vb}"><path d="${p}"/></svg>`;
+const I={
+  prev:svg('M6 5h2.5v14H6zM20 5v14L9.5 12z'),
+  next:svg('M15.5 5H18v14h-2.5zM4 5v14l10.5-7z'),
+  play:svg('M7 4.5v15l13-7.5z'),
+  pause:svg('M6 5h4v14H6zM14 5h4v14h-4z'),
+  repeat:svg('M7 7h10v3l4-4-4-4v3H5v6h2zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2z'),
+  repeatOne:svg('M7 7h10v3l4-4-4-4v3H5v6h2zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2zm-4-2V9h-1l-2 1v1h1.5v4z'),
+  seq:svg('M4 11h12.2l-3.6-3.6L14 6l6 6-6 6-1.4-1.4 3.6-3.6H4z'),
+  shuffle:svg('M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z'),
+  note:svg('M12 3v10.55A4 4 0 1 0 14 17V7h4V3z'),
+  plus:svg('M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z'),
+  sun:svg('M12 7a5 5 0 100 10 5 5 0 000-10zM11 1h2v3h-2zM11 20h2v3h-2zM1 11h3v2H1zM20 11h3v2h-3zM4.2 5.6l1.4-1.4 2.1 2.1-1.4 1.4zM16.3 17.7l1.4-1.4 2.1 2.1-1.4 1.4zM4.2 18.4l2.1-2.1 1.4 1.4-2.1 2.1zM16.3 6.3l2.1-2.1 1.4 1.4-2.1 2.1z'),
+  trash:svg('M6 19a2 2 0 002 2h8a2 2 0 002-2V7H6zM19 4h-3.5l-1-1h-5l-1 1H5v2h14z'),
+  close:svg('M19 6.4L17.6 5 12 10.6 6.4 5 5 6.4 10.6 12 5 17.6 6.4 19 12 13.4 17.6 19 19 17.6 13.4 12z'),
+  volLo:svg('M3 9v6h4l5 5V4L7 9z'),
+  volHi:svg('M3 9v6h4l5 5V4L7 9zm13.5 3A4.5 4.5 0 0014 8v8a4.5 4.5 0 002.5-4zM14 3.2v2.1a7 7 0 010 13.4v2.1a9 9 0 000-17.6z')
+};
+(function(){
+  const set=(id,h,prepend)=>{const e=$(id);prepend?e.insertAdjacentHTML('afterbegin',h):e.innerHTML=h};
+  set('prevBtn',I.prev);set('nextBtn',I.next);set('shufBtn',I.shuffle);
+  set('volLo',I.volLo);set('volHi',I.volHi);set('disc',I.note);
+  set('addLabel',I.plus,true);set('wlBtn',I.sun,true);set('clearBtn',I.trash,true);
+})();
+
+/* ========== PWA：Manifest（Data URL）========== */
+(function(){
+  const s=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="110" fill="#0f1115"/><circle cx="256" cy="256" r="170" fill="#4f8cff"/><circle cx="256" cy="256" r="48" fill="#0f1115"/></svg>`;
+  const icon="data:image/svg+xml,"+encodeURIComponent(s);
+  const manifest={
+    name:"車用音樂播放器",short_name:"車用音樂",display:"standalone",
+    background_color:"#0f1115",theme_color:"#0f1115",start_url:".",orientation:"any",
+    icons:[{src:icon,sizes:"any",type:"image/svg+xml",purpose:"any"},
+           {src:icon,sizes:"512x512",type:"image/svg+xml",purpose:"maskable"}]
+  };
+  $('manifestLink').href="data:application/manifest+json,"+encodeURIComponent(JSON.stringify(manifest));
+  $('appleIcon').href=icon;
+})();
+
+/* ========== PWA：Service Worker（Blob URL）========== */
+if('serviceWorker' in navigator){
+  try{
+    const swCode=`
+      const C='car-music-v1';
+      self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(C).then(c=>c.add(self.registration.scope).catch(()=>{})))});
+      self.addEventListener('activate',e=>e.waitUntil(clients.claim()));
+      self.addEventListener('fetch',e=>{
+        if(e.request.method!=='GET')return;
+        e.respondWith(fetch(e.request).then(r=>{const cp=r.clone();caches.open(C).then(c=>c.put(e.request,cp)).catch(()=>{});return r})
+          .catch(()=>caches.match(e.request).then(m=>m||caches.match(self.registration.scope))));
+      });`;
+    navigator.serviceWorker.register(URL.createObjectURL(new Blob([swCode],{type:'text/javascript'}))).catch(()=>{});
+  }catch(e){}
+}
+
+/* ========== 安裝提示 ========== */
+let deferredPrompt=null;
+const installBtn=$('installBtn');
+const showInstall=v=>{installBtn.style.display=v?'block':'none';$('topBar').classList.toggle('show',v)};
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;showInstall(true)});
+installBtn.onclick=async()=>{if(!deferredPrompt)return;deferredPrompt.prompt();await deferredPrompt.userChoice;deferredPrompt=null;showInstall(false)};
+window.addEventListener('appinstalled',()=>showInstall(false));
+
+/* ========== 儲存 ========== */
+const DB={
+  db:null,
+  open(){return new Promise((res,rej)=>{const r=indexedDB.open('carMusicDB',1);
+    r.onupgradeneeded=()=>r.result.createObjectStore('tracks',{keyPath:'id',autoIncrement:true});
+    r.onsuccess=()=>{this.db=r.result;res()};r.onerror=()=>rej(r.error)})},
+  all(){return new Promise(res=>{const q=this.db.transaction('tracks').objectStore('tracks').getAll();q.onsuccess=()=>res(q.result||[]);q.onerror=()=>res([])})},
+  add(t){return new Promise(res=>{const q=this.db.transaction('tracks','readwrite').objectStore('tracks').add(t);q.onsuccess=()=>res(q.result);q.onerror=()=>res(null)})},
+  del(id){return new Promise(res=>{const tx=this.db.transaction('tracks','readwrite');tx.objectStore('tracks').delete(id);tx.oncomplete=res})},
+  clear(){return new Promise(res=>{const tx=this.db.transaction('tracks','readwrite');tx.objectStore('tracks').clear();tx.oncomplete=res})}
+};
+const S=Object.assign({vol:80,mode:0,shuffle:false,lastId:null,wake:true},JSON.parse(localStorage.getItem('carMusicSettings')||'{}'));
+const save=()=>localStorage.setItem('carMusicSettings',JSON.stringify(S));
+
+/* ========== 元素 ========== */
+const audio=$('audio'),playBtn=$('playBtn'),seek=$('seek'),list=$('list');
+let tracks=[],idx=-1,curUrl=null,seeking=false;
+const MODE_ICONS=[I.repeat,I.repeatOne,I.seq];
+const MODE_NAMES=['列表循環','單曲循環','順序播放'];
+const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')};
+const cleanName=n=>n.replace(/\.[^.]+$/,'');
+
+/* ========== 清單 ========== */
+function render(){
+  if(!tracks.length){list.innerHTML='<div class="empty">還沒有歌曲<br>點上方「加入音樂」選取手機內的音樂<br>歌曲會保存在 App 內，下次開啟不需重選</div>';return}
+  list.innerHTML='';
+  tracks.forEach((t,i)=>{
+    const d=document.createElement('div');d.className='item'+(i===idx?' cur':'');
+    d.innerHTML=`${i===idx?I.volHi:I.note}<span class="n"></span><button class="x">${I.close}</button>`;
+    d.querySelector('.n').textContent=cleanName(t.name);
+    d.onclick=()=>play(i);
+    d.querySelector('.x').onclick=async e=>{e.stopPropagation();await removeTrack(i)};
+    list.appendChild(d);
+  });
+  const c=list.querySelector('.cur');if(c)c.scrollIntoView({block:'nearest'});
+}
+async function removeTrack(i){
+  const wasCur=i===idx;
+  await DB.del(tracks[i].id);
+  tracks.splice(i,1);
+  if(wasCur){audio.pause();audio.removeAttribute('src');idx=-1;updateUI()}
+  else if(i<idx)idx--;
+  render();
+}
+
+/* ========== 播放 ========== */
+function play(i,autoplay=true){
+  if(i<0||i>=tracks.length)return;
+  idx=i;const t=tracks[i];
+  if(curUrl)URL.revokeObjectURL(curUrl);
+  curUrl=URL.createObjectURL(t.blob);
+  audio.src=curUrl;
+  S.lastId=t.id;save();
+  if(autoplay)audio.play().catch(()=>{});
+  updateUI();render();setMeta();
+  if(autoplay)enableWake();
+}
+function next(auto){
+  if(!tracks.length)return;
+  let n;
+  if(S.shuffle&&tracks.length>1){do{n=Math.floor(Math.random()*tracks.length)}while(n===idx)}
+  else{n=idx+1;if(n>=tracks.length){if(S.mode===2&&auto){audio.pause();return}n=0}}
+  play(n);
+}
+function prev(){
+  if(!tracks.length)return;
+  if(audio.currentTime>3){audio.currentTime=0;return}
+  play((idx-1+tracks.length)%tracks.length);
+}
+function toggle(){
+  if(idx<0){if(tracks.length)play(0);return}
+  audio.paused?audio.play().catch(()=>{}):audio.pause();
+  enableWake();
+}
+function updateUI(){
+  const t=tracks[idx];
+  $('title').textContent=t?cleanName(t.name):'尚未選擇歌曲';
+  $('sub').textContent=t?`第 ${idx+1} / ${tracks.length} 首　｜　${MODE_NAMES[S.mode]}${S.shuffle?'・隨機':''}`:'請點「加入音樂」選取手機內的歌曲';
+  $('modeBtn').innerHTML=MODE_ICONS[S.mode];
+  $('modeBtn').classList.toggle('on',S.mode!==0);
+  $('shufBtn').classList.toggle('on',S.shuffle);
+  playBtn.innerHTML=audio.paused?I.play:I.pause;
+  $('disc').classList.toggle('spin',!audio.paused&&idx>=0);
+}
+function setMeta(){
+  if(!('mediaSession' in navigator)||idx<0)return;
+  navigator.mediaSession.metadata=new MediaMetadata({title:cleanName(tracks[idx].name),artist:'車用音樂播放器',album:'手機音樂'});
+}
+if('mediaSession' in navigator){
+  const h=(a,f)=>{try{navigator.mediaSession.setActionHandler(a,f)}catch(e){}};
+  h('play',()=>audio.play());h('pause',()=>audio.pause());
+  h('previoustrack',prev);h('nexttrack',()=>next(false));
+  h('seekto',d=>{audio.currentTime=d.seekTime});
+}
+audio.addEventListener('play',updateUI);
+audio.addEventListener('pause',updateUI);
+audio.addEventListener('ended',()=>{if(S.mode===1){audio.currentTime=0;audio.play()}else next(true)});
+audio.addEventListener('error',()=>{if(tracks.length>1)setTimeout(()=>next(true),500)});
+audio.addEventListener('loadedmetadata',()=>$('dur').textContent=fmt(audio.duration));
+audio.addEventListener('timeupdate',()=>{
+  $('cur').textContent=fmt(audio.currentTime);
+  if(!seeking&&audio.duration)seek.value=audio.currentTime/audio.duration*1000;
+});
+seek.addEventListener('input',()=>{seeking=true;$('cur').textContent=fmt(seek.value/1000*audio.duration)});
+seek.addEventListener('change',()=>{if(audio.duration)audio.currentTime=seek.value/1000*audio.duration;seeking=false});
+
+/* ========== 左右滑動換歌 ========== */
+(function(){
+  const card=$('nowCard'),area=$('swipeArea');
+  let sx=0,sy=0,active=false,busy=false;
+  card.addEventListener('touchstart',e=>{
+    if(e.target===seek){active=false;return}
+    const t=e.touches[0];sx=t.clientX;sy=t.clientY;active=true;
+  },{passive:true});
+  card.addEventListener('touchmove',e=>{
+    if(!active||busy)return;
+    const t=e.touches[0],dx=t.clientX-sx,dy=t.clientY-sy;
+    if(Math.abs(dx)>Math.abs(dy))area.style.transform=`translateX(${dx*0.4}px)`;
+  },{passive:true});
+  card.addEventListener('touchend',e=>{
+    if(!active||busy)return;active=false;
+    const t=e.changedTouches[0],dx=t.clientX-sx,dy=t.clientY-sy;
+    area.style.transform='';
+    if(Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy)*1.5&&tracks.length){
+      const left=dx<0;busy=true;
+      area.classList.add(left?'outL':'outR');
+      setTimeout(()=>{
+        left?next(false):prev();
+        area.classList.remove('outL','outR');
+        area.classList.add(left?'inL':'inR');
+        setTimeout(()=>{area.classList.remove('inL','inR');busy=false},260);
+      },200);
+    }
+  },{passive:true});
+})();
+
+/* ========== 控制 ========== */
+playBtn.onclick=toggle;
+$('nextBtn').onclick=()=>next(false);
+$('prevBtn').onclick=prev;
+$('modeBtn').onclick=()=>{S.mode=(S.mode+1)%3;save();updateUI()};
+$('shufBtn').onclick=()=>{S.shuffle=!S.shuffle;save();updateUI()};
+$('vol').value=S.vol;audio.volume=S.vol/100;
+$('vol').oninput=e=>{S.vol=+e.target.value;audio.volume=S.vol/100;save()};
+
+$('file').onchange=async e=>{
+  const files=[...e.target.files];if(!files.length)return;
+  $('sub').textContent='匯入中…';
+  for(const f of files){
+    const t={name:f.name,blob:f};
+    t.id=await DB.add(t);
+    if(t.id!==null)tracks.push(t);
+  }
+  e.target.value='';
+  render();
+  if(idx<0&&tracks.length)play(0,false);else updateUI();
+};
+$('clearBtn').onclick=async()=>{
+  if(!tracks.length||!confirm('確定要清空所有歌曲？'))return;
+  audio.pause();audio.removeAttribute('src');
+  await DB.clear();tracks=[];idx=-1;updateUI();render();
+};
+
+/* ========== 螢幕常亮（狀態顯示在按鈕上）========== */
+let wakeLock=null,nsStream=null;
+function setBadge(state){ // 'on' | 'wait' | 'off'
+  $('wlBtn').className=state;
+  $('wlText').textContent=state==='on'?'常亮：開':state==='wait'?'常亮：點一下':'常亮：關';
+}
+async function enableWake(){
+  if(!S.wake){setBadge('off');return}
+  let ok=false;
+  if('wakeLock' in navigator){
+    try{
+      if(!wakeLock||wakeLock.released){
+        wakeLock=await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release',()=>{if(S.wake)setBadge('wait')});
+      }
+      ok=true;
+    }catch(e){}
+  }
+  if(!ok||!('wakeLock' in navigator)){
+    try{
+      const v=$('nosleep'),c=$('nsCanvas');
+      if(!nsStream){
+        nsStream=c.captureStream(5);v.srcObject=nsStream;
+        const ctx=c.getContext('2d');
+        setInterval(()=>{ctx.fillStyle=Math.random()>.5?'#000':'#010101';ctx.fillRect(0,0,2,2)},1000);
+      }
+      await v.play();ok=true;
+    }catch(e){}
+  }
+  setBadge(ok?'on':'wait');
+}
+function disableWake(){
+  try{wakeLock&&wakeLock.release()}catch(e){}
+  wakeLock=null;
+  try{$('nosleep').pause()}catch(e){}
+  setBadge('off');
+}
+$('wlBtn').onclick=()=>{S.wake=!S.wake;save();S.wake?enableWake():disableWake()};
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&S.wake)enableWake()});
+document.addEventListener('click',()=>{if(S.wake&&(!wakeLock||wakeLock.released))enableWake()});
+document.addEventListener('touchstart',()=>{if(S.wake&&(!wakeLock||wakeLock.released))enableWake()},{passive:true});
+
+/* ========== 初始化 ========== */
+(async function init(){
+  updateUI();
+  try{
+    await DB.open();
+    tracks=(await DB.all()).sort((a,b)=>a.id-b.id);
+    const i=tracks.findIndex(t=>t.id===S.lastId);
+    render();
+    if(tracks.length)play(i>=0?i:0,false);else updateUI();
+  }catch(e){list.innerHTML='<div class="empty">無法使用儲存空間，音樂將只在本次使用</div>'}
+  if(S.wake)enableWake();else setBadge('off');
+  if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();
+})();
+</script>
+</body>
+</html>
