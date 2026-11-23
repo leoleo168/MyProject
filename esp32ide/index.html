@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#4f46e5">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<title>C3 積木工坊</title>
+<title>ESP32-C3 積木編程</title>
 <link rel="manifest" id="manifestLink">
 <style>
   :root{--pri:#4f46e5;--bg:#f1f5f9;--card:#fff;--txt:#0f172a;--sub:#64748b;--line:#e2e8f0;--ok:#22c55e;--err:#ef4444}
@@ -65,7 +65,7 @@
 <body>
 <header>
   <span class="dot" id="dot"></span>
-  <h1>⚡ C3 積木工坊</h1>
+  <h1>⚡ ESP32-C3 積木編程</h1>
   <button class="sm" id="btnConn">連線板子</button>
 </header>
 <button id="install">📲 安裝為手機 App</button>
@@ -151,7 +151,7 @@ function toast(m){
   const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="110" fill="#4f46e5"/><rect x="110" y="130" width="170" height="110" rx="24" fill="#fff"/><rect x="230" y="270" width="170" height="110" rx="24" fill="#a5b4fc"/></svg>';
   const icon = "data:image/svg+xml," + encodeURIComponent(svg);
   const m = {
-    name: "C3 積木工坊", short_name: "C3積木", display: "standalone",
+    name: "ESP32-C3 積木編程", short_name: "C3積木", display: "standalone",
     start_url: location.href.split("#")[0],
     background_color: "#4f46e5", theme_color: "#4f46e5",
     icons: [{src: icon, sizes: "any", type: "image/svg+xml", purpose: "any"}]
