@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>透光浮雕片 STL 產生器 | Lithophane STL Maker</title>
+
+<!-- 字型與圖示 -->
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+<style>
+  /* ===== 基本樣式(深色主題) ===== */
+  :root{
+    --bg:#0f172a; --card:#1e293b; --card2:#162033;
+    --text:#f1f5f9; --muted:#94a3b8; --accent:#38bdf8; --accent2:#06b6d4;
+    --border:#334155;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Noto Sans TC',sans-serif;background:var(--bg);color:var(--text);line-height:1.6}
+
+  /* ===== 導覽列 ===== */
+  nav{display:flex;justify-content:space-between;align-items:center;padding:14px 24px;
+      background:rgba(15,23,42,.9);backdrop-filter:blur(8px);position:sticky;top:0;z-index:10;
+      border-bottom:1px solid var(--border)}
+  .logo{font-weight:700;font-size:1.1rem;color:var(--accent)}
+  .logo i{margin-right:8px}
+  #langBtn{background:transparent;color:var(--accent);border:1px solid var(--accent);
+      padding:6px 14px;border-radius:999px;cursor:pointer;font-family:inherit;font-size:.9rem;transition:.2s}
+  #langBtn:hover{background:var(--accent);color:#0f172a}
+
+  /* ===== Hero ===== */
+  .hero{text-align:center;padding:48px 20px 24px}
+  .hero h1{font-size:clamp(1.8rem,5vw,2.8rem);margin-bottom:10px}
+  .hero h1 span{color:var(--accent)}
+  .hero p{color:var(--muted);max-width:620px;margin:0 auto}
+
+  /* ===== 版面 ===== */
+  main{max-width:1100px;margin:0 auto;padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  @media(max-width:800px){main{grid-template-columns:1fr}}
+  .card{background:var(--card);border-radius:16px;padding:22px;border:1px solid var(--border);
+        box-shadow:0 8px 24px rgba(0,0,0,.25)}
+  .card h2{font-size:1.1rem;margin-bottom:14px;color:var(--accent)}
+  .card h2 i{margin-right:8px}
+
+  /* ===== 上傳區 ===== */
+  .drop{border:2px dashed var(--border);border-radius:14px;padding:30px 14px;text-align:center;
+        cursor:pointer;transition:.2s;color:var(--muted)}
+  .drop:hover,.drop.over{border-color:var(--accent);color:var(--accent);background:var(--card2)}
+  .drop i{font-size:2rem;display:block;margin-bottom:8px}
+  #file{display:none}
+
+  /* ===== 參數 ===== */
+  .row{margin:14px 0}
+  .row label{display:flex;justify-content:space-between;font-size:.92rem;margin-bottom:4px}
+  .row label b{color:var(--accent)}
+  .hint{font-size:.78rem;color:var(--muted)}
+  input[type=range]{width:100%;accent-color:var(--accent2)}
+  select{width:100%;padding:8px;border-radius:8px;background:var(--card2);color:var(--text);
+         border:1px solid var(--border);font-family:inherit}
+  .check{display:flex;align-items:center;gap:8px;font-size:.92rem}
+
+  /* ===== 預覽 ===== */
+  .preview{background:#000;border-radius:12px;min-height:220px;display:flex;align-items:center;
+           justify-content:center;overflow:hidden;position:relative}
+  .preview canvas{max-width:100%;height:auto;display:block}
+  .preview .empty{color:var(--muted);padding:30px;text-align:center}
+  .tabs{display:flex;gap:8px;margin-bottom:10px}
+  .tab{flex:1;padding:7px;border-radius:8px;border:1px solid var(--border);background:var(--card2);
+       color:var(--muted);cursor:pointer;font-family:inherit;font-size:.88rem}
+  .tab.active{background:var(--accent);color:#0f172a;border-color:var(--accent);font-weight:700}
+  .info{margin-top:12px;font-size:.88rem;color:var(--muted)}
+  .info b{color:var(--text)}
+
+  /* ===== 按鈕 ===== */
+  .btn{width:100%;margin-top:14px;padding:14px;border:none;border-radius:12px;font-size:1.05rem;
+       font-weight:700;font-family:inherit;cursor:pointer;color:#0f172a;
+       background:linear-gradient(135deg,var(--accent),var(--accent2));transition:.2s}
+  .btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 8px 20px rgba(56,189,248,.35)}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+
+  /* ===== 步驟與提示 ===== */
+  .steps{max-width:1100px;margin:0 auto;padding:0 20px 20px}
+  .steps ol{padding-left:22px;color:var(--muted)}
+  .steps li{margin:6px 0}
+  footer{text-align:center;color:var(--muted);padding:30px 20px;font-size:.85rem;border-top:1px solid var(--border);margin-top:20px}
+  #status{margin-top:10px;font-size:.88rem;color:var(--accent)}
+</style>
+</head>
+<body>
+
+<!-- ① 導覽列 -->
+<nav>
+  <div class="logo"><i class="fa-solid fa-lightbulb"></i><span data-i18n="logo"></span></div>
+  <button id="langBtn">EN</button>
+</nav>
+
+<!-- ② Hero -->
+<header class="hero">
+  <h1><span data-i18n="title1"></span><span style="color:var(--text)" data-i18n="title2"></span></h1>
+  <p data-i18n="subtitle"></p>
+</header>
+
+<main>
+  <!-- 左側:上傳與參數 -->
+  <section class="card">
+    <h2><i class="fa-solid fa-image"></i><span data-i18n="step1"></span></h2>
+    <div class="drop" id="drop">
+      <i class="fa-solid fa-cloud-arrow-up"></i>
+      <span data-i18n="drop"></span>
+    </div>
+    <input type="file" id="file" accept="image/*">
+
+    <h2 style="margin-top:24px"><i class="fa-solid fa-sliders"></i><span data-i18n="step2"></span></h2>
+
+    <div class="row">
+      <label><span data-i18n="width"></span><b id="vWidth">100 mm</b></label>
+      <input type="range" id="width" min="40" max="200" step="5" value="100">
+    </div>
+    <div class="row">
+      <label><span data-i18n="minT"></span><b id="vMin">0.8 mm</b></label>
+      <input type="range" id="minT" min="0.4" max="1.6" step="0.1" value="0.8">
+      <div class="hint" data-i18n="minHint"></div>
+    </div>
+    <div class="row">
+      <label><span data-i18n="maxT"></span><b id="vMax">3.0 mm</b></label>
+      <input type="range" id="maxT" min="2" max="6" step="0.2" value="3">
+      <div class="hint" data-i18n="maxHint"></div>
+    </div>
+    <div class="row">
+      <label><span data-i18n="border"></span><b id="vBorder">3 mm</b></label>
+      <input type="range" id="border" min="0" max="10" step="1" value="3">
+      <div class="hint" data-i18n="borderHint"></div>
+    </div>
+    <div class="row">
+      <label><span data-i18n="contrast"></span><b id="vContrast">1.0</b></label>
+      <input type="range" id="contrast" min="0.6" max="1.8" step="0.1" value="1">
+    </div>
+    <div class="row">
+      <label><span data-i18n="res"></span></label>
+      <select id="res">
+        <option value="160" data-i18n="resLow"></option>
+        <option value="240" selected data-i18n="resMid"></option>
+        <option value="320" data-i18n="resHigh"></option>
+      </select>
+    </div>
+    <div class="row check">
+      <input type="checkbox" id="invert"><label for="invert" data-i18n="invert" style="display:inline"></label>
+    </div>
+    <div class="row check">
+      <input type="checkbox" id="mirror"><label for="mirror" data-i18n="mirror" style="display:inline"></label>
+    </div>
+  </section>
+
+  <!-- 右側:預覽與下載 -->
+  <section class="card">
+    <h2><i class="fa-solid fa-eye"></i><span data-i18n="step3"></span></h2>
+    <div class="tabs">
+      <button class="tab active" id="tabLight" data-i18n="tabLight"></button>
+      <button class="tab" id="tabDepth" data-i18n="tabDepth"></button>
+    </div>
+    <div class="preview">
+      <div class="empty" id="empty" data-i18n="empty"></div>
+      <canvas id="canvas" style="display:none"></canvas>
+    </div>
+    <div class="info" id="info"></div>
+    <button class="btn" id="dl" disabled><i class="fa-solid fa-download"></i> <span data-i18n="download"></span></button>
+    <div id="status"></div>
+  </section>
+</main>
+
+<!-- 使用步驟 -->
+<section class="steps">
+  <div class="card">
+    <h2><i class="fa-solid fa-list-check"></i><span data-i18n="howTitle"></span></h2>
+    <ol>
+      <li data-i18n="how1"></li>
+      <li data-i18n="how2"></li>
+      <li data-i18n="how3"></li>
+      <li data-i18n="how4"></li>
+    </ol>
+  </div>
+</section>
+
+<!-- 頁尾 -->
+<footer data-i18n="footer"></footer>
+
+<script>
+/* ============================================================
+   ① 中英文字集中管理(日後要改文字,只需修改這裡)
+   ============================================================ */
+const I18N = {
+  zh: {
+    logo:"透光浮雕片產生器", title1:"照片變成", title2:"透光浮雕片",
+    subtitle:"上傳一張照片,調整厚度,就能下載 3D 列印用的 STL 檔。照片只在你的電腦處理,不會被上傳。",
+    step1:"① 選擇照片", step2:"② 調整設定", step3:"③ 預覽與下載",
+    drop:"點一下這裡,或把照片拖進來",
+    width:"作品寬度", minT:"最薄處(最亮)", maxT:"最厚處(最暗)", border:"外框寬度", contrast:"對比度",
+    minHint:"太薄會破,建議 0.8 mm 以上", maxHint:"越厚,暗部越黑,層次越明顯",
+    borderHint:"外框是實心的,可增加強度。設為 0 就沒有外框",
+    res:"細緻度",
+    resLow:"快速(檔案小)", resMid:"標準(推薦)", resHigh:"細緻(檔案大)",
+    invert:"反轉明暗(適合白底黑字的圖)",
+    mirror:"左右鏡像(從平面那一側看時使用)",
+    tabLight:"點燈效果", tabDepth:"厚度圖",
+    empty:"請先選擇一張照片",
+    download:"下載 STL 檔",
+    size:"尺寸", tri:"三角形數量", fsize:"檔案大小",
+    working:"製作中…", done:"完成!已開始下載。",
+    howTitle:"列印小撇步",
+    how1:"把下載的 STL 檔拖進切片軟體(如 Cura、Bambu Studio、PrusaSlicer)。",
+    how2:"讓作品「立起來」列印效果最好;平放也可以,但層紋會比較明顯。",
+    how3:"使用白色或淺色耗材,填充設 100%,層高 0.12~0.2 mm。",
+    how4:"列印完成後,放在 LED 燈或手機手電筒前,就能看到照片浮現。",
+    footer:"© 2026 透光浮雕片產生器|純前端運作,照片不會離開你的裝置"
+  },
+  en: {
+    logo:"Lithophane Maker", title1:"Turn Photos into ", title2:"Lithophanes",
+    subtitle:"Upload a photo, adjust thickness, and download an STL file for 3D printing. Your photo is processed locally and never uploaded.",
+    step1:"① Choose a Photo", step2:"② Settings", step3:"③ Preview & Download",
+    drop:"Click here or drag a photo in",
+    width:"Width", minT:"Thinnest (brightest)", maxT:"Thickest (darkest)", border:"Frame width", contrast:"Contrast",
+    minHint:"Too thin may break. 0.8 mm or more is recommended.", maxHint:"Thicker = darker shadows and more depth",
+    borderHint:"The frame is solid for strength. Set to 0 for no frame.",
+    res:"Detail",
+    resLow:"Fast (small file)", resMid:"Standard (recommended)", resHigh:"Fine (large file)",
+    invert:"Invert (for black text on white)",
+    mirror:"Mirror left/right (use when viewing from the flat side)",
+    tabLight:"Backlit view", tabDepth:"Thickness map",
+    empty:"Please choose a photo first",
+    download:"Download STL",
+    size:"Size", tri:"Triangles", fsize:"File size",
+    working:"Working…", done:"Done! Download started.",
+    howTitle:"Printing Tips",
+    how1:"Drag the STL into your slicer (Cura, Bambu Studio, PrusaSlicer, etc.).",
+    how2:"Printing it standing upright gives the best result. Flat also works but shows more layer lines.",
+    how3:"Use white or light filament, 100% infill, 0.12–0.2 mm layer height.",
+    how4:"Once printed, hold it in front of an LED or phone flashlight to see the photo appear.",
+    footer:"© 2026 Lithophane Maker | Runs entirely in your browser. Photos never leave your device."
+  }
+};
+
+let lang = 'zh';
+let img = null;          // 使用者上傳的圖片
+let lastGray = null;     // 目前的灰階資料(給預覽用)
+let lastDims = null;
+
+const $ = id => document.getElementById(id);
+
+/* ============================================================
+   ② 語言切換
+   ============================================================ */
+function applyLang(){
+  document.documentElement.lang = lang==='zh' ? 'zh-Hant' : 'en';
+  document.querySelectorAll('[data-i18n]').forEach(el=>{
+    el.textContent = I18N[lang][el.dataset.i18n];
+  });
+  $('langBtn').textContent = lang==='zh' ? 'EN' : '中文';
+  updateInfo();
+}
+$('langBtn').onclick = ()=>{ lang = lang==='zh'?'en':'zh'; applyLang(); };
+
+/* ============================================================
+   ③ 讀取圖片(點選或拖曳)
+   ============================================================ */
+$('drop').onclick = ()=> $('file').click();
+$('drop').ondragover = e=>{e.preventDefault();$('drop').classList.add('over')};
+$('drop').ondragleave = ()=> $('drop').classList.remove('over');
+$('drop').ondrop = e=>{
+  e.preventDefault(); $('drop').classList.remove('over');
+  if(e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
+};
+$('file').onchange = e=>{ if(e.target.files[0]) loadFile(e.target.files[0]); };
+
+function loadFile(f){
+  const im = new Image();
+  im.onload = ()=>{ img = im; refresh(); };
+  im.src = URL.createObjectURL(f);
+}
+
+/* ============================================================
+   ④ 參數讀取與即時更新
+   ============================================================ */
+function params(){
+  return {
+    W:+$('width').value, minT:+$('minT').value, maxT:+$('maxT').value,
+    b:+$('border').value, contrast:+$('contrast').value,
+    res:+$('res').value, invert:$('invert').checked, mirror:$('mirror').checked
+  };
+}
+['width','minT','maxT','border','contrast','res','invert','mirror'].forEach(id=>{
+  $(id).addEventListener('input', ()=>{
+    $('vWidth').textContent = $('width').value+' mm';
+    $('vMin').textContent = (+$('minT').value).toFixed(1)+' mm';
+    $('vMax').textContent = (+$('maxT').value).toFixed(1)+' mm';
+    $('vBorder').textContent = $('border').value+' mm';
+    $('vContrast').textContent = (+$('contrast').value).toFixed(1);
+    refresh();
+  });
+});
+
+/* ============================================================
+   ⑤ 把圖片轉成「厚度網格」
+   ============================================================ */
+function buildGrid(p){
+  const b = p.b;
+  const Wi = p.W - 2*b;                         // 內部影像寬
+  const Hi = Wi * img.height / img.width;       // 內部影像高(維持比例)
+  const H = Hi + 2*b;                           // 總高度
+  const pitch = Math.max(p.W,H) / (p.res-1);    // 取樣間距
+  const nx = Math.round(p.W/pitch)+1;
+  const ny = Math.round(H/pitch)+1;
+  const dx = p.W/(nx-1), dy = H/(ny-1);
+
+  // 把圖片縮放畫到 nx × ny 的畫布上(外框位置留白)
+  const c = document.createElement('canvas'); c.width=nx; c.height=ny;
+  const g = c.getContext('2d');
+  g.fillStyle='#fff'; g.fillRect(0,0,nx,ny);
+  g.imageSmoothingQuality='high';
+  g.drawImage(img, b/p.W*nx, b/H*ny, Wi/p.W*nx, Hi/H*ny);
+  const data = g.getImageData(0,0,nx,ny).data;
+
+  const z = new Float32Array(nx*ny);
+  const gray = new Float32Array(nx*ny);
+  for(let j=0;j<ny;j++){
+    for(let i=0;i<nx;i++){
+      const x=i*dx, yTop=j*dy;
+      const inFrame = b>0 && (x<b || x>p.W-b || yTop<b || yTop>H-b);
+      const k=(j*nx+i)*4;
+      let lum = (0.299*data[k]+0.587*data[k+1]+0.114*data[k+2])/255;
+      lum = (lum-0.5)*p.contrast+0.5;                 // 對比度
+      lum = Math.min(1,Math.max(0,lum));
+      if(p.invert) lum = 1-lum;
+      if(inFrame){ z[j*nx+i]=p.maxT; gray[j*nx+i]=0; }
+      else { z[j*nx+i] = p.minT + (1-lum)*(p.maxT-p.minT); gray[j*nx+i]=lum; }
+    }
+  }
+  return {z,gray,nx,ny,dx,dy,W:p.W,H};
+}
+
+/* ============================================================
+   ⑥ 預覽
+   ============================================================ */
+let mode='light';
+$('tabLight').onclick=()=>{mode='light';setTabs();drawPreview()};
+$('tabDepth').onclick=()=>{mode='depth';setTabs();drawPreview()};
+function setTabs(){
+  $('tabLight').classList.toggle('active',mode==='light');
+  $('tabDepth').classList.toggle('active',mode==='depth');
+}
+
+let timer=null;
+function refresh(){
+  if(!img) return;
+  clearTimeout(timer);
+  timer=setTimeout(()=>{
+    const p=params();
+    lastDims = buildGrid(p);
+    lastDims.p = p;
+    drawPreview(); updateInfo();
+    $('dl').disabled=false;
+    $('empty').style.display='none';
+    $('canvas').style.display='block';
+  },120);
+}
+
+function drawPreview(){
+  if(!lastDims) return;
+  const {gray,z,nx,ny,p} = lastDims;
+  const cv=$('canvas'); cv.width=nx; cv.height=ny;
+  const g=cv.getContext('2d');
+  const out=g.createImageData(nx,ny);
+  for(let n=0;n<nx*ny;n++){
+    let r,gg,bb;
+    const isFrame = gray[n]===0 && z[n]===p.maxT;
+    if(mode==='light'){
+      // 模擬背光:越薄越亮,帶一點暖黃光
+      const t = isFrame ? 0.05 : Math.pow(gray[n],1.1);
+      r=255*t; gg=235*t; bb=190*t;
+    }else{
+      // 厚度圖:薄=淺藍,厚=深藍
+      const t=(z[n]-p.minT)/(p.maxT-p.minT||1);
+      r=56+(15-56)*t; gg=189+(23-189)*t; bb=248+(42-248)*t;
+    }
+    out.data[n*4]=r; out.data[n*4+1]=gg; out.data[n*4+2]=bb; out.data[n*4+3]=255;
+  }
+  g.putImageData(out,0,0);
+  cv.style.width='100%';
+}
+
+function triCount(){ return lastDims ? 4*(lastDims.nx-1)*(lastDims.ny-1) + 4*(lastDims.nx-1) + 4*(lastDims.ny-1) : 0; }
+function updateInfo(){
+  if(!lastDims){ $('info').innerHTML=''; return; }
+  const t=I18N[lang], n=triCount();
+  $('info').innerHTML =
+    `${t.size}:<b>${lastDims.W} × ${lastDims.H.toFixed(1)} mm</b><br>`+
+    `${t.tri}:<b>${n.toLocaleString()}</b>　${t.fsize}:<b>${((84+n*50)/1048576).toFixed(1)} MB</b>`;
+}
+
+/* ============================================================
+   ⑦ 產生二進位 STL 並下載
+   ============================================================ */
+$('dl').onclick=()=>{
+  $('status').textContent=I18N[lang].working;
+  setTimeout(()=>{
+    const blob=makeSTL(lastDims);
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download='lithophane.stl';
+    a.click();
+    $('status').textContent=I18N[lang].done;
+  },30);
+};
+
+function makeSTL(G){
+  const {z,nx,ny,dx,dy,H} = G;
+  const mirror = G.p.mirror;
+  const total = triCount();
+  const buf = new ArrayBuffer(84+total*50);
+  const dv = new DataView(buf);
+  dv.setUint32(80,total,true);
+  let off=84;
+
+  // 寫入一個三角形(自動計算法線)
+  function tri(ax,ay,az,bx,by,bz,cx,cy,cz){
+    if(mirror){ // 鏡像時需翻轉繞向,保持法線朝外
+      [ax,bx,cx]=[W2-ax,W2-bx,W2-cx]; [bx,cx]=[cx,bx]; [by,cy]=[cy,by]; [bz,cz]=[cz,bz];
+    }
+    const ux=bx-ax,uy=by-ay,uz=bz-az,vx=cx-ax,vy=cy-ay,vz=cz-az;
+    let nx_=uy*vz-uz*vy, ny_=uz*vx-ux*vz, nz_=ux*vy-uy*vx;
+    const l=Math.hypot(nx_,ny_,nz_)||1; nx_/=l;ny_/=l;nz_/=l;
+    const v=[nx_,ny_,nz_,ax,ay,az,bx,by,bz,cx,cy,cz];
+    for(let k=0;k<12;k++){dv.setFloat32(off,v[k],true);off+=4;}
+    off+=2;
+  }
+  const W2 = G.W;
+  const X=i=>i*dx, Y=j=>(ny-1-j)*dy, Z=(i,j)=>z[j*nx+i];
+
+  for(let j=0;j<ny-1;j++){
+    for(let i=0;i<nx-1;i++){
+      // 格子四個角:a左上 b右上 c左下 d右下
+      const ax=X(i),bx=X(i+1),yt=Y(j),yb=Y(j+1);
+      const za=Z(i,j),zb=Z(i+1,j),zc=Z(i,j+1),zd=Z(i+1,j+1);
+      // 上表面(浮雕面)
+      tri(ax,yt,za, ax,yb,zc, bx,yb,zd);
+      tri(ax,yt,za, bx,yb,zd, bx,yt,zb);
+      // 下表面(平面)
+      tri(ax,yt,0, bx,yb,0, ax,yb,0);
+      tri(ax,yt,0, bx,yt,0, bx,yb,0);
+    }
+  }
+  // 前側牆(y=0)與後側牆(y=H)
+  for(let i=0;i<nx-1;i++){
+    const x0=X(i),x1=X(i+1);
+    let jf=ny-1, t0=Z(i,jf), t1=Z(i+1,jf);
+    tri(x0,0,0, x1,0,0, x1,0,t1);
+    tri(x0,0,0, x1,0,t1, x0,0,t0);
+    let jb=0; t0=Z(i,jb); t1=Z(i+1,jb);
+    tri(x1,H,0, x0,H,0, x0,H,t0);
+    tri(x1,H,0, x0,H,t0, x1,H,t1);
+  }
+  // 左側牆(x=0)與右側牆(x=W)
+  for(let j=0;j<ny-1;j++){
+    const y0=Y(j),y1=Y(j+1);
+    let t0=Z(0,j), t1=Z(0,j+1);
+    tri(0,y0,0, 0,y1,0, 0,y1,t1);
+    tri(0,y0,0, 0,y1,t1, 0,y0,t0);
+    const xr=X(nx-1); t0=Z(nx-1,j); t1=Z(nx-1,j+1);
+    tri(xr,y1,0, xr,y0,0, xr,y0,t0);
+    tri(xr,y1,0, xr,y0,t0, xr,y1,t1);
+  }
+  return new Blob([buf],{type:'model/stl'});
+}
+
+// 初始化
+applyLang();
+</script>
+</body>
+</html>
