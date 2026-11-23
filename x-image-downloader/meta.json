@@ -2,5 +2,5 @@
   "title": "X (Twitter) 圖片/影片一鍵下載器",
   "description": "單頁式 X (Twitter) 貼文媒體解析工具。支援免登入自動解析，可抓取最高畫質 (orig) 原圖與 MP4 影片/GIF。多圖貼文支援無阻擋一鍵 ZIP 壓縮打包下載，純前端實作相容 GitHub Pages。",
   "tags": ["X/Twitter", "圖片下載", "影片下載", "實用工具"],
-  "date": "2026-11"
+  "date": "2026-11-18"
 }
