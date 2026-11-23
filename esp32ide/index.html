@@ -16,7 +16,7 @@
     display:flex;flex-direction:column;padding:env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);height:100dvh}
   header{background:var(--pri);color:#fff;padding:10px 14px;display:flex;align-items:center;gap:10px;box-shadow:0 2px 10px #0003;z-index:5}
   header h1{font-size:16px;margin:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .ver{font-size:11px;font-weight:400;opacity:.75;margin-left:6px}
+  .ver{font-size:11px;font-weight:600;opacity:.9;margin-left:6px;background:#ffffff33;padding:2px 8px;border-radius:99px;cursor:pointer}
   .verCard{text-align:center;font-size:12px;color:var(--sub);padding:6px 0 18px}
   .dot{width:10px;height:10px;border-radius:50%;background:#fca5a5;flex:none}
   .dot.on{background:#86efac;box-shadow:0 0 8px #86efac}
@@ -62,12 +62,26 @@
   #toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#0f172acc;color:#fff;padding:10px 18px;border-radius:99px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .25s;z-index:99;max-width:90%;text-align:center}
   #toast.show{opacity:1}
   #flog{background:#020617;color:#a5f3fc;font:12px/1.5 ui-monospace,monospace;padding:10px;border-radius:12px;height:150px;overflow:auto;white-space:pre-wrap;margin-top:12px}
+
+  /* 更新紀錄視窗 */
+  #logModal{display:none;position:fixed;inset:0;background:#0f172a99;z-index:100;align-items:center;justify-content:center;padding:16px}
+  #logModal.on{display:flex}
+  #logBox{background:#fff;border-radius:20px;width:100%;max-width:480px;max-height:85dvh;display:flex;flex-direction:column;box-shadow:0 10px 40px #0005;overflow:hidden}
+  #logHead{display:flex;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line)}
+  #logHead h2{flex:1;margin:0;font-size:16px}
+  #logList{overflow:auto;padding:14px 16px 20px;flex:1}
+  .lv{margin-bottom:18px}
+  .lv h4{margin:0 0 6px;font-size:15px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .lv .date{font-size:12px;color:var(--sub);font-weight:400}
+  .lv .new{background:var(--ok);color:#fff;font-size:11px;padding:2px 8px;border-radius:99px}
+  .lv .ttl{font-size:13px;color:var(--pri);margin:0 0 4px;font-weight:600}
+  .lv ul{margin:0;padding-left:20px;font-size:13px;color:#334155;line-height:1.75}
 </style>
 </head>
 <body>
 <header>
   <span class="dot" id="dot"></span>
-  <h1>⚡ ESP32-C3 積木編程<span class="ver" id="verTag"></span></h1>
+  <h1>⚡ ESP32-C3 積木編程<span class="ver" id="verTag" title="查看更新紀錄"></span></h1>
   <button class="sm" id="btnConn">連線板子</button>
 </header>
 <button id="install">📲 安裝為手機 App</button>
@@ -97,7 +111,11 @@
         <p>燒錄時才需要按住 <b>BOOT</b> 再插 USB。手機請用 OTG 線與 <b>Android Chrome</b>；電腦請用 Chrome 或 Edge。</p>
         <p>請先按右上角「中斷連線」，並關閉其他占用序列埠的程式（Arduino、Thonny 等）。</p>
       </div>
-      <div class="verCard" id="verFoot"></div>
+      <div class="card">
+        <h3>關於</h3>
+        <p id="verFoot"></p>
+        <div class="row"><button class="sec" id="btnLog">📜 更新紀錄</button></div>
+      </div>
     </div>
   </section>
 
@@ -141,15 +159,100 @@
   <button data-p="blocks" class="on"><span>🧩</span>積木</button>
   <button data-p="term"><span>💻</span>終端</button>
 </nav>
+
+<!-- 更新紀錄視窗 -->
+<div id="logModal">
+  <div id="logBox">
+    <div id="logHead">
+      <h2>📜 更新紀錄</h2>
+      <button class="sec sm" id="logClose">關閉</button>
+    </div>
+    <div id="logList"></div>
+  </div>
+</div>
 <div id="toast"></div>
 
 <script>
 const $ = id => document.getElementById(id);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const enc = new TextEncoder();
-const APP_VERSION = "1.3", APP_DATE = "2026-11-23";
+
+/* ========== 版本與更新紀錄 ==========
+   新增版本時：在 CHANGELOG 最上面加一筆，並把 APP_VERSION 改成新版號 */
+const APP_VERSION = "1.4";
+const CHANGELOG = [
+  {
+    v: "1.4", date: "2026-11-23", title: "更新紀錄",
+    items: [
+      "新增「更新紀錄」視窗，點標題旁的版本號即可查看",
+      "「燒錄」頁新增「關於」卡片與更新紀錄按鈕",
+      "版本號改為可點擊的標籤"
+    ]
+  },
+  {
+    v: "1.3", date: "2026-11-23", title: "積木匯入／匯出",
+    items: [
+      "新增「📤 匯出」：把積木存成 .c3blocks.json 檔，檔名自動帶日期時間",
+      "新增「📥 匯入」：選擇檔案還原積木，匯入前會先確認",
+      "匯入前檢查檔案格式，失敗時自動還原原本的積木"
+    ]
+  },
+  {
+    v: "1.2", date: "2026-11-23", title: "副函式積木",
+    items: [
+      "新增「⭐ 函式」類別，可自訂副函式並快速呼叫",
+      "支援只做事情的函式，以及會回傳數值的函式",
+      "函式可加入參數",
+      "轉出的 Python 會把函式放在主程式前面"
+    ]
+  },
+  {
+    v: "1.1", date: "2026-11",  title: "主程式與板子管理",
+    items: [
+      "新增「🚩 主程式」積木：一開始只做一次，然後一直重複",
+      "新增「💾 存到板子」：存成 main.py，開機自動執行",
+      "新增「🧹 清除板子」：刪除板子上的 main.py（不會刪除韌體）",
+      "Raw REPL 連線加入自動重試與錯誤訊息，改善連線穩定度",
+      "標題改為「ESP32-C3 積木編程」，桌面短名稱為「C3積木」"
+    ]
+  },
+  {
+    v: "1.0", date: "2026-11", title: "初始版本",
+    items: [
+      "支援 PWA，可安裝到手機桌面並離線開啟",
+      "在網頁直接燒錄 MicroPython 韌體（Web Serial）",
+      "Blockly 積木編程，自動轉成 MicroPython 程式碼",
+      "數位輸出入、類比讀取、PWM、等待時間積木",
+      "Raw REPL 執行與停止，並附終端機分頁",
+      "積木自動儲存在瀏覽器 localStorage"
+    ]
+  }
+];
+const APP_DATE = CHANGELOG[0].date;
+
 $("verTag").textContent = "v" + APP_VERSION;
 $("verFoot").textContent = "ESP32-C3 積木編程 v" + APP_VERSION + "（" + APP_DATE + "）";
+
+function esc(s){
+  return String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+}
+function renderLog(){
+  $("logList").innerHTML = CHANGELOG.map((c, i) =>
+    '<div class="lv"><h4>v' + esc(c.v) +
+    (i === 0 ? '<span class="new">最新</span>' : '') +
+    '<span class="date">' + esc(c.date) + '</span></h4>' +
+    '<p class="ttl">' + esc(c.title) + '</p><ul>' +
+    c.items.map(t => "<li>" + esc(t) + "</li>").join("") +
+    "</ul></div>"
+  ).join("");
+}
+function openLog(){ renderLog(); $("logModal").classList.add("on"); $("logList").scrollTop = 0; }
+function closeLog(){ $("logModal").classList.remove("on"); }
+$("verTag").onclick = openLog;
+$("btnLog").onclick = openLog;
+$("logClose").onclick = closeLog;
+$("logModal").onclick = e => { if (e.target === $("logModal")) closeLog(); };
+
 function toast(m){
   const t = $("toast"); t.textContent = m; t.classList.add("show");
   clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove("show"), 3500);
@@ -172,7 +275,7 @@ function toast(m){
 if ("serviceWorker" in navigator) {
   try {
     const sw = [
-      "const C='c3-blocks-v10';",
+      "const C='c3-blocks-v11';",
       "self.addEventListener('install',()=>self.skipWaiting());",
       "self.addEventListener('activate',e=>e.waitUntil(clients.claim()));",
       "self.addEventListener('fetch',e=>{",
