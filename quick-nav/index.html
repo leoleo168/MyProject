@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#111827">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="快速導航">
+<title>快速導航</title>
+<link rel="manifest" id="manifestLink">
+<link rel="apple-touch-icon" id="appleIcon">
+<style>
+:root{--bg:#111827;--card:#1f2937;--text:#f9fafb;--sub:#9ca3af;--accent:#3b82f6}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC","PingFang TC",sans-serif}
+body{padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);display:flex;flex-direction:column}
+header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 8px}
+header h1{font-size:22px;margin:0}
+.hbtns{display:flex;gap:8px}
+.chip{border:0;background:var(--card);color:var(--text);padding:10px 14px;border-radius:999px;font-size:15px;font-weight:600}
+.chip:active{transform:scale(.95)}
+.chip.on{background:var(--accent)}
+#install{display:none;margin:4px 16px 0;padding:12px 14px;border-radius:14px;background:linear-gradient(90deg,#2563eb,#7c3aed);align-items:center;justify-content:space-between;font-size:15px;font-weight:600}
+#install button{border:0;background:#fff;color:#1d4ed8;border-radius:10px;padding:8px 12px;font-weight:700;font-size:14px}
+#grid{flex:1;overflow-y:auto;padding:12px 16px 24px;display:grid;grid-template-columns:1fr 1fr;gap:14px;align-content:start}
+.big{position:relative;border:0;border-radius:24px;min-height:150px;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:14px;box-shadow:0 8px 20px rgba(0,0,0,.35);transition:transform .1s}
+.big:active{transform:scale(.94);filter:brightness(.9)}
+.big .ic{font-size:46px;line-height:1}
+.big .nm{font-size:22px;font-weight:800;text-align:center;word-break:break-all}
+.big .ds{font-size:12px;opacity:.85;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.big .edit{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.35);border-radius:999px;padding:6px 10px;font-size:13px;display:none}
+.editing .big .edit{display:block}
+.editing .big{animation:wob .35s infinite alternate}
+@keyframes wob{from{transform:rotate(-1deg)}to{transform:rotate(1deg)}}
+.add{background:transparent;border:3px dashed #4b5563;color:var(--sub);box-shadow:none}
+.empty{grid-column:1/-1;text-align:center;color:var(--sub);padding:40px 0}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:flex-end;z-index:10}
+.modal.show{display:flex}
+.sheet{background:var(--card);width:100%;border-radius:24px 24px 0 0;padding:20px 18px calc(20px + env(safe-area-inset-bottom));max-height:92%;overflow-y:auto;user-select:text}
+.sheet h2{margin:0 0 12px;font-size:20px}
+label{display:block;font-size:13px;color:var(--sub);margin:12px 0 6px}
+input,select{width:100%;padding:14px;border-radius:12px;border:1px solid #374151;background:#111827;color:var(--text);font-size:16px;-webkit-user-select:text;user-select:text}
+.colors{display:flex;gap:10px;flex-wrap:wrap}
+.colors i{width:38px;height:38px;border-radius:50%;border:3px solid transparent}
+.colors i.sel{border-color:#fff}
+.icons{display:flex;gap:8px;flex-wrap:wrap}
+.icons span{font-size:26px;padding:6px 8px;border-radius:12px;background:#111827;border:2px solid transparent}
+.icons span.sel{border-color:var(--accent)}
+.row{display:flex;gap:10px;margin-top:18px}
+.row button{flex:1;padding:14px;border:0;border-radius:14px;font-size:16px;font-weight:700;color:#fff}
+.b-save{background:var(--accent)}.b-cancel{background:#4b5563}.b-del{background:#dc2626}
+.hint{font-size:12px;color:var(--sub);margin-top:6px;line-height:1.5}
+</style>
+</head>
+<body>
+<header>
+  <h1>🚗 快速導航</h1>
+  <div class="hbtns">
+    <button class="chip" id="btnSet">⚙️</button>
+    <button class="chip" id="btnEdit">編輯</button>
+  </div>
+</header>
+<div id="install"><span>📲 安裝為手機 App</span><button id="installBtn">安裝</button></div>
+<main id="grid"></main>
+
+<!-- 編輯按鈕視窗 -->
+<div class="modal" id="mEdit"><div class="sheet">
+  <h2 id="eTitle">新增按鈕</h2>
+  <label>按鈕名稱</label><input id="fName" placeholder="例如：回家、公司" maxlength="12">
+  <label>目的地（地址、地標名稱或座標）</label><input id="fDest" placeholder="例如：台北101 或 25.0330,121.5654">
+  <div class="hint">小技巧：地址越完整越準確；也可輸入「緯度,經度」。</div>
+  <label>圖示</label><div class="icons" id="fIcons"></div>
+  <label>顏色</label><div class="colors" id="fColors"></div>
+  <div class="row">
+    <button class="b-del" id="eDel">刪除</button>
+    <button class="b-cancel" id="eCancel">取消</button>
+    <button class="b-save" id="eSave">儲存</button>
+  </div>
+</div></div>
+
+<!-- 設定視窗 -->
+<div class="modal" id="mSet"><div class="sheet">
+  <h2>設定</h2>
+  <label>導航 App</label>
+  <select id="sApp">
+    <option value="google">Google 地圖</option>
+    <option value="apple">Apple 地圖（iPhone）</option>
+    <option value="waze">Waze</option>
+  </select>
+  <label>點擊後</label>
+  <select id="sConfirm">
+    <option value="0">立即開始導航</option>
+    <option value="1">先跳出確認再導航</option>
+  </select>
+  <div class="row"><button class="b-save" id="sClose">完成</button></div>
+</div></div>
+
+<script>
+/* ===== PWA：Manifest（Data URL） ===== */
+const iconSvg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='110' fill='#2563eb'/><text x='256' y='345' font-size='280' text-anchor='middle'>🚗</text></svg>`;
+const iconUrl = 'data:image/svg+xml,' + encodeURIComponent(iconSvg);
+const manifest = {
+  name:'快速導航', short_name:'快速導航', display:'standalone',
+  background_color:'#111827', theme_color:'#111827', start_url:'.', 
+  icons:[{src:iconUrl,sizes:'any',type:'image/svg+xml',purpose:'any maskable'}]
+};
+document.getElementById('manifestLink').href = 'data:application/manifest+json,' + encodeURIComponent(JSON.stringify(manifest));
+document.getElementById('appleIcon').href = iconUrl;
+
+/* ===== PWA：Service Worker（Blob URL） ===== */
+if ('serviceWorker' in navigator) {
+  try {
+    const swCode = `
+      const C='quicknav-v1';
+      self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(C).then(c=>c.add(self.registration.scope).catch(()=>{})))});
+      self.addEventListener('activate',e=>e.waitUntil(clients.claim()));
+      self.addEventListener('fetch',e=>{
+        if(e.request.method!=='GET')return;
+        e.respondWith(fetch(e.request).then(r=>{const cp=r.clone();caches.open(C).then(c=>c.put(e.request,cp));return r}).catch(()=>caches.match(e.request).then(m=>m||caches.match(self.registration.scope))));
+      });`;
+    const swUrl = URL.createObjectURL(new Blob([swCode], {type:'text/javascript'}));
+    navigator.serviceWorker.register(swUrl).catch(()=>{});
+  } catch(e){}
+}
+
+/* ===== 安裝提示 ===== */
+let deferredPrompt = null;
+const installBar = document.getElementById('install');
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredPrompt = e; installBar.style.display='flex'; });
+document.getElementById('installBtn').onclick = async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt(); await deferredPrompt.userChoice;
+  deferredPrompt = null; installBar.style.display='none';
+};
+window.addEventListener('appinstalled', () => installBar.style.display='none');
+// iOS 提示
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const standalone = window.navigator.standalone || matchMedia('(display-mode: standalone)').matches;
+if (isIOS && !standalone) {
+  installBar.style.display='flex';
+  installBar.innerHTML = '<span>📲 點 Safari 下方「分享」→「加入主畫面」即可安裝</span>';
+}
+
+/* ===== 資料 ===== */
+const KEY='quicknav_items_v1', SKEY='quicknav_settings_v1';
+const COLORS=['#2563eb','#16a34a','#ea580c','#dc2626','#7c3aed','#0891b2','#db2777','#475569'];
+const ICONS=['🏠','🏢','🏫','🛒','⛽','🏥','🍜','☕','🅿️','🏖️','✈️','🚉','💪','🎓','❤️','📍'];
+let items = JSON.parse(localStorage.getItem(KEY) || 'null') || [
+  {id:1,name:'回家',dest:'',icon:'🏠',color:COLORS[0]},
+  {id:2,name:'公司',dest:'',icon:'🏢',color:COLORS[1]}
+];
+let settings = Object.assign({app: isIOS?'apple':'google', confirm:'0'}, JSON.parse(localStorage.getItem(SKEY)||'{}'));
+const save = () => localStorage.setItem(KEY, JSON.stringify(items));
+const saveS = () => localStorage.setItem(SKEY, JSON.stringify(settings));
+
+let editMode=false, editingId=null, selIcon=ICONS[0], selColor=COLORS[0];
+const $ = id => document.getElementById(id);
+const esc = s => s.replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ===== 導航 ===== */
+function navUrl(dest){
+  const q = encodeURIComponent(dest);
+  if (settings.app==='waze') return `https://waze.com/ul?q=${q}&navigate=yes`;
+  if (settings.app==='apple') return `https://maps.apple.com/?daddr=${q}&dirflg=d`;
+  return `https://www.google.com/maps/dir/?api=1&destination=${q}&travelmode=driving&dir_action=navigate`;
+}
+function go(it){
+  if (!it.dest) { alert('「'+it.name+'」尚未設定目的地，請按右上角「編輯」設定。'); return; }
+  if (settings.confirm==='1' && !confirm('導航到「'+it.name+'」？\n'+it.dest)) return;
+  location.href = navUrl(it.dest);
+}
+
+/* ===== 畫面 ===== */
+function render(){
+  const g=$('grid'); g.className = editMode?'editing':''; g.id='grid';
+  let h = items.map(it=>`
+    <button class="big" style="background:${it.color}" data-id="${it.id}">
+      <span class="edit">✏️ 編輯</span>
+      <span class="ic">${it.icon}</span>
+      <span class="nm">${esc(it.name)}</span>
+      <span class="ds">${it.dest?esc(it.dest):'尚未設定目的地'}</span>
+    </button>`).join('');
+  h += `<button class="big add" id="addBtn"><span class="ic">＋</span><span class="nm">新增</span></button>`;
+  g.innerHTML = h;
+  g.querySelectorAll('.big[data-id]').forEach(b=>{
+    b.onclick=()=>{ const it=items.find(x=>x.id==b.dataset.id); editMode?openEdit(it):go(it); };
+  });
+  $('addBtn').onclick=()=>openEdit(null);
+  $('btnEdit').classList.toggle('on',editMode);
+  $('btnEdit').textContent = editMode?'完成':'編輯';
+}
+
+function buildPickers(){
+  $('fIcons').innerHTML = ICONS.map(i=>`<span data-i="${i}" class="${i===selIcon?'sel':''}">${i}</span>`).join('');
+  $('fColors').innerHTML = COLORS.map(c=>`<i data-c="${c}" style="background:${c}" class="${c===selColor?'sel':''}"></i>`).join('');
+  $('fIcons').querySelectorAll('span').forEach(s=>s.onclick=()=>{selIcon=s.dataset.i;buildPickers()});
+  $('fColors').querySelectorAll('i').forEach(s=>s.onclick=()=>{selColor=s.dataset.c;buildPickers()});
+}
+function openEdit(it){
+  editingId = it?it.id:null;
+  $('eTitle').textContent = it?'編輯按鈕':'新增按鈕';
+  $('fName').value = it?it.name:'';
+  $('fDest').value = it?it.dest:'';
+  selIcon = it?it.icon:ICONS[0];
+  selColor = it?it.color:COLORS[items.length%COLORS.length];
+  $('eDel').style.display = it?'block':'none';
+  buildPickers();
+  $('mEdit').classList.add('show');
+}
+$('eCancel').onclick=()=>$('mEdit').classList.remove('show');
+$('eSave').onclick=()=>{
+  const name=$('fName').value.trim(), dest=$('fDest').value.trim();
+  if(!name){alert('請輸入按鈕名稱');return}
+  if(editingId){
+    const it=items.find(x=>x.id===editingId); Object.assign(it,{name,dest,icon:selIcon,color:selColor});
+  } else items.push({id:Date.now(),name,dest,icon:selIcon,color:selColor});
+  save(); $('mEdit').classList.remove('show'); render();
+};
+$('eDel').onclick=()=>{
+  if(confirm('確定刪除這個按鈕？')){ items=items.filter(x=>x.id!==editingId); save(); $('mEdit').classList.remove('show'); render(); }
+};
+$('btnEdit').onclick=()=>{editMode=!editMode;render()};
+$('btnSet').onclick=()=>{ $('sApp').value=settings.app; $('sConfirm').value=settings.confirm; $('mSet').classList.add('show') };
+$('sClose').onclick=()=>{ settings.app=$('sApp').value; settings.confirm=$('sConfirm').value; saveS(); $('mSet').classList.remove('show') };
+document.querySelectorAll('.modal').forEach(m=>m.addEventListener('click',e=>{ if(e.target===m) m.classList.remove('show') }));
+
+render();
+</script>
+</body>
+</html>
