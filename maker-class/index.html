@@ -65,7 +65,10 @@
   <p class="text-slate-400 max-w-2xl mx-auto mb-6" data-i18n="heroSub"></p>
   <div class="flex flex-wrap justify-center gap-4 text-sm text-slate-400">
     <span><i class="fa-solid fa-chalkboard-user" style="color:var(--accent)"></i> <span data-i18n="teacher"></span></span>
-    <a href="mailto:kaihuang@weclass.tw" class="hover:text-sky-400"><i class="fa-solid fa-envelope" style="color:var(--accent)"></i> kaihuang@weclass.tw</a>
+    <!-- 信箱：純文字（不是連結）-->
+    <span><i class="fa-solid fa-envelope" style="color:var(--accent)"></i> kaihuang@weclass.tw</span>
+    <!-- 短網址 -->
+    <a href="https://is.gd/tcola" target="_blank" rel="noopener" class="hover:text-sky-400"><i class="fa-solid fa-link" style="color:var(--accent)"></i> is.gd/tcola</a>
   </div>
   <div class="flex flex-wrap justify-center gap-3 mt-8">
     <button id="zipAll" class="btn btn-main text-base">
@@ -178,9 +181,7 @@
 <!-- ⑥ 頁尾 -->
 <footer class="border-t border-slate-700 py-8 text-center text-slate-500 text-sm">
   <div class="flex justify-center gap-5 text-xl mb-3">
-    <a href="#" class="hover:text-sky-400"><i class="fa-brands fa-github"></i></a>
-    <a href="#" class="hover:text-sky-400"><i class="fa-brands fa-youtube"></i></a>
-    <a href="mailto:kaihuang@weclass.tw" class="hover:text-sky-400"><i class="fa-solid fa-envelope"></i></a>
+    <a href="https://is.gd/tcola" target="_blank" rel="noopener" class="hover:text-sky-400" title="is.gd/tcola"><i class="fa-solid fa-link"></i></a>
   </div>
   <p data-i18n="copyright"></p>
 </footer>
@@ -227,7 +228,6 @@ const I18N = {
     zipFail:"部分檔案下載失敗：", zipNone:"沒有可下載的檔案",
     dlFail:"下載失敗，請通知老師",
     updated:"清單已更新，共 {n} 個檔案", usingCache:"網路忙碌，使用上次的清單",
-    defDesc:"（沒有註解）",
     unsorted:"未分類",
     copyright:"© 2026 可樂老師 檔案下載。保留所有權利。",
     teacherMode:"老師模式",
@@ -275,7 +275,6 @@ const I18N = {
     zipFail:"Some files failed: ", zipNone:"No files to download",
     dlFail:"Download failed. Please tell your teacher.",
     updated:"List updated: {n} files", usingCache:"Network busy, using the last saved list",
-    defDesc:"(No note)",
     unsorted:"Unsorted",
     copyright:"© 2026 Teacher Cola – File Downloads. All rights reserved.",
     teacherMode:"Teacher",
@@ -399,9 +398,7 @@ async function loadList(force=false){
 function parse(f){
   const parts = f.path.split('/');
   const name = parts.pop();
-  const base = name.replace(/\.[^.]+$/, '');   // 去掉副檔名當標題
   return { path:f.path, name, size:f.size, folderParts:parts,
-    title: base.replace(/[_\-]+/g,' ').trim() || name,
     note: NOTES[f.path] || '' };
 }
 function label(c){
@@ -451,7 +448,7 @@ function updateAdminBtn(){
   $('#adminBtn').innerHTML = `<i class="fa-solid ${isAdmin()?'fa-lock-open':'fa-lock'}"></i> <span class="hidden sm:inline">${I18N[lang].teacherMode}</span>`;
 }
 
-/* ===== 畫面渲染 ===== */
+/* ===== 檔案卡片：檔名 + 大小 + 註解 ===== */
 function fileCard(i, showPlace){
   const t = I18N[lang], admin = isAdmin();
   const place = i.folderParts.length ? i.folderParts.map(p=>esc(label(p))).join(' <span class="text-slate-600">/</span> ') : esc(t.unsorted);
@@ -460,11 +457,10 @@ function fileCard(i, showPlace){
     ${showPlace ? `<span class="self-start px-2.5 py-1 mb-3 rounded-lg bg-slate-700 text-xs text-sky-300 break-words"><i class="fa-solid fa-folder"></i> ${place}</span>`:''}
     <div class="flex items-start gap-3 mb-2">
       <i class="fa-solid ${iconOf(i.name)} text-xl mt-1" style="color:var(--accent)"></i>
-      <h3 class="font-bold text-lg break-all">${esc(i.name)}</h3>
+      <h3 class="font-bold text-lg break-all">${esc(i.name)} <span class="text-xs font-normal text-slate-500 whitespace-nowrap">${fmtSize(i.size)}</span></h3>
     </div>
     ${i.note ? `<p class="text-sm text-slate-300 mb-3 whitespace-pre-line break-words">${esc(i.note)}</p>` : ''}
     <div class="mt-auto pt-3 flex items-center gap-2">
-      <span class="text-xs text-slate-500 shrink-0">${fmtSize(i.size)}</span>
       <button class="btn btn-main flex-1" data-dl="${esc(i.path)}"><i class="fa-solid fa-download"></i> ${t.download}</button>
       ${admin ? `<button class="btn btn-ghost" title="${t.edit}" data-edit="${esc(i.path)}"><i class="fa-solid fa-pen"></i></button>
                  <button class="btn btn-danger" title="${t.del}" data-del="${esc(i.path)}"><i class="fa-solid fa-trash"></i></button>`:''}
@@ -472,19 +468,20 @@ function fileCard(i, showPlace){
   </article>`;
 }
 
-
+/* ===== 畫面渲染 ===== */
 function render(){
   const t = I18N[lang];
   const items = FILES.map(parse).sort((a,b)=>a.path.localeCompare(b.path,'zh-Hant',{numeric:true}));
   const q = $('#search').value.trim().toLowerCase();
   const searching = q.length>0;
+  const match = i => (i.path+i.note).toLowerCase().includes(q);
 
   // 若目前資料夾已不存在（例如檔案被刪光），退回上一層
   while(path.length && !items.some(inPath)) path = path.slice(0,-1);
 
   // 路徑列
   if(searching){
-    $('#crumb').innerHTML = `<span class="text-slate-300"><i class="fa-solid fa-magnifying-glass" style="color:var(--accent)"></i> ${esc(t.searchResult.replace('{n}', items.filter(i=>(i.path+i.title+i.note).toLowerCase().includes(q)).length))}</span>`;
+    $('#crumb').innerHTML = `<span class="text-slate-300"><i class="fa-solid fa-magnifying-glass" style="color:var(--accent)"></i> ${esc(t.searchResult.replace('{n}', items.filter(match).length))}</span>`;
     $('#backBtn').classList.add('hidden');
   }else{
     const segs = [`<span class="crumb-link ${path.length?'':'font-bold text-white'}" data-p=""><i class="fa-solid fa-house"></i> ${esc(t.home)}</span>`];
@@ -500,7 +497,7 @@ function render(){
 
   let folders = [], files = [];
   if(searching){
-    files = items.filter(i=>(i.path+i.title+i.note).toLowerCase().includes(q));
+    files = items.filter(match);
   }else{
     const v = currentView(items); folders = v.folders; files = v.files;
   }
