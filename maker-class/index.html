@@ -162,14 +162,15 @@
 
 <script>
 /* =====================================================
-   ★ 基本設定
+   ★ 基本設定（已依你的 GitHub 結構設定好）
    ===================================================== */
 const CONFIG = {
-  folder: "files/",     // .abp 檔案存放的資料夾
-  ext: ".abp",          // 要偵測的副檔名
-  owner: "",            // GitHub 帳號（留空 = 自動從網址判斷）
-  repo:  "",            // Repository 名稱（留空 = 自動從網址判斷）
-  cacheMinutes: 5       // 清單快取時間（分鐘）
+  folder: "files/",           // .abp 檔案資料夾（相對於 index.html）
+  basePath: "maker-class/",   // index.html 在 Repository 裡的子資料夾位置
+  ext: ".abp",                // 要偵測的副檔名
+  owner: "leoleo168",         // GitHub 帳號
+  repo:  "MyProject",         // Repository 名稱
+  cacheMinutes: 1             // 清單快取時間（分鐘）
 };
 
 /* =====================================================
@@ -260,6 +261,7 @@ const I18N = {
 
 /* =====================================================
    ★ 選用：為特定檔案加上中英文標題與說明
+   key = 檔名（子資料夾內的要寫成「資料夾/檔名.abp」）
    ===================================================== */
 const META = {
   "Blink.abp": {
@@ -285,16 +287,12 @@ const esc = s => String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'
 const getToken = () => sessionStorage.getItem('gh_token') || localStorage.getItem('gh_token') || '';
 const isAdmin  = () => !!getToken();
 
-/* ===== 判斷 GitHub 帳號與專案名稱 ===== */
+/* ===== GitHub 帳號與專案名稱 ===== */
 function getRepo(){
-  let owner = localStorage.getItem('gh_owner') || CONFIG.owner;
-  let repo  = localStorage.getItem('gh_repo')  || CONFIG.repo;
-  if((!owner || !repo) && location.hostname.endsWith('.github.io')){
-    owner = owner || location.hostname.split('.')[0];
-    const seg = location.pathname.split('/').filter(Boolean)[0];
-    repo = repo || ((seg && !seg.includes('.')) ? seg : owner + '.github.io');
-  }
-  return {owner, repo};
+  return {
+    owner: localStorage.getItem('gh_owner') || CONFIG.owner,
+    repo:  localStorage.getItem('gh_repo')  || CONFIG.repo
+  };
 }
 
 /* =====================================================
@@ -306,7 +304,7 @@ async function fetchFromAPI(){
   const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/HEAD?recursive=1&t=${Date.now()}`);
   if(!res.ok) throw new Error('api ' + res.status);
   const data = await res.json();
-  const prefix = CONFIG.folder;
+  const prefix = CONFIG.basePath + CONFIG.folder;   // 例：maker-class/files/
   return data.tree
     .filter(x => x.type==='blob' && x.path.startsWith(prefix) && x.path.toLowerCase().endsWith(CONFIG.ext))
     .map(x => ({path: x.path.slice(prefix.length), size: x.size || 0}));
@@ -365,7 +363,10 @@ function applyLang(){
   document.querySelectorAll('[data-i18n]').forEach(el=>el.textContent=t[el.dataset.i18n]);
   document.querySelectorAll('[data-i18n-ph]').forEach(el=>el.placeholder=t[el.dataset.i18nPh]);
   $('#langLabel').textContent = lang==='zh' ? 'EN' : '中文';
-  if(FILES.length) render();
+  if(FILES.length) render(); else updateAdminBtn();
+}
+function updateAdminBtn(){
+  $('#adminBtn').innerHTML = `<i class="fa-solid ${isAdmin()?'fa-lock-open':'fa-lock'}"></i> <span class="hidden sm:inline">${I18N[lang].teacherMode}</span>`;
 }
 
 /* ===== 畫面渲染 ===== */
@@ -400,7 +401,7 @@ function render(){
         ${admin ? `<button class="btn btn-danger" title="${t.del}" data-del="${esc(i.path)}"><i class="fa-solid fa-trash"></i></button>`:''}
       </div>
     </article>`).join('');
-  $('#adminBtn').innerHTML = `<i class="fa-solid ${admin?'fa-lock-open':'fa-lock'}"></i> <span class="hidden sm:inline">${t.teacherMode}</span>`;
+  updateAdminBtn();
 }
 
 /* ===== 下載工具 ===== */
@@ -514,7 +515,7 @@ $('#doUpload').onclick = async ()=>{
     const li = [...document.querySelectorAll('#upList li')].find(x=>x.dataset.n===f.name);
     const st = li.querySelector('.st'); st.textContent = t.upWait;
     try{
-      const path = CONFIG.folder + (sub ? sub+'/' : '') + f.name;
+      const path = CONFIG.basePath + CONFIG.folder + (sub ? sub+'/' : '') + f.name;   // maker-class/files/...
       // 若同名檔案已存在，需帶上 sha 才能覆蓋
       let sha; const ex = await gh('GET', path);
       if(ex.ok) sha = (await ex.json()).sha;
@@ -533,7 +534,7 @@ async function deleteFile(path){
   const t = I18N[lang];
   if(!confirm(t.confirmDel + path)) return;
   try{
-    const full = CONFIG.folder + path;
+    const full = CONFIG.basePath + CONFIG.folder + path;
     const ex = await gh('GET', full);
     if(!ex.ok) throw new Error();
     const res = await gh('DELETE', full, { message:'delete '+path, sha:(await ex.json()).sha });
