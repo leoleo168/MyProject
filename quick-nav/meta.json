@@ -1,0 +1,12 @@
+{
+  "title": "行車快速導航",
+  "description": "行車用大按鈕快速導航，可自訂按鈕名稱與目的地，一鍵開啟 Google 地圖、Apple 地圖或 Waze，支援離線安裝成 App。",
+  "tags": [
+    "導航",
+    "行車工具",
+    "Google Maps",
+    "Waze",
+    "PWA"
+  ],
+  "date": "2026-11-24"
+}
