@@ -56,7 +56,21 @@ input,select{width:100%;padding:14px;border-radius:12px;border:1px solid #374151
 .row{display:flex;gap:10px;margin-top:18px}
 .row button{flex:1;padding:14px;border:0;border-radius:14px;font-size:16px;font-weight:700;color:#fff}
 .b-save{background:var(--accent)}.b-cancel{background:#4b5563}.b-del{background:#dc2626}
+.b-map{width:100%;margin-top:8px;padding:12px;border:0;border-radius:12px;background:#0f766e;color:#fff;font-size:16px;font-weight:700}
 .hint{font-size:12px;color:var(--sub);margin-top:6px;line-height:1.5}
+
+/* 地圖選點 */
+#mMap{position:fixed;inset:0;z-index:30;background:var(--bg);display:none;flex-direction:column;padding-top:env(safe-area-inset-top)}
+#mMap.show{display:flex}
+#mapTop{display:flex;gap:8px;padding:10px 12px;background:var(--card)}
+#mapTop input{flex:1;padding:12px}
+#mapTop button{border:0;background:var(--accent);color:#fff;border-radius:12px;padding:0 16px;font-size:16px;font-weight:700}
+#map{flex:1;min-height:0;background:#e5e7eb}
+#mapBot{background:var(--card);padding:12px 14px calc(12px + env(safe-area-inset-bottom))}
+#mapAddr{font-size:15px;font-weight:600;margin-bottom:4px;min-height:22px;user-select:text}
+#mapCoord{font-size:12px;color:var(--sub);margin-bottom:10px}
+#mapBot .row{margin-top:0}
+.b-loc{background:#0f766e}
 </style>
 </head>
 <body>
@@ -77,7 +91,8 @@ input,select{width:100%;padding:14px;border-radius:12px;border:1px solid #374151
   <h2 id="eTitle">新增按鈕</h2>
   <label>按鈕名稱</label><input id="fName" placeholder="例如：回家、公司" maxlength="12">
   <label>目的地（地址、地標名稱或座標）</label><input id="fDest" placeholder="例如：台北101 或 25.0330,121.5654">
-  <div class="hint">小技巧：地址越完整越準確；也可輸入「緯度,經度」。</div>
+  <button class="b-map" id="btnPick" type="button">🗺️ 從地圖選點</button>
+  <div class="hint" id="fLabelHint"></div>
   <label>行進方式</label>
   <select id="fMode">
     <option value="default">跟隨上方設定</option>
@@ -112,6 +127,24 @@ input,select{width:100%;padding:14px;border-radius:12px;border:1px solid #374151
   <div class="row"><button class="b-save" id="sClose">完成</button></div>
 </div></div>
 
+<!-- 地圖選點 -->
+<div id="mMap">
+  <div id="mapTop">
+    <input id="mapQ" placeholder="搜尋地名或地址" enterkeyhint="search">
+    <button id="mapSearch">搜尋</button>
+  </div>
+  <div id="map"></div>
+  <div id="mapBot">
+    <div id="mapAddr">點一下地圖選擇目的地</div>
+    <div id="mapCoord"></div>
+    <div class="row">
+      <button class="b-loc" id="mapLoc">📍 我的位置</button>
+      <button class="b-cancel" id="mapCancel">取消</button>
+      <button class="b-save" id="mapOk">確定</button>
+    </div>
+  </div>
+</div>
+
 <script>
 /* ===== PWA：Manifest（Data URL） ===== */
 const iconSvg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='110' fill='#2563eb'/><text x='256' y='345' font-size='280' text-anchor='middle'>🧭</text></svg>`;
@@ -124,15 +157,16 @@ const manifest = {
 document.getElementById('manifestLink').href = 'data:application/manifest+json,' + encodeURIComponent(JSON.stringify(manifest));
 document.getElementById('appleIcon').href = iconUrl;
 
-/* ===== PWA：Service Worker（Blob URL） ===== */
+/* ===== PWA：Service Worker（Blob URL，只快取同網域檔案） ===== */
 if ('serviceWorker' in navigator) {
   try {
     const swCode = `
-      const C='quicknav-v2';
+      const C='quicknav-v3';
       self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(C).then(c=>c.add(self.registration.scope).catch(()=>{})))});
       self.addEventListener('activate',e=>e.waitUntil(clients.claim()));
       self.addEventListener('fetch',e=>{
         if(e.request.method!=='GET')return;
+        if(new URL(e.request.url).origin!==self.location.origin)return;
         e.respondWith(fetch(e.request).then(r=>{const cp=r.clone();caches.open(C).then(c=>c.put(e.request,cp));return r}).catch(()=>caches.match(e.request).then(m=>m||caches.match(self.registration.scope))));
       });`;
     const swUrl = URL.createObjectURL(new Blob([swCode], {type:'text/javascript'}));
@@ -175,9 +209,9 @@ if(!MODES[settings.mode]) settings.mode='driving';
 const save = () => localStorage.setItem(KEY, JSON.stringify(items));
 const saveS = () => localStorage.setItem(SKEY, JSON.stringify(settings));
 
-let editMode=false, editingId=null, selIcon=ICONS[0], selColor=COLORS[0];
+let editMode=false, editingId=null, selIcon=ICONS[0], selColor=COLORS[0], curLabel='';
 const $ = id => document.getElementById(id);
-const esc = s => s.replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const esc = s => String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const modeOf = it => (it.mode && MODES[it.mode]) ? it.mode : settings.mode;
 
 /* ===== 導航 ===== */
@@ -187,13 +221,12 @@ function navUrl(dest, mode){
     if (settings.app==='waze') return `https://waze.com/ul?q=${q}&navigate=yes`;
     if (settings.app==='apple') return `https://maps.apple.com/?daddr=${q}&dirflg=d`;
   }
-  // 機車、腳踏車，或汽車選 Google 地圖
   return `https://www.google.com/maps/dir/?api=1&destination=${q}&travelmode=${MODES[mode].gmode}&dir_action=navigate`;
 }
 function go(it){
   if (!it.dest) { alert('「'+it.name+'」尚未設定目的地，請按右上角「編輯」設定。'); return; }
   const m = modeOf(it);
-  if (settings.confirm==='1' && !confirm(MODES[m].icon+' '+MODES[m].name+' 導航到「'+it.name+'」？\n'+it.dest)) return;
+  if (settings.confirm==='1' && !confirm(MODES[m].icon+' '+MODES[m].name+' 導航到「'+it.name+'」？\n'+(it.label||it.dest))) return;
   location.href = navUrl(it.dest, m);
 }
 
@@ -213,7 +246,7 @@ function render(){
       <span class="edit">✏️ 編輯</span>
       <span class="ic">${it.icon}</span>
       <span class="nm">${esc(it.name)}</span>
-      <span class="ds">${it.dest?esc(it.dest):'尚未設定目的地'}</span>
+      <span class="ds">${it.dest?esc(it.label||it.dest):'尚未設定目的地'}</span>
     </button>`).join('');
   h += `<button class="big add" id="addBtn"><span class="ic">＋</span><span class="nm">新增</span></button>`;
   g.innerHTML = h;
@@ -231,11 +264,13 @@ function buildPickers(){
   $('fIcons').querySelectorAll('span').forEach(s=>s.onclick=()=>{selIcon=s.dataset.i;buildPickers()});
   $('fColors').querySelectorAll('i').forEach(s=>s.onclick=()=>{selColor=s.dataset.c;buildPickers()});
 }
+function setLabel(t){ curLabel=t||''; $('fLabelHint').textContent = curLabel ? '📍 已選：'+curLabel : ''; }
 function openEdit(it){
   editingId = it?it.id:null;
   $('eTitle').textContent = it?'編輯按鈕':'新增按鈕';
   $('fName').value = it?it.name:'';
   $('fDest').value = it?it.dest:'';
+  setLabel(it?it.label:'');
   $('fMode').value = it?(it.mode||'default'):'default';
   selIcon = it?it.icon:ICONS[0];
   selColor = it?it.color:COLORS[items.length%COLORS.length];
@@ -243,13 +278,14 @@ function openEdit(it){
   buildPickers();
   $('mEdit').classList.add('show');
 }
+$('fDest').addEventListener('input',()=>setLabel('')); // 手動改目的地就清除地圖地址標籤
 $('eCancel').onclick=()=>$('mEdit').classList.remove('show');
 $('eSave').onclick=()=>{
-  const name=$('fName').value.trim(), dest=$('fDest').value.trim(), mode=$('fMode').value;
+  const name=$('fName').value.trim(), dest=$('fDest').value.trim(), mode=$('fMode').value, label=curLabel;
   if(!name){alert('請輸入按鈕名稱');return}
   if(editingId){
-    const it=items.find(x=>x.id===editingId); Object.assign(it,{name,dest,mode,icon:selIcon,color:selColor});
-  } else items.push({id:Date.now(),name,dest,mode,icon:selIcon,color:selColor});
+    const it=items.find(x=>x.id===editingId); Object.assign(it,{name,dest,label,mode,icon:selIcon,color:selColor});
+  } else items.push({id:Date.now(),name,dest,label,mode,icon:selIcon,color:selColor});
   save(); $('mEdit').classList.remove('show'); render();
 };
 $('eDel').onclick=()=>{
@@ -259,6 +295,93 @@ $('btnEdit').onclick=()=>{editMode=!editMode;render()};
 $('btnSet').onclick=()=>{ $('sApp').value=settings.app; $('sConfirm').value=settings.confirm; $('mSet').classList.add('show') };
 $('sClose').onclick=()=>{ settings.app=$('sApp').value; settings.confirm=$('sConfirm').value; saveS(); $('mSet').classList.remove('show') };
 document.querySelectorAll('.modal').forEach(m=>m.addEventListener('click',e=>{ if(e.target===m) m.classList.remove('show') }));
+
+/* ===== 地圖選點（Leaflet + OpenStreetMap） ===== */
+let map=null, marker=null, picked=null, leafletReady=null;
+function loadLeaflet(){
+  if (window.L) return Promise.resolve();
+  if (leafletReady) return leafletReady;
+  leafletReady = new Promise((res,rej)=>{
+    const css=document.createElement('link');
+    css.rel='stylesheet'; css.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+    document.head.appendChild(css);
+    const s=document.createElement('script');
+    s.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    s.onload=res; s.onerror=()=>{leafletReady=null;rej()};
+    document.head.appendChild(s);
+  });
+  return leafletReady;
+}
+function parseCoord(t){
+  const m=/^\s*(-?\d+(\.\d+)?)\s*[,，\s]\s*(-?\d+(\.\d+)?)\s*$/.exec(t||'');
+  return m?[parseFloat(m[1]),parseFloat(m[3])]:null;
+}
+function setPick(lat,lng,label){
+  picked={lat,lng,label:label||''};
+  if(!marker){
+    marker=L.marker([lat,lng],{draggable:true}).addTo(map);
+    marker.on('dragend',()=>{const p=marker.getLatLng();setPick(p.lat,p.lng)});
+  } else marker.setLatLng([lat,lng]);
+  $('mapCoord').textContent = lat.toFixed(6)+', '+lng.toFixed(6);
+  if(label){ $('mapAddr').textContent=label; return; }
+  $('mapAddr').textContent='查詢地址中…';
+  const key=lat+','+lng;
+  fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&accept-language=zh-TW&lat=${lat}&lon=${lng}`)
+    .then(r=>r.json()).then(d=>{
+      if(!picked||picked.lat+','+picked.lng!==key) return;
+      picked.label = d.name && d.display_name ? d.name+'（'+d.display_name.split(',').slice(1,3).join(' ').trim()+'）' : (d.display_name||'');
+      if(d.display_name && d.name===undefined) picked.label=d.display_name;
+      $('mapAddr').textContent = picked.label || '已選擇位置';
+    }).catch(()=>{ if(picked) $('mapAddr').textContent='已選擇位置（無法取得地址）'; });
+}
+async function openMap(){
+  try { await loadLeaflet(); }
+  catch(e){ alert('地圖載入失敗，請確認網路連線後再試。'); return; }
+  $('mMap').classList.add('show');
+  const exist = parseCoord($('fDest').value);
+  if(!map){
+    map=L.map('map',{zoomControl:true}).setView(exist||[25.033,121.5654],exist?16:13);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+    map.on('click',e=>setPick(e.latlng.lat,e.latlng.lng));
+  }
+  setTimeout(()=>map.invalidateSize(),50);
+  picked=null; $('mapAddr').textContent='點一下地圖選擇目的地'; $('mapCoord').textContent='';
+  if(marker){map.removeLayer(marker);marker=null}
+  if(exist){ map.setView(exist,16); setPick(exist[0],exist[1],curLabel); }
+  else if(navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(p=>map.setView([p.coords.latitude,p.coords.longitude],15),()=>{},{timeout:6000});
+  }
+}
+$('btnPick').onclick=openMap;
+$('mapCancel').onclick=()=>$('mMap').classList.remove('show');
+$('mapOk').onclick=()=>{
+  if(!picked){alert('請先在地圖上點選目的地');return}
+  $('fDest').value = picked.lat.toFixed(6)+','+picked.lng.toFixed(6);
+  setLabel(picked.label||'');
+  if(!$('fName').value.trim() && picked.label) $('fName').value = picked.label.split('（')[0].slice(0,12);
+  $('mMap').classList.remove('show');
+};
+$('mapLoc').onclick=()=>{
+  if(!navigator.geolocation){alert('此裝置不支援定位');return}
+  navigator.geolocation.getCurrentPosition(p=>{
+    map.setView([p.coords.latitude,p.coords.longitude],17);
+    setPick(p.coords.latitude,p.coords.longitude);
+  },()=>alert('無法取得位置，請確認已允許定位權限。'),{enableHighAccuracy:true,timeout:10000});
+};
+async function doSearch(){
+  const q=$('mapQ').value.trim(); if(!q) return;
+  $('mapAddr').textContent='搜尋中…';
+  try{
+    const r=await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&accept-language=zh-TW&q=${encodeURIComponent(q)}`);
+    const d=await r.json();
+    if(!d.length){ $('mapAddr').textContent='找不到結果，請換個關鍵字'; return; }
+    const lat=parseFloat(d[0].lat), lng=parseFloat(d[0].lon);
+    map.setView([lat,lng],17);
+    setPick(lat,lng,d[0].display_name);
+  }catch(e){ $('mapAddr').textContent='搜尋失敗，請確認網路連線'; }
+}
+$('mapSearch').onclick=doSearch;
+$('mapQ').addEventListener('keydown',e=>{ if(e.key==='Enter') doSearch(); });
 
 renderModeBar();
 render();
