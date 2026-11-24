@@ -19,11 +19,7 @@
         transition:.25s;box-shadow:0 4px 14px rgba(0,0,0,.25);}
   .card.hov:hover{transform:translateY(-6px);border-color:var(--accent);
         box-shadow:0 12px 28px rgba(56,189,248,.18);}
-  .tag{padding:.45rem 1.1rem;border-radius:999px;border:1px solid #334155;
-       cursor:pointer;transition:.2s;font-size:.9rem;background:transparent;color:#cbd5e1;}
-  .tag:hover{border-color:var(--accent);color:var(--accent);}
-  .tag.active{background:var(--accent);color:#0f172a;border-color:var(--accent);font-weight:700;}
-  .tag.sub{font-size:.8rem;padding:.3rem .9rem;}
+  .folder{cursor:pointer;}
   .btn{padding:.55rem 1rem;border-radius:.6rem;font-size:.9rem;transition:.2s;cursor:pointer;}
   .btn-main{background:var(--accent);color:#0f172a;font-weight:700;}
   .btn-main:hover{background:#7dd3fc;}
@@ -36,6 +32,8 @@
   .inp:focus{outline:none;border-color:var(--accent);}
   .drop{border:2px dashed #475569;border-radius:.9rem;padding:1.5rem;text-align:center;cursor:pointer;transition:.2s;}
   .drop:hover,.drop.over{border-color:var(--accent);background:rgba(56,189,248,.06);}
+  .crumb-link{color:#cbd5e1;cursor:pointer;transition:.2s;}
+  .crumb-link:hover{color:var(--accent);}
   .fade-in{animation:fade .4s ease both;}
   @keyframes fade{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 </style>
@@ -71,7 +69,7 @@
   </div>
   <div class="flex flex-wrap justify-center gap-3 mt-8">
     <button id="zipAll" class="btn btn-main text-base">
-      <i class="fa-solid fa-file-zipper"></i> <span data-i18n="downloadAll"></span>
+      <i class="fa-solid fa-file-zipper"></i> <span id="zipLabel"></span>
     </button>
     <button id="refresh" class="btn btn-ghost text-base">
       <i class="fa-solid fa-rotate"></i> <span data-i18n="refresh"></span>
@@ -88,18 +86,21 @@
   </div>
 </section>
 
-<!-- ③ 搜尋 + 兩層分類篩選（學校 → 作品）-->
+<!-- ③ 搜尋 + 路徑列（像檔案總管）-->
 <section class="max-w-6xl mx-auto px-4 mb-6">
   <input id="search" type="text"
     class="w-full md:w-96 mb-4 px-4 py-2 rounded-lg bg-slate-800 border border-slate-600 focus:outline-none focus:border-sky-400"
     data-i18n-ph="searchPh">
-  <div id="tags" class="flex flex-wrap gap-2"></div>
-  <div id="subTags" class="flex flex-wrap gap-2 mt-3"></div>
+  <div class="flex flex-wrap items-center gap-3">
+    <button id="backBtn" class="btn btn-ghost hidden"><i class="fa-solid fa-arrow-left"></i> <span data-i18n="back"></span></button>
+    <div id="crumb" class="flex flex-wrap items-center gap-2 text-base"></div>
+  </div>
 </section>
 
-<!-- ④ 檔案卡片區 -->
+<!-- ④ 資料夾 + 檔案卡片區 -->
 <main class="max-w-6xl mx-auto px-4 pb-16">
   <p id="status" class="text-center text-slate-400 py-10"></p>
+  <div id="folders" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-6"></div>
   <div id="grid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
 </main>
 
@@ -190,7 +191,7 @@
 const CONFIG = {
   folder: "files/",           // .abp 檔案資料夾（相對於 index.html）
   basePath: "maker-class/",   // index.html 在 Repository 裡的子資料夾位置
-  notesFile: "notes.json",    // 註解存放檔（自動建立，放在 files 資料夾內）
+  notesFile: "notes.json",    // 註解存放檔（自動建立）
   ext: ".abp",
   owner: "leoleo168",         // GitHub 帳號
   repo:  "MyProject",         // Repository 名稱
@@ -204,24 +205,29 @@ const I18N = {
   zh:{
     logo:"ArduBlock 檔案下載站",
     heroTitle:"ArduBlock 課堂檔案下載",
-    heroSub:"同學們請在這裡下載今天上課要用的 .abp 積木程式檔。新檔案會自動出現在下方。",
+    heroSub:"同學們請在這裡下載今天上課要用的 .abp 積木程式檔。新檔案會自動出現。",
     teacher:"授課老師：王老師",
-    downloadAll:"一次下載全部檔案（ZIP）",
+    zipRoot:"一次下載全部檔案（ZIP）",
+    zipHere:"下載此資料夾全部檔案（ZIP）",
     refresh:"重新整理清單",
-    step1:"先點選學校與作品，再按「下載」。",
-    step2:"開啟 Arduino IDE → 工具 → ArduBlock。",
+    step1:"依序點選學校 → 作品，找到你的檔案。",
+    step2:"按「下載」，再開啟 Arduino IDE → 工具 → ArduBlock。",
     step3:"在 ArduBlock 視窗按「載入」，選擇剛下載的 .abp 檔。",
-    searchPh:"搜尋檔名或註解…",
+    searchPh:"搜尋檔名或註解（會搜尋所有資料夾）…",
+    home:"首頁", back:"上一層",
+    filesCount:"{n} 個檔案",
+    searchResult:"搜尋結果：{n} 個檔案",
     loading:"正在讀取檔案清單…",
-    empty:"目前沒有符合的檔案",
+    empty:"這裡目前是空的",
+    emptySearch:"找不到符合的檔案",
     loadFail:"無法讀取檔案清單，請稍後再試或通知老師。",
     download:"下載 .abp", del:"刪除", edit:"編輯註解",
     downloaded:"開始下載！", zipping:"正在打包，請稍候…",
-    zipFail:"部分檔案下載失敗：", zipNone:"沒有成功取得任何檔案",
+    zipFail:"部分檔案下載失敗：", zipNone:"沒有可下載的檔案",
     dlFail:"下載失敗，請通知老師",
     updated:"清單已更新，共 {n} 個檔案", usingCache:"網路忙碌，使用上次的清單",
     defDesc:"（沒有註解）",
-    all:"全部", allWork:"全部作品", unsorted:"未分類",
+    unsorted:"未分類",
     copyright:"© 2026 ArduBlock 課堂。保留所有權利。",
     teacherMode:"老師模式",
     uploadTitle:"老師上傳檔案",
@@ -231,7 +237,7 @@ const I18N = {
     unlock:"驗證並開啟上傳",
     schoolLabel:"學校（第一層資料夾）", schoolPh:"例如：A國小",
     workLabel:"作品（第二層資料夾）", workPh:"例如：紅綠燈",
-    folderHint:"兩格都可留空。可直接選擇已有的名稱，或輸入新名稱自動建立。",
+    folderHint:"已自動帶入你目前所在的資料夾。可選擇已有名稱，或輸入新名稱自動建立。",
     dropText:"點擊或拖曳 .abp 檔案到這裡（可多選）",
     notePh:"在這裡寫註解（選填）",
     editNote:"編輯註解", cancel:"取消", save:"儲存",
@@ -249,22 +255,27 @@ const I18N = {
     heroTitle:"ArduBlock Class File Downloads",
     heroSub:"Download today's .abp block-program files here. New files appear automatically.",
     teacher:"Instructor: Mr. Wang",
-    downloadAll:"Download All Files (ZIP)",
+    zipRoot:"Download All Files (ZIP)",
+    zipHere:"Download This Folder (ZIP)",
     refresh:"Refresh List",
-    step1:"Pick a school and project, then click “Download”.",
-    step2:"Open Arduino IDE → Tools → ArduBlock.",
+    step1:"Open your school → project folder to find your file.",
+    step2:"Click “Download”, then open Arduino IDE → Tools → ArduBlock.",
     step3:"Click “Load” in the ArduBlock window and choose the .abp file.",
-    searchPh:"Search file name or note…",
+    searchPh:"Search file name or note (all folders)…",
+    home:"Home", back:"Up",
+    filesCount:"{n} files",
+    searchResult:"Search results: {n} files",
     loading:"Loading file list…",
-    empty:"No matching files",
+    empty:"This folder is empty",
+    emptySearch:"No matching files",
     loadFail:"Could not load the file list. Please try again later or tell your teacher.",
     download:"Download .abp", del:"Delete", edit:"Edit note",
     downloaded:"Download started!", zipping:"Packing files…",
-    zipFail:"Some files failed: ", zipNone:"No files could be fetched",
+    zipFail:"Some files failed: ", zipNone:"No files to download",
     dlFail:"Download failed. Please tell your teacher.",
     updated:"List updated: {n} files", usingCache:"Network busy, using the last saved list",
     defDesc:"(No note)",
-    all:"All", allWork:"All projects", unsorted:"Unsorted",
+    unsorted:"Unsorted",
     copyright:"© 2026 ArduBlock Class. All rights reserved.",
     teacherMode:"Teacher",
     uploadTitle:"Teacher Upload",
@@ -274,7 +285,7 @@ const I18N = {
     unlock:"Verify & Enable Upload",
     schoolLabel:"School (level-1 folder)", schoolPh:"e.g. School A",
     workLabel:"Project (level-2 folder)", workPh:"e.g. Traffic light",
-    folderHint:"Both fields are optional. Pick an existing name or type a new one to create it.",
+    folderHint:"Filled in from your current folder. Pick an existing name or type a new one to create it.",
     dropText:"Click or drop .abp files here (multiple allowed)",
     notePh:"Write a note here (optional)",
     editNote:"Edit Note", cancel:"Cancel", save:"Save",
@@ -296,12 +307,12 @@ const CAT_LABELS = {
 
 /* ===== 狀態 ===== */
 let lang = localStorage.getItem('lang') || 'zh';
-let cat = '__all';     // 第一層（學校）
-let sub = '__all';     // 第二層（作品）
+let path = [];         // 目前所在位置，例如 ['A國小','紅綠燈']；[] 代表首頁
 let FILES = [];
-let NOTES = {};        // 註解：{ "學校/作品/檔名.abp": "註解文字" }
+let NOTES = {};
 let pending = [];
 let editingPath = null;
+const NONE = '__none';  // 「未分類」虛擬資料夾
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
@@ -332,7 +343,6 @@ async function fetchFromJson(){
   const arr = await res.json();
   return arr.map(x => typeof x==='string' ? {path:x, size:0} : {path:x.path, size:x.size||0});
 }
-// 讀取註解：老師用 API 讀最新版，學生讀網站上的 notes.json
 async function loadNotes(){
   try{
     if(isAdmin()){
@@ -368,22 +378,46 @@ async function loadList(force=false){
 /* ===== 整理成卡片資料 ===== */
 function parse(f){
   const parts = f.path.split('/');
-  const name = parts.pop();                 // 檔名
+  const name = parts.pop();
   const base = name.slice(0, -CONFIG.ext.length);
-  return { path:f.path, name, size:f.size,
-    school: parts[0] || '__none',           // 第一層：學校
-    work:   parts[1] || '__none',           // 第二層：作品
-    folderParts: parts,
+  return { path:f.path, name, size:f.size, folderParts:parts,
     title: base.replace(/[_\-]+/g,' ').trim(),
     note: NOTES[f.path] || '' };
 }
 function label(c){
-  if(c==='__all') return I18N[lang].all;
-  if(c==='__allwork') return I18N[lang].allWork;
-  if(c==='__none') return I18N[lang].unsorted;
+  if(c===NONE) return I18N[lang].unsorted;
   return (CAT_LABELS[c] && CAT_LABELS[c][lang]) || c;
 }
 const fmtSize = b => !b ? '' : b<1024 ? b+' B' : (b/1024).toFixed(1)+' KB';
+
+/* ===== 檔案總管邏輯 ===== */
+// 判斷檔案是否在目前資料夾（含子資料夾）
+function inPath(i){
+  if(path.length===0) return true;
+  if(path[0]===NONE) return i.folderParts.length===0;
+  return path.every((p,k)=>i.folderParts[k]===p);
+}
+// 取得目前資料夾下的「子資料夾」與「直接放在這裡的檔案」
+function currentView(items){
+  const here = items.filter(inPath);
+  const folders = new Map();     // 資料夾路徑字串 → 檔案數
+  const files = [];
+  if(path[0]===NONE){ here.forEach(i=>files.push(i)); return {folders:[], files}; }
+  const depth = path.length;
+  here.forEach(i=>{
+    if(i.folderParts.length===depth){ files.push(i); }
+    else{
+      const key = [...path, i.folderParts[depth]].join('/');
+      folders.set(key, (folders.get(key)||0)+1);
+    }
+  });
+  // 首頁：把根目錄的散落檔案收進「未分類」虛擬資料夾
+  if(depth===0 && files.length){ folders.set(NONE, files.length); files.length=0; }
+  const arr = [...folders.entries()].map(([k,n])=>({key:k, name:k===NONE?NONE:k.split('/').pop(), count:n}))
+    .sort((a,b)=>a.name.localeCompare(b.name,'zh-Hant',{numeric:true}));
+  return {folders:arr, files};
+}
+function goTo(p){ path = p; $('#search').value=''; render(); window.scrollTo({top:0,behavior:'smooth'}); }
 
 /* ===== 語言套用 ===== */
 function applyLang(){
@@ -400,58 +434,81 @@ function updateAdminBtn(){
 }
 
 /* ===== 畫面渲染 ===== */
+function fileCard(i, showPlace){
+  const t = I18N[lang], admin = isAdmin();
+  const place = i.folderParts.length ? i.folderParts.map(p=>esc(label(p))).join(' <span class="text-slate-600">/</span> ') : esc(t.unsorted);
+  return `
+  <article class="card hov p-5 flex flex-col fade-in">
+    <div class="flex items-center gap-3 mb-3">
+      <div class="w-12 h-12 shrink-0 rounded-xl flex items-center justify-center text-xl"
+           style="background:rgba(56,189,248,.12);color:var(--accent)">
+        <i class="fa-solid fa-puzzle-piece"></i>
+      </div>
+      ${showPlace ? `<span class="px-2.5 py-1 rounded-lg bg-slate-700 text-xs text-sky-300 break-words"><i class="fa-solid fa-folder"></i> ${place}</span>`:''}
+    </div>
+    <h3 class="font-bold text-lg mb-1 break-words">${esc(i.title)}</h3>
+    <p class="text-sm mb-2 flex-1 whitespace-pre-line break-words ${i.note?'text-slate-300':'text-slate-500'}">${esc(i.note || t.defDesc)}</p>
+    <p class="text-xs text-slate-500 mb-4 break-all"><i class="fa-regular fa-file"></i> ${esc(i.name)} ${fmtSize(i.size) ? '· '+fmtSize(i.size):''}</p>
+    <div class="flex gap-2">
+      <button class="btn btn-main flex-1" data-dl="${esc(i.path)}"><i class="fa-solid fa-download"></i> ${t.download}</button>
+      ${admin ? `<button class="btn btn-ghost" title="${t.edit}" data-edit="${esc(i.path)}"><i class="fa-solid fa-pen"></i></button>
+                 <button class="btn btn-danger" title="${t.del}" data-del="${esc(i.path)}"><i class="fa-solid fa-trash"></i></button>`:''}
+    </div>
+  </article>`;
+}
+
 function render(){
   const t = I18N[lang];
   const items = FILES.map(parse).sort((a,b)=>a.path.localeCompare(b.path,'zh-Hant',{numeric:true}));
-
-  // 第一層標籤（學校）
-  const schools = [...new Set(items.map(i=>i.school))];
-  if(cat!=='__all' && !schools.includes(cat)) { cat='__all'; sub='__all'; }
-  $('#tags').innerHTML = schools.length>1 || (schools.length===1 && schools[0]!=='__none')
-    ? ['__all',...schools].map(c=>`<button class="tag ${c===cat?'active':''}" data-c="${esc(c)}"><i class="fa-solid fa-school"></i> ${esc(label(c))}</button>`).join('') : '';
-
-  // 第二層標籤（作品）：選了學校才顯示
-  const works = cat==='__all' ? [] : [...new Set(items.filter(i=>i.school===cat).map(i=>i.work))];
-  if(sub!=='__all' && !works.includes(sub)) sub='__all';
-  $('#subTags').innerHTML = works.length>1 || (works.length===1 && works[0]!=='__none')
-    ? ['__all',...works].map(c=>`<button class="tag sub ${c===sub?'active':''}" data-s="${esc(c)}"><i class="fa-regular fa-folder-open"></i> ${esc(c==='__all'?label('__allwork'):label(c))}</button>`).join('') : '';
-
   const q = $('#search').value.trim().toLowerCase();
-  const list = items.filter(i=>
-    (cat==='__all' || i.school===cat) &&
-    (sub==='__all' || i.work===sub) &&
-    (i.path+i.title+i.note).toLowerCase().includes(q));
-  $('#status').textContent = t.empty;
-  $('#status').classList.toggle('hidden', list.length>0);
+  const searching = q.length>0;
 
-  const admin = isAdmin();
-  $('#grid').innerHTML = list.map(i=>{
-    // 資料夾路徑顯示：學校 / 作品（沒有資料夾就顯示「未分類」）
-    const crumb = i.folderParts.length ? i.folderParts.map(p=>esc(label(p))).join(' <span class="text-slate-600">/</span> ') : esc(t.unsorted);
-    return `
-    <article class="card hov p-5 flex flex-col fade-in">
-      <div class="flex items-center gap-3 mb-3">
-        <div class="w-12 h-12 shrink-0 rounded-xl flex items-center justify-center text-xl"
-             style="background:rgba(56,189,248,.12);color:var(--accent)">
-          <i class="fa-solid fa-puzzle-piece"></i>
-        </div>
-        <span class="px-2.5 py-1 rounded-lg bg-slate-700 text-xs text-sky-300 break-words">
-          <i class="fa-solid fa-folder"></i> ${crumb}
-        </span>
+  // 若目前資料夾已不存在（例如檔案被刪光），退回上一層
+  while(path.length && !items.some(inPath)) path = path.slice(0,-1);
+
+  // 路徑列
+  if(searching){
+    $('#crumb').innerHTML = `<span class="text-slate-300"><i class="fa-solid fa-magnifying-glass" style="color:var(--accent)"></i> ${esc(t.searchResult.replace('{n}', items.filter(i=>(i.path+i.title+i.note).toLowerCase().includes(q)).length))}</span>`;
+    $('#backBtn').classList.add('hidden');
+  }else{
+    const segs = [`<span class="crumb-link ${path.length?'':'font-bold text-white'}" data-p=""><i class="fa-solid fa-house"></i> ${esc(t.home)}</span>`];
+    path.forEach((p,k)=>{
+      const isLast = k===path.length-1;
+      segs.push(`<i class="fa-solid fa-chevron-right text-xs text-slate-600"></i>`);
+      segs.push(`<span class="crumb-link ${isLast?'font-bold text-white':''}" data-p="${esc(path.slice(0,k+1).join('/'))}">${esc(label(p))}</span>`);
+    });
+    $('#crumb').innerHTML = segs.join('');
+    $('#backBtn').classList.toggle('hidden', path.length===0);
+  }
+  $('#zipLabel').textContent = path.length ? t.zipHere : t.zipRoot;
+
+  let folders = [], files = [];
+  if(searching){
+    files = items.filter(i=>(i.path+i.title+i.note).toLowerCase().includes(q));
+  }else{
+    const v = currentView(items); folders = v.folders; files = v.files;
+  }
+
+  // 資料夾卡片
+  $('#folders').innerHTML = folders.map(f=>`
+    <article class="card hov folder p-5 flex items-center gap-4 fade-in" data-go="${esc(f.key)}">
+      <div class="w-14 h-14 shrink-0 rounded-xl flex items-center justify-center text-3xl text-amber-300" style="background:rgba(251,191,36,.12)">
+        <i class="fa-solid fa-folder"></i>
       </div>
-      <h3 class="font-bold text-lg mb-1 break-words">${esc(i.title)}</h3>
-      <p class="text-sm mb-2 flex-1 whitespace-pre-line break-words ${i.note?'text-slate-300':'text-slate-500'}">${esc(i.note || t.defDesc)}</p>
-      <p class="text-xs text-slate-500 mb-4 break-all"><i class="fa-regular fa-file"></i> ${esc(i.name)} ${fmtSize(i.size) ? '· '+fmtSize(i.size):''}</p>
-      <div class="flex gap-2">
-        <button class="btn btn-main flex-1" data-dl="${esc(i.path)}"><i class="fa-solid fa-download"></i> ${t.download}</button>
-        ${admin ? `<button class="btn btn-ghost" title="${t.edit}" data-edit="${esc(i.path)}"><i class="fa-solid fa-pen"></i></button>
-                   <button class="btn btn-danger" title="${t.del}" data-del="${esc(i.path)}"><i class="fa-solid fa-trash"></i></button>`:''}
+      <div class="min-w-0 flex-1">
+        <h3 class="font-bold text-lg break-words">${esc(label(f.name))}</h3>
+        <p class="text-xs text-slate-400">${esc(t.filesCount.replace('{n}', f.count))}</p>
       </div>
-    </article>`}).join('');
+      <i class="fa-solid fa-chevron-right text-slate-500"></i>
+    </article>`).join('');
+
+  // 檔案卡片（搜尋時顯示所在資料夾）
+  $('#grid').innerHTML = files.map(i=>fileCard(i, searching)).join('');
+
+  const nothing = folders.length===0 && files.length===0;
+  $('#status').textContent = searching ? t.emptySearch : t.empty;
+  $('#status').classList.toggle('hidden', !nothing);
   updateAdminBtn();
-
-  // 上傳視窗的資料夾建議清單（已存在的學校／作品）
-  $('#schoolList').innerHTML = schools.filter(s=>s!=='__none').map(s=>`<option value="${esc(s)}">`).join('');
 }
 
 /* ===== 下載工具 ===== */
@@ -462,19 +519,19 @@ function saveBlob(blob, name){
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 }
-async function downloadOne(path){
+async function downloadOne(p){
   try{
-    const res = await fetch(urlOf(path) + '?t=' + Date.now());
+    const res = await fetch(urlOf(p) + '?t=' + Date.now());
     if(!res.ok) throw new Error();
-    saveBlob(await res.blob(), path.split('/').pop());
+    saveBlob(await res.blob(), p.split('/').pop());
     toast(I18N[lang].downloaded);
   }catch(e){ toast(I18N[lang].dlFail); }
 }
-// 一次下載：依目前篩選的範圍打包（選了學校就只打包該校）
+// 一次下載：打包「目前所在資料夾（含子資料夾）」的所有檔案
 $('#zipAll').onclick = async ()=>{
   const t = I18N[lang];
   if(typeof JSZip==='undefined'){alert('ZIP tool failed to load.');return;}
-  const targets = FILES.map(parse).filter(i=>(cat==='__all'||i.school===cat)&&(sub==='__all'||i.work===sub));
+  const targets = FILES.map(parse).filter(inPath);
   if(!targets.length){ toast(t.zipNone); return; }
   toast(t.zipping);
   const zip = new JSZip(); const missing = []; let ok = 0;
@@ -486,7 +543,8 @@ $('#zipAll').onclick = async ()=>{
     }catch(e){ missing.push(f.path); }
   }));
   if(ok===0){ toast(t.zipNone); return; }
-  saveBlob(await zip.generateAsync({type:'blob'}), 'ArduBlock_Class_Files.zip');
+  const zname = path.length && path[0]!==NONE ? path.join('_') : 'ArduBlock_Class_Files';
+  saveBlob(await zip.generateAsync({type:'blob'}), zname + '.zip');
   if(missing.length) setTimeout(()=>toast(t.zipFail + missing.join(', ')), 2000);
 };
 
@@ -494,9 +552,9 @@ $('#zipAll').onclick = async ()=>{
    ★ GitHub API 工具
    ===================================================== */
 const apiPath = p => p.split('/').map(encodeURIComponent).join('/');
-function gh(method, path, body){
+function gh(method, p, body){
   const {owner, repo} = getRepo();
-  return fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${apiPath(path)}${method==='GET'?'?t='+Date.now():''}`, {
+  return fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${apiPath(p)}${method==='GET'?'?t='+Date.now():''}`, {
     method,
     headers:{ Authorization:'Bearer '+getToken(), Accept:'application/vnd.github+json', 'Content-Type':'application/json' },
     body: body ? JSON.stringify(body) : undefined
@@ -507,32 +565,45 @@ const toBase64 = file => new Promise((ok, bad)=>{
   r.onload = ()=>ok(r.result.split(',')[1]);
   r.onerror = bad; r.readAsDataURL(file);
 });
-// 文字 ⇄ base64（支援中文）
 function encodeB64(str){ let s=''; new TextEncoder().encode(str).forEach(b=>s+=String.fromCharCode(b)); return btoa(s); }
 function decodeB64(b64){ return new TextDecoder().decode(Uint8Array.from(atob(b64.replace(/\n/g,'')), c=>c.charCodeAt(0))); }
 
-/* ===== 儲存註解到 notes.json（先讀最新版再合併，避免覆蓋）===== */
+/* ===== 儲存註解到 notes.json（先讀最新版再合併）===== */
 async function saveNotes(updates, removals=[]){
-  const path = CONFIG.basePath + CONFIG.folder + CONFIG.notesFile;
+  const p = CONFIG.basePath + CONFIG.folder + CONFIG.notesFile;
   let current = {}, sha;
-  const r = await gh('GET', path);
+  const r = await gh('GET', p);
   if(r.ok){ const j = await r.json(); sha = j.sha; try{ current = JSON.parse(decodeB64(j.content)); }catch(e){} }
   Object.entries(updates).forEach(([k,v])=>{ if(v) current[k]=v; else delete current[k]; });
   removals.forEach(k=>delete current[k]);
-  const res = await gh('PUT', path, { message:'update notes', content: encodeB64(JSON.stringify(current,null,2)), sha });
+  const res = await gh('PUT', p, { message:'update notes', content: encodeB64(JSON.stringify(current,null,2)), sha });
   if(!res.ok) throw new Error(res.status);
   NOTES = current;
 }
 
 /* ===== 老師視窗 ===== */
+function updateWorkList(){
+  const school = $('#schoolInp').value.trim();
+  const works = new Set();
+  FILES.map(parse).forEach(i=>{ if(i.folderParts[0]===school && i.folderParts[1]) works.add(i.folderParts[1]); });
+  $('#workList').innerHTML = [...works].map(w=>`<option value="${esc(w)}">`).join('');
+}
 function openModal(){
   const r = getRepo();
   $('#ownerInp').value = r.owner || ''; $('#repoInp').value = r.repo || '';
   $('#authBox').classList.toggle('hidden', isAdmin());
   $('#upBox').classList.toggle('hidden', !isAdmin());
+  // 自動帶入目前所在的資料夾
+  const inReal = path.length && path[0]!==NONE;
+  $('#schoolInp').value = inReal ? (path[0]||'') : '';
+  $('#workInp').value   = inReal ? (path[1]||'') : '';
+  const schools = [...new Set(FILES.map(parse).map(i=>i.folderParts[0]).filter(Boolean))];
+  $('#schoolList').innerHTML = schools.map(s=>`<option value="${esc(s)}">`).join('');
+  updateWorkList();
   $('#modal').classList.remove('hidden');
 }
 const closeModal = ()=>$('#modal').classList.add('hidden');
+$('#schoolInp').addEventListener('input', updateWorkList);
 
 $('#saveToken').onclick = async ()=>{
   const t = I18N[lang], tk = $('#tokenInp').value.trim();
@@ -588,17 +659,16 @@ $('#doUpload').onclick = async ()=>{
     const li = [...document.querySelectorAll('#upList li')].find(x=>x.dataset.n===f.name);
     const st = li.querySelector('.st'); st.textContent = t.upWait;
     try{
-      const rel  = (folder ? folder+'/' : '') + f.name;               // 學校/作品/檔名.abp
-      const path = CONFIG.basePath + CONFIG.folder + rel;
-      let sha; const ex = await gh('GET', path);
+      const rel  = (folder ? folder+'/' : '') + f.name;
+      const full = CONFIG.basePath + CONFIG.folder + rel;
+      let sha; const ex = await gh('GET', full);
       if(ex.ok) sha = (await ex.json()).sha;
-      const res = await gh('PUT', path, { message:'upload '+f.name, content: await toBase64(f), sha });
+      const res = await gh('PUT', full, { message:'upload '+f.name, content: await toBase64(f), sha });
       if(!res.ok) throw new Error(res.status);
       if(f.note && f.note.trim()) newNotes[rel] = f.note.trim();
       st.textContent = '✅ ' + t.upOk; st.className = 'st text-emerald-400';
     }catch(e){ st.textContent = '❌ ' + t.upFail; st.className = 'st text-red-400'; }
   }
-  // 一次寫入所有註解
   if(Object.keys(newNotes).length){ try{ await saveNotes(newNotes); }catch(e){ toast(t.noteFail); } }
   pending = [];
   toast(t.upDone);
@@ -606,10 +676,10 @@ $('#doUpload').onclick = async ()=>{
 };
 
 /* ===== 編輯註解 ===== */
-function openNote(path){
-  editingPath = path;
-  $('#noteFile').textContent = path;
-  $('#noteInp').value = NOTES[path] || '';
+function openNote(p){
+  editingPath = p;
+  $('#noteFile').textContent = p;
+  $('#noteInp').value = NOTES[p] || '';
   $('#noteModal').classList.remove('hidden');
 }
 const closeNote = ()=>$('#noteModal').classList.add('hidden');
@@ -624,16 +694,16 @@ $('#noteSave').onclick = async ()=>{
 };
 
 /* ===== 刪除檔案（同時移除註解）===== */
-async function deleteFile(path){
+async function deleteFile(p){
   const t = I18N[lang];
-  if(!confirm(t.confirmDel + path)) return;
+  if(!confirm(t.confirmDel + p)) return;
   try{
-    const full = CONFIG.basePath + CONFIG.folder + path;
+    const full = CONFIG.basePath + CONFIG.folder + p;
     const ex = await gh('GET', full);
     if(!ex.ok) throw new Error();
-    const res = await gh('DELETE', full, { message:'delete '+path, sha:(await ex.json()).sha });
+    const res = await gh('DELETE', full, { message:'delete '+p, sha:(await ex.json()).sha });
     if(!res.ok) throw new Error();
-    if(NOTES[path]){ try{ await saveNotes({}, [path]); }catch(e){} }
+    if(NOTES[p]){ try{ await saveNotes({}, [p]); }catch(e){} }
     toast(t.delOk); setTimeout(()=>loadList(true), 1000);
   }catch(e){ toast(t.delFail); }
 }
@@ -648,8 +718,16 @@ function toast(msg){
 $('#search').oninput = render;
 $('#refresh').onclick = ()=>loadList(true);
 $('#langBtn').onclick = ()=>{ lang = lang==='zh'?'en':'zh'; localStorage.setItem('lang',lang); applyLang(); };
-$('#tags').onclick = e=>{ const b=e.target.closest('.tag'); if(b){ cat=b.dataset.c; sub='__all'; render(); } };
-$('#subTags').onclick = e=>{ const b=e.target.closest('.tag'); if(b){ sub=b.dataset.s; render(); } };
+// 點資料夾卡片 → 進入
+$('#folders').onclick = e=>{
+  const f = e.target.closest('[data-go]'); if(f) goTo(f.dataset.go.split('/'));
+};
+// 點路徑列 → 跳回該層
+$('#crumb').onclick = e=>{
+  const c = e.target.closest('[data-p]'); if(c) goTo(c.dataset.p ? c.dataset.p.split('/') : []);
+};
+// 上一層
+$('#backBtn').onclick = ()=>goTo(path.slice(0,-1));
 $('#grid').onclick = e=>{
   const d=e.target.closest('[data-dl]'); if(d) downloadOne(d.dataset.dl);
   const x=e.target.closest('[data-del]'); if(x) deleteFile(x.dataset.del);
