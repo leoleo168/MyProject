@@ -30,6 +30,7 @@
   .btn-danger:hover{background:#7f1d1d;color:#fff;}
   .inp{width:100%;padding:.5rem .75rem;border-radius:.5rem;background:#0f172a;border:1px solid #475569;color:#e2e8f0;}
   .inp:focus{outline:none;border-color:var(--accent);}
+  input[type=date]{color-scheme:dark;}  /* 日期選擇器使用深色樣式 */
   .drop{border:2px dashed #475569;border-radius:.9rem;padding:1.5rem;text-align:center;cursor:pointer;transition:.2s;}
   .drop:hover,.drop.over{border-color:var(--accent);background:rgba(56,189,248,.06);}
   .crumb-link{color:#cbd5e1;cursor:pointer;transition:.2s;}
@@ -162,11 +163,14 @@
   </div>
 </div>
 
-<!-- ★ 編輯註解視窗 -->
+<!-- ★ 編輯日期與註解視窗 -->
 <div id="noteModal" class="hidden fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
   <div class="card w-full max-w-md p-5">
     <h3 class="font-bold text-lg mb-1"><i class="fa-solid fa-pen" style="color:var(--accent)"></i> <span data-i18n="editNote"></span></h3>
     <p id="noteFile" class="text-xs text-slate-500 mb-3 break-all"></p>
+    <label class="block mb-1 text-sm text-slate-300" data-i18n="dateLabel"></label>
+    <input id="dateInp" type="date" class="inp mb-3">
+    <label class="block mb-1 text-sm text-slate-300" data-i18n="noteLabel"></label>
     <textarea id="noteInp" rows="4" class="inp" data-i18n-ph="notePh"></textarea>
     <div class="flex gap-2 mt-4">
       <button id="noteCancel" class="btn btn-ghost flex-1" data-i18n="cancel"></button>
@@ -193,7 +197,7 @@
 const CONFIG = {
   folder: "files/",           // 檔案資料夾（相對於 index.html）
   basePath: "maker-class/",   // index.html 在 Repository 裡的子資料夾位置
-  notesFile: "notes.json",    // 註解存放檔（自動建立）
+  notesFile: "notes.json",    // 註解與日期存放檔（自動建立）
   hiddenFiles: ["notes.json","readme.md",".gitkeep"],  // 不顯示在清單的檔名（小寫）
   owner: "leoleo168",         // GitHub 帳號
   repo:  "MyProject",         // Repository 名稱
@@ -215,7 +219,7 @@ const I18N = {
     step1:"依序點選學校 → 作品，找到你的檔案。",
     step2:"按「下載」，檔案會存到電腦的「下載」資料夾。",
     step3:"依檔案類型，用對應的軟體開啟（例如 .abp 用 ArduBlock 載入）。",
-    searchPh:"搜尋檔名或註解（會搜尋所有資料夾）…",
+    searchPh:"搜尋檔名、註解或日期（會搜尋所有資料夾）…",
     home:"首頁", back:"上一層",
     filesCount:"{n} 個檔案",
     searchResult:"搜尋結果：{n} 個檔案",
@@ -223,7 +227,7 @@ const I18N = {
     empty:"這裡目前是空的",
     emptySearch:"找不到符合的檔案",
     loadFail:"無法讀取檔案清單，請稍後再試或通知老師。",
-    download:"下載", del:"刪除", edit:"編輯註解",
+    download:"下載", del:"刪除", edit:"編輯日期與註解",
     downloaded:"開始下載！", zipping:"正在打包，請稍候…",
     zipFail:"部分檔案下載失敗：", zipNone:"沒有可下載的檔案",
     dlFail:"下載失敗，請通知老師",
@@ -241,13 +245,14 @@ const I18N = {
     folderHint:"已自動帶入你目前所在的資料夾。可選擇已有名稱，或輸入新名稱自動建立。單一檔案請小於 50 MB。",
     dropText:"點擊或拖曳檔案到這裡（可多選，不限類型）",
     notePh:"在這裡寫註解（選填）",
-    editNote:"編輯註解", cancel:"取消", save:"儲存",
+    dateLabel:"上課日期", noteLabel:"註解",
+    editNote:"編輯日期與註解", cancel:"取消", save:"儲存",
     uploadBtn:"開始上傳", logout:"登出老師模式",
     needToken:"請先輸入金鑰", authFail:"金鑰或專案名稱錯誤，請檢查",
     authOk:"驗證成功！", tooBig:"檔案過大（超過 50 MB）：",
     upOk:"上傳成功", upFail:"失敗", upWait:"上傳中…",
     upDone:"上傳完成！約 1~2 分鐘後學生即可下載",
-    noteSaved:"註解已儲存（學生約 1~2 分鐘後看到）", noteFail:"註解儲存失敗",
+    noteSaved:"已儲存（學生約 1~2 分鐘後看到）", noteFail:"儲存失敗",
     confirmDel:"確定要刪除這個檔案嗎？\n", delOk:"已刪除", delFail:"刪除失敗",
     loggedOut:"已登出"
   },
@@ -262,7 +267,7 @@ const I18N = {
     step1:"Open your school → project folder to find your file.",
     step2:"Click “Download”. The file is saved to your Downloads folder.",
     step3:"Open it with the matching software (e.g. load .abp files in ArduBlock).",
-    searchPh:"Search file name or note (all folders)…",
+    searchPh:"Search file name, note or date (all folders)…",
     home:"Home", back:"Up",
     filesCount:"{n} files",
     searchResult:"Search results: {n} files",
@@ -270,7 +275,7 @@ const I18N = {
     empty:"This folder is empty",
     emptySearch:"No matching files",
     loadFail:"Could not load the file list. Please try again later or tell your teacher.",
-    download:"Download", del:"Delete", edit:"Edit note",
+    download:"Download", del:"Delete", edit:"Edit date & note",
     downloaded:"Download started!", zipping:"Packing files…",
     zipFail:"Some files failed: ", zipNone:"No files to download",
     dlFail:"Download failed. Please tell your teacher.",
@@ -288,13 +293,14 @@ const I18N = {
     folderHint:"Filled in from your current folder. Pick an existing name or type a new one. Keep each file under 50 MB.",
     dropText:"Click or drop files here (multiple allowed, any type)",
     notePh:"Write a note here (optional)",
-    editNote:"Edit Note", cancel:"Cancel", save:"Save",
+    dateLabel:"Class date", noteLabel:"Note",
+    editNote:"Edit Date & Note", cancel:"Cancel", save:"Save",
     uploadBtn:"Start Upload", logout:"Exit Teacher Mode",
     needToken:"Please enter the token first", authFail:"Wrong token or repository. Please check.",
     authOk:"Verified!", tooBig:"File too large (over 50 MB): ",
     upOk:"Uploaded", upFail:"Failed", upWait:"Uploading…",
     upDone:"Done! Students can download in about 1–2 minutes.",
-    noteSaved:"Note saved (visible to students in 1–2 min)", noteFail:"Failed to save note",
+    noteSaved:"Saved (visible to students in 1–2 min)", noteFail:"Failed to save",
     confirmDel:"Delete this file?\n", delOk:"Deleted", delFail:"Delete failed",
     loggedOut:"Logged out"
   }
@@ -309,12 +315,17 @@ const CAT_LABELS = {
 let lang = localStorage.getItem('lang') || 'zh';
 let path = [];         // 目前所在位置，例如 ['A國小','紅綠燈']；[] 代表首頁
 let FILES = [];
-let NOTES = {};
+let NOTES = {};        // 格式：{ "路徑": {note:"註解", date:"2026-11-24"} }（也相容舊的純文字註解）
 let pending = [];
 let editingPath = null;
 const NONE = '__none';  // 「未分類」虛擬資料夾
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const todayStr = () => new Date().toLocaleDateString('sv');   // 今天，格式 YYYY-MM-DD
+
+/* ===== 讀取註解／日期（相容舊格式：純文字）===== */
+const noteOf = p => { const v = NOTES[p]; return !v ? '' : (typeof v==='string' ? v : (v.note||'')); };
+const dateOf = p => { const v = NOTES[p]; return (v && typeof v==='object') ? (v.date||'') : ''; };
 
 /* ===== 金鑰管理 ===== */
 const getToken = () => sessionStorage.getItem('gh_token') || localStorage.getItem('gh_token') || '';
@@ -399,7 +410,7 @@ function parse(f){
   const parts = f.path.split('/');
   const name = parts.pop();
   return { path:f.path, name, size:f.size, folderParts:parts,
-    note: NOTES[f.path] || '' };
+    note: noteOf(f.path), date: dateOf(f.path) };
 }
 function label(c){
   if(c===NONE) return I18N[lang].unsorted;
@@ -448,7 +459,7 @@ function updateAdminBtn(){
   $('#adminBtn').innerHTML = `<i class="fa-solid ${isAdmin()?'fa-lock-open':'fa-lock'}"></i> <span class="hidden sm:inline">${I18N[lang].teacherMode}</span>`;
 }
 
-/* ===== 檔案卡片：檔名 + 大小 + 註解 ===== */
+/* ===== 檔案卡片：檔名 + 大小 + 上課日期 + 註解 ===== */
 function fileCard(i, showPlace){
   const t = I18N[lang], admin = isAdmin();
   const place = i.folderParts.length ? i.folderParts.map(p=>esc(label(p))).join(' <span class="text-slate-600">/</span> ') : esc(t.unsorted);
@@ -459,6 +470,7 @@ function fileCard(i, showPlace){
       <i class="fa-solid ${iconOf(i.name)} text-xl mt-1" style="color:var(--accent)"></i>
       <h3 class="font-bold text-lg break-all">${esc(i.name)} <span class="text-xs font-normal text-slate-500 whitespace-nowrap">${fmtSize(i.size)}</span></h3>
     </div>
+    ${i.date ? `<p class="text-xs text-slate-400 mb-2"><i class="fa-regular fa-calendar" style="color:var(--accent)"></i> ${esc(t.dateLabel)}：${esc(i.date)}</p>` : ''}
     ${i.note ? `<p class="text-sm text-slate-300 mb-3 whitespace-pre-line break-words">${esc(i.note)}</p>` : ''}
     <div class="mt-auto pt-3 flex items-center gap-2">
       <button class="btn btn-main flex-1" data-dl="${esc(i.path)}"><i class="fa-solid fa-download"></i> ${t.download}</button>
@@ -474,7 +486,7 @@ function render(){
   const items = FILES.map(parse).sort((a,b)=>a.path.localeCompare(b.path,'zh-Hant',{numeric:true}));
   const q = $('#search').value.trim().toLowerCase();
   const searching = q.length>0;
-  const match = i => (i.path+i.note).toLowerCase().includes(q);
+  const match = i => (i.path+' '+i.note+' '+i.date).toLowerCase().includes(q);
 
   // 若目前資料夾已不存在（例如檔案被刪光），退回上一層
   while(path.length && !items.some(inPath)) path = path.slice(0,-1);
@@ -581,13 +593,17 @@ const toBase64 = file => new Promise((ok, bad)=>{
 function encodeB64(str){ let s=''; new TextEncoder().encode(str).forEach(b=>s+=String.fromCharCode(b)); return btoa(s); }
 function decodeB64(b64){ return new TextDecoder().decode(Uint8Array.from(atob(b64.replace(/\n/g,'')), c=>c.charCodeAt(0))); }
 
-/* ===== 儲存註解到 notes.json（先讀最新版再合併）===== */
+/* ===== 儲存註解與日期到 notes.json（先讀最新版再合併）=====
+   updates 格式：{ "路徑": {note:"…", date:"2026-11-24"} }；兩者都空白就移除該筆 */
 async function saveNotes(updates, removals=[]){
   const p = CONFIG.basePath + CONFIG.folder + CONFIG.notesFile;
   let current = {}, sha;
   const r = await gh('GET', p);
   if(r.ok){ const j = await r.json(); sha = j.sha; try{ current = JSON.parse(decodeB64(j.content)); }catch(e){} }
-  Object.entries(updates).forEach(([k,v])=>{ if(v) current[k]=v; else delete current[k]; });
+  Object.entries(updates).forEach(([k,v])=>{
+    const note = (v.note||'').trim(), date = (v.date||'').trim();
+    if(note || date) current[k] = {note, date}; else delete current[k];
+  });
   removals.forEach(k=>delete current[k]);
   const res = await gh('PUT', p, { message:'update notes', content: encodeB64(JSON.stringify(current,null,2)), sha });
   if(!res.ok) throw new Error(res.status);
@@ -635,25 +651,34 @@ $('#logout').onclick = ()=>{
   closeModal(); render(); toast(I18N[lang].loggedOut);
 };
 
-/* ===== 選檔／拖曳（每個檔案都有註解欄，不限檔案類型）===== */
+/* ===== 選檔／拖曳（每個檔案都有日期與註解欄，不限檔案類型）===== */
 function addFiles(fl){
   const t = I18N[lang];
   [...fl].forEach(f=>{
     if(f.size > 50*1024*1024){ toast(t.tooBig + f.name); return; }
-    if(!pending.some(p=>p.name===f.name)){ f.note = ''; pending.push(f); }
+    if(!pending.some(p=>p.name===f.name)){
+      f.note = ''; f.date = todayStr();   // 上課日期預設為今天
+      pending.push(f);
+    }
   });
   drawPending();
 }
 function drawPending(){
+  const t = I18N[lang];
   $('#upList').innerHTML = pending.map((f,idx)=>`
-    <li class="bg-slate-800 rounded-lg p-2" data-n="${esc(f.name)}">
-      <div class="flex justify-between mb-1"><span class="break-all">${esc(f.name)}</span><span class="st text-slate-500">${fmtSize(f.size)}</span></div>
-      <input class="inp note-inp" data-i="${idx}" value="${esc(f.note||'')}" placeholder="${esc(I18N[lang].notePh)}">
+    <li class="bg-slate-800 rounded-lg p-2 space-y-2" data-n="${esc(f.name)}">
+      <div class="flex justify-between"><span class="break-all">${esc(f.name)}</span><span class="st text-slate-500">${fmtSize(f.size)}</span></div>
+      <div class="flex items-center gap-2">
+        <span class="text-slate-400 shrink-0">${esc(t.dateLabel)}</span>
+        <input type="date" class="inp date-inp" data-i="${idx}" value="${esc(f.date||'')}">
+      </div>
+      <input class="inp note-inp" data-i="${idx}" value="${esc(f.note||'')}" placeholder="${esc(t.notePh)}">
     </li>`).join('');
   $('#doUpload').disabled = pending.length===0;
 }
 $('#upList').addEventListener('input', e=>{
-  const el = e.target.closest('.note-inp'); if(el) pending[el.dataset.i].note = el.value;
+  const n = e.target.closest('.note-inp'); if(n) pending[n.dataset.i].note = n.value;
+  const d = e.target.closest('.date-inp'); if(d) pending[d.dataset.i].date = d.value;
 });
 $('#drop').onclick = ()=>$('#fileInp').click();
 $('#fileInp').onchange = e=>{ addFiles(e.target.files); e.target.value=''; };
@@ -678,7 +703,7 @@ $('#doUpload').onclick = async ()=>{
       if(ex.ok) sha = (await ex.json()).sha;
       const res = await gh('PUT', full, { message:'upload '+f.name, content: await toBase64(f), sha });
       if(!res.ok) throw new Error(res.status);
-      if(f.note && f.note.trim()) newNotes[rel] = f.note.trim();
+      if((f.note && f.note.trim()) || f.date) newNotes[rel] = {note:f.note||'', date:f.date||''};
       st.textContent = '✅ ' + t.upOk; st.className = 'st text-emerald-400';
     }catch(e){ st.textContent = '❌ ' + t.upFail; st.className = 'st text-red-400'; }
   }
@@ -688,11 +713,12 @@ $('#doUpload').onclick = async ()=>{
   setTimeout(()=>{ loadList(true); drawPending(); }, 1500);
 };
 
-/* ===== 編輯註解 ===== */
+/* ===== 編輯日期與註解 ===== */
 function openNote(p){
   editingPath = p;
   $('#noteFile').textContent = p;
-  $('#noteInp').value = NOTES[p] || '';
+  $('#dateInp').value = dateOf(p);
+  $('#noteInp').value = noteOf(p);
   $('#noteModal').classList.remove('hidden');
 }
 const closeNote = ()=>$('#noteModal').classList.add('hidden');
@@ -701,12 +727,12 @@ $('#noteModal').onclick = e=>{ if(e.target.id==='noteModal') closeNote(); };
 $('#noteSave').onclick = async ()=>{
   const t = I18N[lang];
   try{
-    await saveNotes({[editingPath]: $('#noteInp').value.trim()});
+    await saveNotes({[editingPath]: {note:$('#noteInp').value, date:$('#dateInp').value}});
     closeNote(); render(); toast(t.noteSaved);
   }catch(e){ toast(t.noteFail); }
 };
 
-/* ===== 刪除檔案（同時移除註解）===== */
+/* ===== 刪除檔案（同時移除註解與日期）===== */
 async function deleteFile(p){
   const t = I18N[lang];
   if(!confirm(t.confirmDel + p)) return;
