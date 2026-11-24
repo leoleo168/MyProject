@@ -36,10 +36,18 @@ header h1{font-size:22px;margin:0}
 .big .ds{font-size:12px;opacity:.85;max-width:100%;line-height:1.3;height:2.6em;text-align:center;word-break:break-all;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .big .md{position:absolute;top:8px;left:8px;background:rgba(0,0,0,.35);border-radius:999px;padding:4px 8px;font-size:15px}
 .big .edit{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.35);border-radius:999px;padding:6px 10px;font-size:13px;display:none}
+.big .del{position:absolute;top:8px;left:8px;width:36px;height:36px;border-radius:50%;background:#dc2626;color:#fff;font-size:18px;font-weight:800;display:none;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+.big .mv{position:absolute;left:10px;right:10px;bottom:10px;display:none;justify-content:space-between}
+.big .mv b{width:48px;height:36px;border-radius:12px;background:rgba(0,0,0,.4);font-size:18px;display:flex;align-items:center;justify-content:center}
+.big .mv b:active{background:rgba(0,0,0,.7)}
+.big .mv b.off{opacity:.25;pointer-events:none}
 .editing .big .edit{display:block}
+.editing .big .del{display:flex}
+.editing .big .mv{display:flex}
 .editing .big .md{display:none}
-.editing .big{animation:wob .35s infinite alternate}
-@keyframes wob{from{transform:rotate(-1deg)}to{transform:rotate(1deg)}}
+.editing .big .ds{display:none}
+.editing .big .ic{margin-top:-18px}
+.editing .add .del,.editing .add .mv,.editing .add .edit{display:none}
 .add{background:transparent;border:3px dashed #4b5563;color:var(--sub);box-shadow:none}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:flex-end;z-index:10}
 .modal.show{display:flex}
@@ -161,7 +169,7 @@ document.getElementById('appleIcon').href = iconUrl;
 if ('serviceWorker' in navigator) {
   try {
     const swCode = `
-      const C='quicknav-v4';
+      const C='quicknav-v5';
       self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(C).then(c=>c.add(self.registration.scope).catch(()=>{})))});
       self.addEventListener('activate',e=>e.waitUntil(clients.claim()));
       self.addEventListener('fetch',e=>{
@@ -240,22 +248,57 @@ function renderModeBar(){
 }
 function render(){
   const g=$('grid'); g.className = editMode?'editing':'';
-  let h = items.map(it=>`
+  const last = items.length-1;
+  let h = items.map((it,i)=>`
     <button class="big" style="background:${it.color}" data-id="${it.id}">
       <span class="md">${MODES[modeOf(it)].icon}</span>
-      <span class="edit">✏️ 編輯</span>
+      <span class="del" data-act="del">✕</span>
+      <span class="edit" data-act="edit">✏️ 編輯</span>
       <span class="ic">${it.icon}</span>
       <span class="nm">${esc(it.name)}</span>
       <span class="ds">${it.dest?esc(it.label||it.dest):'尚未設定目的地'}</span>
+      <span class="mv">
+        <b data-act="left" class="${i===0?'off':''}">◀</b>
+        <b data-act="right" class="${i===last?'off':''}">▶</b>
+      </span>
     </button>`).join('');
   h += `<button class="big add" id="addBtn"><span class="ic">＋</span><span class="nm">新增</span></button>`;
   g.innerHTML = h;
   g.querySelectorAll('.big[data-id]').forEach(b=>{
-    b.onclick=()=>{ const it=items.find(x=>x.id==b.dataset.id); editMode?openEdit(it):go(it); };
+    b.onclick=(e)=>{
+      const id = Number(b.dataset.id);
+      const idx = items.findIndex(x=>x.id===id);
+      if(idx<0) return;
+      const it = items[idx];
+      const act = e.target.closest('[data-act]');
+      const a = act ? act.dataset.act : '';
+      if(editMode){
+        if(a==='del'){ quickDelete(idx); return; }
+        if(a==='left'){ move(idx,-1); return; }
+        if(a==='right'){ move(idx,1); return; }
+        openEdit(it); return;
+      }
+      go(it);
+    };
   });
   $('addBtn').onclick=()=>openEdit(null);
   $('btnEdit').classList.toggle('on',editMode);
   $('btnEdit').textContent = editMode?'完成':'編輯';
+}
+
+function quickDelete(idx){
+  const it = items[idx];
+  if(confirm('刪除「'+it.name+'」？')){
+    items.splice(idx,1); save(); render();
+  }
+}
+function move(idx,dir){
+  const j = idx+dir;
+  if(j<0 || j>=items.length) return;
+  const keep = $('grid').scrollTop;
+  [items[idx],items[j]] = [items[j],items[idx]];
+  save(); render();
+  $('grid').scrollTop = keep;
 }
 
 function buildPickers(){
