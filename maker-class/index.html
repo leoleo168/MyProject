@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ArduBlock 檔案下載站</title>
+<title>檔案下載</title>
 
 <!-- 外部資源：Tailwind、圖示、字型、ZIP 打包工具 -->
 <script src="https://cdn.tailwindcss.com"></script>
@@ -45,7 +45,7 @@
 <nav class="sticky top-0 z-40 backdrop-blur bg-slate-900/80 border-b border-slate-700">
   <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
     <div class="flex items-center gap-2 font-bold text-lg">
-      <i class="fa-solid fa-puzzle-piece" style="color:var(--accent)"></i>
+      <i class="fa-solid fa-folder-open" style="color:var(--accent)"></i>
       <span data-i18n="logo"></span>
     </div>
     <div class="flex items-center gap-2">
@@ -65,7 +65,7 @@
   <p class="text-slate-400 max-w-2xl mx-auto mb-6" data-i18n="heroSub"></p>
   <div class="flex flex-wrap justify-center gap-4 text-sm text-slate-400">
     <span><i class="fa-solid fa-chalkboard-user" style="color:var(--accent)"></i> <span data-i18n="teacher"></span></span>
-    <span><i class="fa-solid fa-envelope" style="color:var(--accent)"></i> teacher@example.com</span>
+    <a href="mailto:kaihuang@weclass.tw" class="hover:text-sky-400"><i class="fa-solid fa-envelope" style="color:var(--accent)"></i> kaihuang@weclass.tw</a>
   </div>
   <div class="flex flex-wrap justify-center gap-3 mt-8">
     <button id="zipAll" class="btn btn-main text-base">
@@ -147,7 +147,8 @@
       <div id="drop" class="drop">
         <i class="fa-solid fa-file-arrow-up text-3xl mb-2" style="color:var(--accent)"></i>
         <p data-i18n="dropText"></p>
-        <input id="fileInp" type="file" accept=".abp" multiple class="hidden">
+        <!-- 不限制檔案類型 -->
+        <input id="fileInp" type="file" multiple class="hidden">
       </div>
       <ul id="upList" class="space-y-2 text-xs"></ul>
       <button id="doUpload" class="btn btn-main w-full" disabled>
@@ -179,7 +180,7 @@
   <div class="flex justify-center gap-5 text-xl mb-3">
     <a href="#" class="hover:text-sky-400"><i class="fa-brands fa-github"></i></a>
     <a href="#" class="hover:text-sky-400"><i class="fa-brands fa-youtube"></i></a>
-    <a href="#" class="hover:text-sky-400"><i class="fa-solid fa-envelope"></i></a>
+    <a href="mailto:kaihuang@weclass.tw" class="hover:text-sky-400"><i class="fa-solid fa-envelope"></i></a>
   </div>
   <p data-i18n="copyright"></p>
 </footer>
@@ -189,10 +190,10 @@
    ★ 基本設定
    ===================================================== */
 const CONFIG = {
-  folder: "files/",           // .abp 檔案資料夾（相對於 index.html）
+  folder: "files/",           // 檔案資料夾（相對於 index.html）
   basePath: "maker-class/",   // index.html 在 Repository 裡的子資料夾位置
   notesFile: "notes.json",    // 註解存放檔（自動建立）
-  ext: ".abp",
+  hiddenFiles: ["notes.json","readme.md",".gitkeep"],  // 不顯示在清單的檔名（小寫）
   owner: "leoleo168",         // GitHub 帳號
   repo:  "MyProject",         // Repository 名稱
   cacheMinutes: 1
@@ -203,16 +204,16 @@ const CONFIG = {
    ===================================================== */
 const I18N = {
   zh:{
-    logo:"ArduBlock 檔案下載站",
-    heroTitle:"ArduBlock 課堂檔案下載",
-    heroSub:"同學們請在這裡下載今天上課要用的 .abp 積木程式檔。新檔案會自動出現。",
-    teacher:"授課老師：王老師",
+    logo:"檔案下載",
+    heroTitle:"檔案下載",
+    heroSub:"同學們請在這裡下載課堂需要的檔案。新檔案會自動出現。",
+    teacher:"授課老師：可樂老師",
     zipRoot:"一次下載全部檔案（ZIP）",
     zipHere:"下載此資料夾全部檔案（ZIP）",
     refresh:"重新整理清單",
     step1:"依序點選學校 → 作品，找到你的檔案。",
-    step2:"按「下載」，再開啟 Arduino IDE → 工具 → ArduBlock。",
-    step3:"在 ArduBlock 視窗按「載入」，選擇剛下載的 .abp 檔。",
+    step2:"按「下載」，檔案會存到電腦的「下載」資料夾。",
+    step3:"依檔案類型，用對應的軟體開啟（例如 .abp 用 ArduBlock 載入）。",
     searchPh:"搜尋檔名或註解（會搜尋所有資料夾）…",
     home:"首頁", back:"上一層",
     filesCount:"{n} 個檔案",
@@ -221,14 +222,14 @@ const I18N = {
     empty:"這裡目前是空的",
     emptySearch:"找不到符合的檔案",
     loadFail:"無法讀取檔案清單，請稍後再試或通知老師。",
-    download:"下載 .abp", del:"刪除", edit:"編輯註解",
+    download:"下載", del:"刪除", edit:"編輯註解",
     downloaded:"開始下載！", zipping:"正在打包，請稍候…",
     zipFail:"部分檔案下載失敗：", zipNone:"沒有可下載的檔案",
     dlFail:"下載失敗，請通知老師",
     updated:"清單已更新，共 {n} 個檔案", usingCache:"網路忙碌，使用上次的清單",
     defDesc:"（沒有註解）",
     unsorted:"未分類",
-    copyright:"© 2026 ArduBlock 課堂。保留所有權利。",
+    copyright:"© 2026 可樂老師 檔案下載。保留所有權利。",
     teacherMode:"老師模式",
     uploadTitle:"老師上傳檔案",
     tokenHelp:"請貼上你的 GitHub 金鑰（Token）。金鑰只會存在這台電腦的瀏覽器，不會顯示給學生。",
@@ -237,13 +238,13 @@ const I18N = {
     unlock:"驗證並開啟上傳",
     schoolLabel:"學校（第一層資料夾）", schoolPh:"例如：A國小",
     workLabel:"作品（第二層資料夾）", workPh:"例如：紅綠燈",
-    folderHint:"已自動帶入你目前所在的資料夾。可選擇已有名稱，或輸入新名稱自動建立。",
-    dropText:"點擊或拖曳 .abp 檔案到這裡（可多選）",
+    folderHint:"已自動帶入你目前所在的資料夾。可選擇已有名稱，或輸入新名稱自動建立。單一檔案請小於 50 MB。",
+    dropText:"點擊或拖曳檔案到這裡（可多選，不限類型）",
     notePh:"在這裡寫註解（選填）",
     editNote:"編輯註解", cancel:"取消", save:"儲存",
     uploadBtn:"開始上傳", logout:"登出老師模式",
     needToken:"請先輸入金鑰", authFail:"金鑰或專案名稱錯誤，請檢查",
-    authOk:"驗證成功！", onlyAbp:"只接受 .abp 檔案：",
+    authOk:"驗證成功！", tooBig:"檔案過大（超過 50 MB）：",
     upOk:"上傳成功", upFail:"失敗", upWait:"上傳中…",
     upDone:"上傳完成！約 1~2 分鐘後學生即可下載",
     noteSaved:"註解已儲存（學生約 1~2 分鐘後看到）", noteFail:"註解儲存失敗",
@@ -251,16 +252,16 @@ const I18N = {
     loggedOut:"已登出"
   },
   en:{
-    logo:"ArduBlock File Hub",
-    heroTitle:"ArduBlock Class File Downloads",
-    heroSub:"Download today's .abp block-program files here. New files appear automatically.",
-    teacher:"Instructor: Mr. Wang",
+    logo:"File Downloads",
+    heroTitle:"File Downloads",
+    heroSub:"Download the files you need for class here. New files appear automatically.",
+    teacher:"Instructor: Teacher Cola",
     zipRoot:"Download All Files (ZIP)",
     zipHere:"Download This Folder (ZIP)",
     refresh:"Refresh List",
     step1:"Open your school → project folder to find your file.",
-    step2:"Click “Download”, then open Arduino IDE → Tools → ArduBlock.",
-    step3:"Click “Load” in the ArduBlock window and choose the .abp file.",
+    step2:"Click “Download”. The file is saved to your Downloads folder.",
+    step3:"Open it with the matching software (e.g. load .abp files in ArduBlock).",
     searchPh:"Search file name or note (all folders)…",
     home:"Home", back:"Up",
     filesCount:"{n} files",
@@ -269,14 +270,14 @@ const I18N = {
     empty:"This folder is empty",
     emptySearch:"No matching files",
     loadFail:"Could not load the file list. Please try again later or tell your teacher.",
-    download:"Download .abp", del:"Delete", edit:"Edit note",
+    download:"Download", del:"Delete", edit:"Edit note",
     downloaded:"Download started!", zipping:"Packing files…",
     zipFail:"Some files failed: ", zipNone:"No files to download",
     dlFail:"Download failed. Please tell your teacher.",
     updated:"List updated: {n} files", usingCache:"Network busy, using the last saved list",
     defDesc:"(No note)",
     unsorted:"Unsorted",
-    copyright:"© 2026 ArduBlock Class. All rights reserved.",
+    copyright:"© 2026 Teacher Cola – File Downloads. All rights reserved.",
     teacherMode:"Teacher",
     uploadTitle:"Teacher Upload",
     tokenHelp:"Paste your GitHub token. It is stored only in this browser and is never shown to students.",
@@ -285,13 +286,13 @@ const I18N = {
     unlock:"Verify & Enable Upload",
     schoolLabel:"School (level-1 folder)", schoolPh:"e.g. School A",
     workLabel:"Project (level-2 folder)", workPh:"e.g. Traffic light",
-    folderHint:"Filled in from your current folder. Pick an existing name or type a new one to create it.",
-    dropText:"Click or drop .abp files here (multiple allowed)",
+    folderHint:"Filled in from your current folder. Pick an existing name or type a new one. Keep each file under 50 MB.",
+    dropText:"Click or drop files here (multiple allowed, any type)",
     notePh:"Write a note here (optional)",
     editNote:"Edit Note", cancel:"Cancel", save:"Save",
     uploadBtn:"Start Upload", logout:"Exit Teacher Mode",
     needToken:"Please enter the token first", authFail:"Wrong token or repository. Please check.",
-    authOk:"Verified!", onlyAbp:"Only .abp files are accepted: ",
+    authOk:"Verified!", tooBig:"File too large (over 50 MB): ",
     upOk:"Uploaded", upFail:"Failed", upWait:"Uploading…",
     upDone:"Done! Students can download in about 1–2 minutes.",
     noteSaved:"Note saved (visible to students in 1–2 min)", noteFail:"Failed to save note",
@@ -324,9 +325,28 @@ function getRepo(){
            repo:  localStorage.getItem('gh_repo')  || CONFIG.repo };
 }
 
+/* ===== 依副檔名挑選圖示 ===== */
+function iconOf(name){
+  const e = (name.split('.').pop() || '').toLowerCase();
+  const map = {
+    pdf:'fa-file-pdf', doc:'fa-file-word', docx:'fa-file-word',
+    xls:'fa-file-excel', xlsx:'fa-file-excel', csv:'fa-file-csv',
+    ppt:'fa-file-powerpoint', pptx:'fa-file-powerpoint',
+    zip:'fa-file-zipper', rar:'fa-file-zipper', '7z':'fa-file-zipper',
+    png:'fa-file-image', jpg:'fa-file-image', jpeg:'fa-file-image', gif:'fa-file-image', svg:'fa-file-image',
+    mp4:'fa-file-video', mov:'fa-file-video', mp3:'fa-file-audio', wav:'fa-file-audio',
+    txt:'fa-file-lines', md:'fa-file-lines',
+    ino:'fa-file-code', py:'fa-file-code', js:'fa-file-code', html:'fa-file-code', cpp:'fa-file-code',
+    abp:'fa-puzzle-piece'
+  };
+  return map[e] || 'fa-file';
+}
+
 /* =====================================================
    ★ 讀取檔案清單與註解
    ===================================================== */
+const isHidden = name => CONFIG.hiddenFiles.includes(name.split('/').pop().toLowerCase());
+
 async function fetchFromAPI(){
   const {owner, repo} = getRepo();
   const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/HEAD?recursive=1&t=${Date.now()}`);
@@ -334,7 +354,7 @@ async function fetchFromAPI(){
   const data = await res.json();
   const prefix = CONFIG.basePath + CONFIG.folder;
   return data.tree
-    .filter(x => x.type==='blob' && x.path.startsWith(prefix) && x.path.toLowerCase().endsWith(CONFIG.ext))
+    .filter(x => x.type==='blob' && x.path.startsWith(prefix) && !isHidden(x.path))
     .map(x => ({path: x.path.slice(prefix.length), size: x.size || 0}));
 }
 async function fetchFromJson(){
@@ -354,7 +374,7 @@ async function loadNotes(){
   }catch(e){ NOTES = NOTES || {}; }
 }
 async function loadList(force=false){
-  const KEY = 'abp_list_cache';
+  const KEY = 'file_list_cache';
   $('#status').textContent = I18N[lang].loading; $('#status').classList.remove('hidden');
   await loadNotes();
   const cache = JSON.parse(localStorage.getItem(KEY) || 'null');
@@ -379,28 +399,26 @@ async function loadList(force=false){
 function parse(f){
   const parts = f.path.split('/');
   const name = parts.pop();
-  const base = name.slice(0, -CONFIG.ext.length);
+  const base = name.replace(/\.[^.]+$/, '');   // 去掉副檔名當標題
   return { path:f.path, name, size:f.size, folderParts:parts,
-    title: base.replace(/[_\-]+/g,' ').trim(),
+    title: base.replace(/[_\-]+/g,' ').trim() || name,
     note: NOTES[f.path] || '' };
 }
 function label(c){
   if(c===NONE) return I18N[lang].unsorted;
   return (CAT_LABELS[c] && CAT_LABELS[c][lang]) || c;
 }
-const fmtSize = b => !b ? '' : b<1024 ? b+' B' : (b/1024).toFixed(1)+' KB';
+const fmtSize = b => !b ? '' : b<1024 ? b+' B' : b<1048576 ? (b/1024).toFixed(1)+' KB' : (b/1048576).toFixed(1)+' MB';
 
 /* ===== 檔案總管邏輯 ===== */
-// 判斷檔案是否在目前資料夾（含子資料夾）
 function inPath(i){
   if(path.length===0) return true;
   if(path[0]===NONE) return i.folderParts.length===0;
   return path.every((p,k)=>i.folderParts[k]===p);
 }
-// 取得目前資料夾下的「子資料夾」與「直接放在這裡的檔案」
 function currentView(items){
   const here = items.filter(inPath);
-  const folders = new Map();     // 資料夾路徑字串 → 檔案數
+  const folders = new Map();
   const files = [];
   if(path[0]===NONE){ here.forEach(i=>files.push(i)); return {folders:[], files}; }
   const depth = path.length;
@@ -442,7 +460,7 @@ function fileCard(i, showPlace){
     <div class="flex items-center gap-3 mb-3">
       <div class="w-12 h-12 shrink-0 rounded-xl flex items-center justify-center text-xl"
            style="background:rgba(56,189,248,.12);color:var(--accent)">
-        <i class="fa-solid fa-puzzle-piece"></i>
+        <i class="fa-solid ${iconOf(i.name)}"></i>
       </div>
       ${showPlace ? `<span class="px-2.5 py-1 rounded-lg bg-slate-700 text-xs text-sky-300 break-words"><i class="fa-solid fa-folder"></i> ${place}</span>`:''}
     </div>
@@ -543,7 +561,7 @@ $('#zipAll').onclick = async ()=>{
     }catch(e){ missing.push(f.path); }
   }));
   if(ok===0){ toast(t.zipNone); return; }
-  const zname = path.length && path[0]!==NONE ? path.join('_') : 'ArduBlock_Class_Files';
+  const zname = path.length && path[0]!==NONE ? path.join('_') : 'Class_Files';
   saveBlob(await zip.generateAsync({type:'blob'}), zname + '.zip');
   if(missing.length) setTimeout(()=>toast(t.zipFail + missing.join(', ')), 2000);
 };
@@ -622,11 +640,11 @@ $('#logout').onclick = ()=>{
   closeModal(); render(); toast(I18N[lang].loggedOut);
 };
 
-/* ===== 選檔／拖曳（每個檔案都有註解欄）===== */
+/* ===== 選檔／拖曳（每個檔案都有註解欄，不限檔案類型）===== */
 function addFiles(fl){
   const t = I18N[lang];
   [...fl].forEach(f=>{
-    if(!f.name.toLowerCase().endsWith(CONFIG.ext)){ toast(t.onlyAbp + f.name); return; }
+    if(f.size > 50*1024*1024){ toast(t.tooBig + f.name); return; }
     if(!pending.some(p=>p.name===f.name)){ f.note = ''; pending.push(f); }
   });
   drawPending();
@@ -718,15 +736,12 @@ function toast(msg){
 $('#search').oninput = render;
 $('#refresh').onclick = ()=>loadList(true);
 $('#langBtn').onclick = ()=>{ lang = lang==='zh'?'en':'zh'; localStorage.setItem('lang',lang); applyLang(); };
-// 點資料夾卡片 → 進入
 $('#folders').onclick = e=>{
   const f = e.target.closest('[data-go]'); if(f) goTo(f.dataset.go.split('/'));
 };
-// 點路徑列 → 跳回該層
 $('#crumb').onclick = e=>{
   const c = e.target.closest('[data-p]'); if(c) goTo(c.dataset.p ? c.dataset.p.split('/') : []);
 };
-// 上一層
 $('#backBtn').onclick = ()=>goTo(path.slice(0,-1));
 $('#grid').onclick = e=>{
   const d=e.target.closest('[data-dl]'); if(d) downloadOne(d.dataset.dl);
