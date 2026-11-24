@@ -457,23 +457,21 @@ function fileCard(i, showPlace){
   const place = i.folderParts.length ? i.folderParts.map(p=>esc(label(p))).join(' <span class="text-slate-600">/</span> ') : esc(t.unsorted);
   return `
   <article class="card hov p-5 flex flex-col fade-in">
-    <div class="flex items-center gap-3 mb-3">
-      <div class="w-12 h-12 shrink-0 rounded-xl flex items-center justify-center text-xl"
-           style="background:rgba(56,189,248,.12);color:var(--accent)">
-        <i class="fa-solid ${iconOf(i.name)}"></i>
-      </div>
-      ${showPlace ? `<span class="px-2.5 py-1 rounded-lg bg-slate-700 text-xs text-sky-300 break-words"><i class="fa-solid fa-folder"></i> ${place}</span>`:''}
+    ${showPlace ? `<span class="self-start px-2.5 py-1 mb-3 rounded-lg bg-slate-700 text-xs text-sky-300 break-words"><i class="fa-solid fa-folder"></i> ${place}</span>`:''}
+    <div class="flex items-start gap-3 mb-2">
+      <i class="fa-solid ${iconOf(i.name)} text-xl mt-1" style="color:var(--accent)"></i>
+      <h3 class="font-bold text-lg break-all">${esc(i.name)}</h3>
     </div>
-    <h3 class="font-bold text-lg mb-1 break-words">${esc(i.title)}</h3>
-    <p class="text-sm mb-2 flex-1 whitespace-pre-line break-words ${i.note?'text-slate-300':'text-slate-500'}">${esc(i.note || t.defDesc)}</p>
-    <p class="text-xs text-slate-500 mb-4 break-all"><i class="fa-regular fa-file"></i> ${esc(i.name)} ${fmtSize(i.size) ? '· '+fmtSize(i.size):''}</p>
-    <div class="flex gap-2">
+    ${i.note ? `<p class="text-sm text-slate-300 mb-3 whitespace-pre-line break-words">${esc(i.note)}</p>` : ''}
+    <div class="mt-auto pt-3 flex items-center gap-2">
+      <span class="text-xs text-slate-500 shrink-0">${fmtSize(i.size)}</span>
       <button class="btn btn-main flex-1" data-dl="${esc(i.path)}"><i class="fa-solid fa-download"></i> ${t.download}</button>
       ${admin ? `<button class="btn btn-ghost" title="${t.edit}" data-edit="${esc(i.path)}"><i class="fa-solid fa-pen"></i></button>
                  <button class="btn btn-danger" title="${t.del}" data-del="${esc(i.path)}"><i class="fa-solid fa-trash"></i></button>`:''}
     </div>
   </article>`;
 }
+
 
 function render(){
   const t = I18N[lang];
