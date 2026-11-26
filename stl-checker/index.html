@@ -15,7 +15,6 @@
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Noto Sans TC',system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.6}
-a{color:var(--accent)}
 .wrap{max-width:1100px;margin:0 auto;padding:0 20px}
 /* 導覽列 */
 nav{position:sticky;top:0;z-index:50;background:rgba(15,23,42,.9);backdrop-filter:blur(8px);border-bottom:1px solid var(--card)}
@@ -23,6 +22,7 @@ nav .wrap{display:flex;justify-content:space-between;align-items:center;height:6
 .logo{font-weight:700;font-size:1.1rem}.logo i{color:var(--accent);margin-right:8px}
 .btn{background:var(--card);color:var(--text);border:1px solid var(--card2);padding:8px 16px;border-radius:10px;cursor:pointer;font-family:inherit;font-size:.9rem;transition:.2s}
 .btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
 .btn.primary{background:var(--accent);color:#0f172a;border-color:var(--accent);font-weight:700}
 .btn.primary:hover{color:#0f172a;filter:brightness(1.1)}
 /* Hero */
@@ -44,14 +44,36 @@ nav .wrap{display:flex;justify-content:space-between;align-items:center;height:6
 .settings input{width:100%;background:var(--bg);border:1px solid var(--card2);color:var(--text);padding:8px 10px;border-radius:8px;font-family:inherit}
 .settings input:focus{outline:none;border-color:var(--accent)}
 .settings small{color:var(--sub);font-size:.78rem}
+.row-btns{margin-top:16px;display:flex;gap:10px;flex-wrap:wrap}
 /* 進度 */
 #progress{display:none;margin-top:16px}
 .bar{height:8px;background:var(--bg);border-radius:8px;overflow:hidden}
 .bar div{height:100%;width:0;background:var(--accent);transition:width .15s}
 #pText{font-size:.85rem;color:var(--sub);margin-top:6px}
+/* 批次清單表格 */
+#queueCard{display:none}
+.qhead{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:10px}
+.qhead h2{margin:0}
+.tblwrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.88rem;min-width:600px}
+th{color:var(--sub);font-weight:500;text-align:left;padding:8px;border-bottom:1px solid var(--card2)}
+td{padding:9px 8px;border-bottom:1px solid var(--card2)}
+tr.qrow{cursor:pointer;transition:.15s}
+tr.qrow:hover{background:#16213a}
+tr.qrow.sel{background:rgba(56,189,248,.12)}
+.fname{max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pill{display:inline-block;padding:1px 10px;border-radius:20px;font-size:.78rem}
+.pill.bad{background:rgba(248,113,113,.15);color:var(--danger)}
+.pill.warn{background:rgba(251,191,36,.15);color:var(--warn)}
+.pill.ok{background:rgba(74,222,128,.15);color:var(--ok)}
+.pill.wait{background:var(--card2);color:var(--sub)}
+.pill.run{background:rgba(56,189,248,.15);color:var(--accent)}
+.xbtn{background:none;border:none;color:var(--sub);cursor:pointer;font-size:1rem}
+.xbtn:hover{color:var(--danger)}
 /* 結果 */
 #results{display:none}
-.verdict{display:flex;align-items:center;gap:14px;padding:18px;border-radius:14px;margin-bottom:20px;font-weight:700;font-size:1.1rem}
+#curName{color:var(--accent);font-size:1rem;margin-bottom:10px;word-break:break-all}
+.verdict{display:flex;align-items:center;gap:14px;padding:18px;border-radius:14px;margin-bottom:16px;font-weight:700;font-size:1.1rem}
 .verdict i{font-size:1.8rem}
 .verdict.bad{background:rgba(248,113,113,.15);color:var(--danger);border:1px solid var(--danger)}
 .verdict.warn{background:rgba(251,191,36,.12);color:var(--warn);border:1px solid var(--warn)}
@@ -74,7 +96,8 @@ nav .wrap{display:flex;justify-content:space-between;align-items:center;height:6
 .item b{display:block}
 .item span{color:var(--sub);font-size:.8rem}
 .tag{display:inline-block;font-size:.72rem;padding:1px 8px;border-radius:20px;background:var(--card2);margin-right:4px}
-.shell{font-size:.85rem;padding:6px 0;border-bottom:1px solid var(--card2);color:var(--sub)}
+.shell{font-size:.85rem;padding:6px 0;border-bottom:1px solid var(--card2);color:var(--sub);cursor:pointer}
+.shell:hover{color:var(--text)}
 ul.tips{padding-left:20px;color:var(--sub);font-size:.9rem}
 ul.tips li{margin-bottom:6px}
 footer{text-align:center;color:var(--sub);font-size:.85rem;padding:30px 0}
@@ -95,13 +118,13 @@ footer{text-align:center;color:var(--sub);font-size:.85rem;padding:30px 0}
     <p data-i18n="sub"></p>
   </section>
 
-  <!-- ③ 上傳區 -->
+  <!-- ③ 上傳區（可多選 / 多檔拖曳）-->
   <div class="card">
     <div id="drop">
       <i class="fa-solid fa-cloud-arrow-up"></i>
       <p><b data-i18n="drop"></b></p>
       <small data-i18n="dropSub"></small>
-      <input type="file" id="file" accept=".stl" hidden>
+      <input type="file" id="file" accept=".stl" multiple hidden>
     </div>
   </div>
 
@@ -113,19 +136,38 @@ footer{text-align:center;color:var(--sub);font-size:.85rem;padding:30px 0}
       <div><label data-i18n="wallLabel"></label><input type="number" id="wallThr" value="0.4" step="0.05" min="0.01"><small data-i18n="wallHint"></small></div>
       <div><label data-i18n="sampleLabel"></label><input type="number" id="maxRays" value="60000" step="10000" min="5000"><small data-i18n="sampleHint"></small></div>
     </div>
-    <div style="margin-top:16px"><button class="btn primary" id="rerun" disabled><i class="fa-solid fa-rotate"></i> <span data-i18n="rerun"></span></button></div>
+    <div class="row-btns"><button class="btn primary" id="rerun" disabled><i class="fa-solid fa-rotate"></i> <span data-i18n="rerun"></span></button></div>
     <div id="progress"><div class="bar"><div id="bar"></div></div><div id="pText"></div></div>
   </div>
 
-  <!-- ⑤ 結果 -->
+  <!-- ⑤ 批次總表 -->
+  <div class="card" id="queueCard">
+    <div class="qhead">
+      <h2><i class="fa-solid fa-table-list"></i><span data-i18n="queueTitle"></span></h2>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" id="csvBtn"><i class="fa-solid fa-file-csv"></i> <span data-i18n="csv"></span></button>
+        <button class="btn" id="clearBtn"><i class="fa-solid fa-trash"></i> <span data-i18n="clear"></span></button>
+      </div>
+    </div>
+    <div id="batchSum" style="font-size:.9rem;color:var(--sub);margin-bottom:10px"></div>
+    <div class="tblwrap"><table>
+      <thead><tr><th data-i18n="cName"></th><th data-i18n="cStatus"></th><th data-i18n="sGap"></th><th data-i18n="sWall"></th><th data-i18n="cBody"></th><th></th></tr></thead>
+      <tbody id="qbody"></tbody>
+    </table></div>
+  </div>
+
+  <!-- ⑥ 單檔詳細結果 -->
   <div id="results">
+    <div id="curName"></div>
+    <!-- 單一實體檢查（最重要，放最上面）-->
+    <div id="bodyVerdict" class="verdict"></div>
     <div id="verdict" class="verdict"></div>
     <div class="stats" id="stats"></div>
     <div class="grid2">
       <div class="card">
         <h2><i class="fa-solid fa-eye"></i><span data-i18n="view"></span></h2>
         <div id="viewer"></div>
-        <div class="legend"><span class="dot" style="background:#f87171"></span><span data-i18n="lgGap"></span><span class="dot" style="background:#fbbf24"></span><span data-i18n="lgWall"></span></div>
+        <div class="legend"><span class="dot" style="background:#f87171"></span><span data-i18n="lgGap"></span><span class="dot" style="background:#fbbf24"></span><span data-i18n="lgWall"></span> ・ <span data-i18n="lgBody"></span></div>
       </div>
       <div class="card">
         <h2><i class="fa-solid fa-list"></i><span data-i18n="issues"></span></h2>
@@ -139,12 +181,12 @@ footer{text-align:center;color:var(--sub);font-size:.85rem;padding:30px 0}
   <div class="card">
     <h2><i class="fa-solid fa-lightbulb"></i><span data-i18n="tipTitle"></span></h2>
     <ul class="tips">
-      <li data-i18n="tip1"></li><li data-i18n="tip2"></li><li data-i18n="tip3"></li><li data-i18n="tip4"></li>
+      <li data-i18n="tip1"></li><li data-i18n="tip2"></li><li data-i18n="tip3"></li><li data-i18n="tip4"></li><li data-i18n="tip5"></li>
     </ul>
   </div>
 </div>
 
-<!-- ⑥ 頁尾 -->
+<!-- ⑦ 頁尾 -->
 <footer><span data-i18n="foot"></span></footer>
 
 <!-- 3D 檢視用（Three.js） -->
@@ -156,70 +198,88 @@ footer{text-align:center;color:var(--sub);font-size:.85rem;padding:30px 0}
 const I18N = {
  zh:{
   logo:'STL 縫隙檢查器', h1a:'列印前先檢查', h1b:'你的 STL 有沒有隱藏縫隙',
-  sub:'偵測 Tinkercad 匯出模型中「上下方塊沒接合的微小縫隙」與「XY 方向極細線段／薄壁」，避免懸空、強度不足或被切片軟體忽略。檔案只在你的瀏覽器處理，不會上傳。',
-  drop:'點擊或拖曳 STL 檔案到這裡', dropSub:'支援二進位與 ASCII STL，單位預設為 mm',
+  sub:'偵測 Tinkercad 匯出模型中「上下方塊沒接合的微小縫隙」、「XY 方向極細線段／薄壁」，並確認模型是否為單一實體。支援一次檢查多個檔案，檔案只在你的瀏覽器處理，不會上傳。',
+  drop:'點擊或拖曳多個 STL 檔案到這裡', dropSub:'可一次選取多個檔案；支援二進位與 ASCII STL，單位預設為 mm',
   setTitle:'檢查參數',
   gapLabel:'縫隙門檻 (mm)', gapHint:'兩個表面距離小於此值（但大於 0）視為「危險縫隙」',
   wallLabel:'最小壁厚 (mm)', wallHint:'薄於此值的牆／細線會被標記（建議 ≥ 噴嘴直徑）',
-  sampleLabel:'取樣射線上限', sampleHint:'越大越精準但越慢',
-  rerun:'以目前參數重新檢查',
-  view:'3D 檢視（左鍵旋轉、右鍵平移、滾輪縮放）', lgGap:'縫隙', lgWall:'過薄',
-  issues:'問題清單（點擊可定位）', shells:'獨立實體（Shell）',
+  sampleLabel:'取樣射線上限（每個檔案）', sampleHint:'越大越精準但越慢',
+  rerun:'以目前參數重新檢查全部',
+  queueTitle:'批次檢查結果', csv:'匯出 CSV', clear:'清空全部',
+  cName:'檔名', cStatus:'狀態', cBody:'單一實體',
+  stWait:'等待中', stRun:'檢查中', stErr:'解析失敗', stBad:'有縫隙', stMulti:'多個實體', stWarn:'有過薄', stOk:'正常',
+  batchSum:'共 {n} 個檔案：{ok} 個完全正常；{gap} 個有縫隙、{multi} 個非單一實體、{thin} 個有過薄{err}',
+  batchErr:'、{n} 個失敗',
+  view:'3D 檢視（左鍵旋轉、右鍵平移、滾輪縮放）', lgGap:'縫隙', lgWall:'過薄', lgBody:'模型顏色：多實體時每個實體不同色',
+  issues:'問題清單（點擊可定位）', shells:'獨立實體（點擊可定位）',
   tipTitle:'小提醒',
   tip1:'Tinkercad 中若兩個物件只是「靠很近」而不是重疊，匯出後就會留下縫隙。解法：讓它們互相重疊一點點，再「群組」。',
   tip2:'Z 方向縫隙最危險：下層列印完後，上層會懸空列印，造成接合不良。',
   tip3:'XY 方向的極細線段若小於噴嘴寬度，切片軟體常會直接忽略。',
   tip4:'本工具假設 STL 法線朝外（Tinkercad 匯出通常正確），結果僅供參考，仍建議用切片軟體預覽逐層確認。',
+  tip5:'「單一實體」判斷標準：所有表面必須透過共用的邊真正連成一體。只有點、線或面「剛好碰到」不算接合，請讓它們重疊後再群組。',
   foot:'© 2026 STL 縫隙檢查器 ・ 純前端運作，檔案不會離開你的電腦',
-  reading:'讀取檔案…', parsing:'解析三角形…', welding:'合併頂點與分析結構…', bvh:'建立加速結構…', ray:'偵測縫隙與薄壁…', done:'完成',
-  errFile:'無法解析此 STL 檔案', 
+  reading:'讀取檔案…', parsing:'解析三角形…', welding:'合併頂點與分析結構…', bvh:'建立加速結構…', ray:'偵測縫隙與薄壁…', done:'全部完成',
+  errFile:'無法解析此 STL 檔案',
+  bodyOk:'單一實體 ✓', bodyOkS:'所有部分已確實連成一體。',
+  bodyMulti:'偵測到 {n} 個互不相連的實體 ✗', bodyMultiS:'模型沒有完全接合。下方 3D 以不同顏色標示各實體，請讓它們互相重疊後在 Tinkercad 群組。',
+  bodyTouch:'有 {n} 個實體只是「剛好接觸」✗', bodyTouchS:'它們只靠點、線或面碰到，沒有真正融合，列印時接合處會很脆弱。請讓它們互相重疊後再群組。',
   vBad:'發現 {n} 處縫隙，列印可能失敗', vBadS:'表面之間有極小空隙，請參考下方清單修正。',
   vWarn:'沒有縫隙，但有 {n} 處過薄結構', vWarnS:'這些區域可能被切片軟體忽略或強度不足。',
-  vOk:'沒有發現問題', vOkS:'在目前參數下未偵測到縫隙或過薄結構。',
+  vOk:'沒有縫隙與過薄問題', vOkS:'在目前參數下未偵測到縫隙或過薄結構。',
   sTri:'三角形', sShell:'獨立實體', sGap:'縫隙處', sWall:'過薄處', sOpen:'開放邊', sSize:'尺寸 (mm)',
   gapZ:'Z 方向縫隙（懸空風險）', gapXY:'XY 方向縫隙', wallZ:'Z 方向過薄（層數不足）', wallXY:'XY 方向過薄／細線',
   gapD:'間距', wallD:'厚度', at:'位置', cnt:'取樣點', none:'（無）',
   shellTxt:'實體 #{i}：{tri} 個三角形，Z 範圍 {z0} ~ {z1}', floatTxt:'（底部未貼平台）',
-  multi:'偵測到多個獨立實體，若它們本應相連，請讓其重疊後群組。', single:'只有 1 個實體。',
-  openW:'提醒：模型有 {n} 條開放／非流形邊，可能不是封閉實體。'
+  openW:'提醒：模型有 {n} 條開放／非流形邊，可能不是封閉實體。',
+  fileOf:'檔案 {i}/{n}：{name}'
  },
  en:{
   logo:'STL Gap Checker', h1a:'Check before you print', h1b:'Does your STL hide tiny gaps?',
-  sub:'Detects tiny gaps between stacked parts (e.g. cubes that do not actually join) and ultra-thin XY features in Tinkercad exports, which cause floating layers, weak parts or details ignored by slicers. Everything runs in your browser; nothing is uploaded.',
-  drop:'Click or drop an STL file here', dropSub:'Binary & ASCII STL supported, units assumed mm',
+  sub:'Detects tiny gaps between stacked parts, ultra-thin XY features, and verifies the model is a single solid body. Batch-check many files at once. Everything runs in your browser; nothing is uploaded.',
+  drop:'Click or drop multiple STL files here', dropSub:'Select many files at once; binary & ASCII STL supported, units assumed mm',
   setTitle:'Settings',
   gapLabel:'Gap threshold (mm)', gapHint:'Surfaces closer than this (but > 0) count as a dangerous gap',
   wallLabel:'Min wall thickness (mm)', wallHint:'Walls/lines thinner than this are flagged (≥ nozzle size recommended)',
-  sampleLabel:'Max sample rays', sampleHint:'Higher = more accurate but slower',
-  rerun:'Re-check with current settings',
-  view:'3D view (left: rotate, right: pan, wheel: zoom)', lgGap:'Gap', lgWall:'Too thin',
-  issues:'Issues (click to locate)', shells:'Separate bodies (shells)',
+  sampleLabel:'Max sample rays (per file)', sampleHint:'Higher = more accurate but slower',
+  rerun:'Re-check all with current settings',
+  queueTitle:'Batch results', csv:'Export CSV', clear:'Clear all',
+  cName:'File', cStatus:'Status', cBody:'Single body',
+  stWait:'Waiting', stRun:'Checking', stErr:'Parse failed', stBad:'Gaps', stMulti:'Multi-body', stWarn:'Too thin', stOk:'OK',
+  batchSum:'{n} files: {ok} fully OK; {gap} with gaps, {multi} not a single body, {thin} too thin{err}',
+  batchErr:', {n} failed',
+  view:'3D view (left: rotate, right: pan, wheel: zoom)', lgGap:'Gap', lgWall:'Too thin', lgBody:'Model colour: each body has its own colour when multiple',
+  issues:'Issues (click to locate)', shells:'Separate bodies (click to locate)',
   tipTitle:'Tips',
   tip1:'In Tinkercad, two objects that are merely close (not overlapping) leave a gap after export. Fix: overlap them slightly, then Group.',
   tip2:'Z-direction gaps are the worst: the upper part prints in mid-air over the lower one, giving poor bonding.',
   tip3:'XY features thinner than the nozzle width are often ignored by slicers.',
   tip4:'This tool assumes outward-facing normals (usually true for Tinkercad). Results are a guide; still preview layers in your slicer.',
+  tip5:'"Single body" means all surfaces are truly joined through shared edges. Parts that merely touch at a point, line or face do not count – overlap them, then Group.',
   foot:'© 2026 STL Gap Checker ・ Runs 100% in your browser',
-  reading:'Reading file…', parsing:'Parsing triangles…', welding:'Welding vertices & analysing…', bvh:'Building acceleration structure…', ray:'Detecting gaps & thin walls…', done:'Done',
+  reading:'Reading file…', parsing:'Parsing triangles…', welding:'Welding vertices & analysing…', bvh:'Building acceleration structure…', ray:'Detecting gaps & thin walls…', done:'All done',
   errFile:'Unable to parse this STL file',
+  bodyOk:'Single body ✓', bodyOkS:'All parts are truly joined into one piece.',
+  bodyMulti:'{n} disconnected bodies found ✗', bodyMultiS:'The model is not fully joined. The 3D view colours each body differently. Overlap them and Group in Tinkercad.',
+  bodyTouch:'{n} bodies only touch each other ✗', bodyTouchS:'They meet only at a point, line or face and are not fused, so the joint will be weak. Overlap them, then Group.',
   vBad:'{n} gap location(s) found – print may fail', vBadS:'Tiny spaces exist between surfaces. See the list below.',
   vWarn:'No gaps, but {n} too-thin spot(s)', vWarnS:'These areas may be ignored by the slicer or be weak.',
-  vOk:'No problems found', vOkS:'No gaps or thin features detected with current settings.',
+  vOk:'No gap or thin-wall problems', vOkS:'No gaps or thin features detected with current settings.',
   sTri:'Triangles', sShell:'Bodies', sGap:'Gaps', sWall:'Thin spots', sOpen:'Open edges', sSize:'Size (mm)',
   gapZ:'Z-direction gap (floating risk)', gapXY:'XY-direction gap', wallZ:'Z-direction too thin (too few layers)', wallXY:'XY too thin / hairline',
   gapD:'Gap', wallD:'Thickness', at:'At', cnt:'samples', none:'(none)',
   shellTxt:'Body #{i}: {tri} triangles, Z range {z0} ~ {z1}', floatTxt:'(bottom not on bed)',
-  multi:'Multiple separate bodies found. If they should be joined, overlap them and Group.', single:'Only 1 body.',
-  openW:'Note: model has {n} open / non-manifold edges; it may not be a closed solid.'
+  openW:'Note: model has {n} open / non-manifold edges; it may not be a closed solid.',
+  fileOf:'File {i}/{n}: {name}'
  }
 };
-let lang='zh', lastResult=null;
+let lang='zh';
 const t=(k,v)=>{let s=I18N[lang][k]||k; if(v)for(const a in v)s=s.replace('{'+a+'}',v[a]); return s;};
 function applyLang(){
   document.documentElement.lang = lang==='zh'?'zh-Hant':'en';
   document.querySelectorAll('[data-i18n]').forEach(e=>e.textContent=t(e.dataset.i18n));
   document.getElementById('langBtn').textContent = lang==='zh'?'EN':'中文';
-  if(lastResult) renderResults();
+  renderQueue(); if(cur&&cur.result) renderResults(cur);
 }
 document.getElementById('langBtn').onclick=()=>{lang=lang==='zh'?'en':'zh';applyLang();};
 
@@ -253,30 +313,56 @@ function prepare(raw){
   return {pos:pos.slice(0,N*9),nor:nor.slice(0,N*3),N};
 }
 
-/* ========== 頂點合併、Shell（並查集）、開放邊 ========== */
+/* ========== 實體（Shell）分析 ==========
+   嚴格判斷：三角形必須「共用邊（剛好 2 個三角形共邊）」才算真正相連。
+   寬鬆判斷：只要共用頂點就算相連。
+   - 嚴格 = 1            → 單一實體
+   - 寬鬆 > 1            → 多個互不相連的實體
+   - 寬鬆 = 1 但嚴格 > 1 → 只有點／線／面剛好接觸，沒有真正融合 */
 function topology(pos,N){
   const map=new Map(), idx=new Uint32Array(N*3); let vc=0;
   for(let i=0;i<N*3;i++){
     const k=Math.round(pos[i*3]*1e4)+','+Math.round(pos[i*3+1]*1e4)+','+Math.round(pos[i*3+2]*1e4);
     let id=map.get(k); if(id===undefined){id=vc++;map.set(k,id);} idx[i]=id;
   }
+  // 頂點並查集（寬鬆）
   const par=new Int32Array(vc).map((_,i)=>i);
   const find=x=>{while(par[x]!==x){par[x]=par[par[x]];x=par[x];}return x;};
-  const edges=new Map();
+  // 三角形並查集（嚴格）
+  const tp=new Int32Array(N).map((_,i)=>i);
+  const findT=x=>{while(tp[x]!==x){tp[x]=tp[tp[x]];x=tp[x];}return x;};
+  const edges=new Map(); // 邊 -> [數量, 第一個三角形]
   for(let i=0;i<N;i++){
     const a=idx[i*3],b=idx[i*3+1],c=idx[i*3+2];
     par[find(a)]=find(b); par[find(b)]=find(c);
-    for(const [p,q] of [[a,b],[b,c],[c,a]]){const k=p<q?p*vc+q:q*vc+p; edges.set(k,(edges.get(k)||0)+1);}
+    for(const [p,q] of [[a,b],[b,c],[c,a]]){
+      const k=p<q?p*vc+q:q*vc+p; const e=edges.get(k);
+      if(!e)edges.set(k,[1,i]);
+      else{e[0]++; if(e[0]===2){tp[findT(e[1])]=findT(i);}}
+    }
   }
-  let open=0; edges.forEach(v=>{if(v!==2)open++;});
-  const shells=new Map();
+  let open=0; edges.forEach(v=>{if(v[0]!==2)open++;});
+  const loose=new Set(); for(let i=0;i<N;i++)loose.add(find(idx[i*3]));
+  // 依嚴格判斷整理每個實體
+  const rootToId=new Map(), shells=[], triShell=new Int32Array(N);
   for(let i=0;i<N;i++){
-    const r=find(idx[i*3]); let s=shells.get(r);
-    if(!s){s={tri:0,min:[1e9,1e9,1e9],max:[-1e9,-1e9,-1e9]};shells.set(r,s);}
-    s.tri++;
+    const r=findT(i); let sid=rootToId.get(r);
+    if(sid===undefined){sid=shells.length;rootToId.set(r,sid);shells.push({tri:0,min:[1e9,1e9,1e9],max:[-1e9,-1e9,-1e9]});}
+    const s=shells[sid]; s.tri++; triShell[i]=sid;
     for(let v=0;v<3;v++)for(let k=0;k<3;k++){const x=pos[i*9+v*3+k]; if(x<s.min[k])s.min[k]=x; if(x>s.max[k])s.max[k]=x;}
   }
-  return {shells:[...shells.values()],open};
+  shells.sort((a,b)=>b.tri-a.tri); // 大的排前面
+  // 排序後要重新對應編號
+  const order=new Map(); shells.forEach((s,i)=>order.set(s,i));
+  const remap=new Int32Array(rootToId.size); let n=0;
+  // 重新計算 triShell（依三角形數量排序後的編號）
+  const tmp=[...rootToId.keys()].map(r=>({r,tri:0})); 
+  const cnt=new Map(); for(let i=0;i<N;i++){const r=findT(i);cnt.set(r,(cnt.get(r)||0)+1);}
+  const sorted=[...cnt.entries()].sort((a,b)=>b[1]-a[1]); const finalId=new Map(); sorted.forEach((e,i)=>finalId.set(e[0],i));
+  for(let i=0;i<N;i++)triShell[i]=finalId.get(findT(i));
+  let type='single';
+  if(shells.length>1) type = loose.size>1 ? 'multi' : 'touch';
+  return {shells,open,triShell,type};
 }
 
 /* ========== BVH 加速結構（用來快速射線偵測）========== */
@@ -326,60 +412,14 @@ function cast(B,o,d,maxT){
   return bi<0?null:{t:best,i:bi};
 }
 
-/* ========== 主分析流程 ========== */
+/* ========== 批次狀態 ========== */
+// items 每一項：{file, name, status:'wait|run|done|err', prep, topo, result}
+const items=[]; let cur=null, running=false;
 const frame=()=>new Promise(r=>setTimeout(r,0));
-let prep=null, topo=null, bvh=null, running=false;
-function setProg(p,key){document.getElementById('bar').style.width=p+'%';document.getElementById('pText').textContent=t(key);}
+function setProg(p,text){document.getElementById('bar').style.width=p+'%';document.getElementById('pText').textContent=text;}
 
-async function analyse(raw){
-  if(running)return; running=true;
-  document.getElementById('progress').style.display='block';
-  document.getElementById('rerun').disabled=true;
-  try{
-    if(raw){
-      setProg(5,'parsing'); await frame();
-      prep=prepare(raw);
-      setProg(15,'welding'); await frame();
-      topo=topology(prep.pos,prep.N);
-      setProg(25,'bvh'); await frame();
-      bvh=buildBVH(prep.pos,prep.N);
-    }
-    const gapThr=+document.getElementById('gapThr').value||0.3, wallThr=+document.getElementById('wallThr').value||0.4;
-    const maxRays=+document.getElementById('maxRays').value||60000;
-    const {pos,nor,N}=prep;
-    // 每個三角形取 4 個取樣點（中心 + 靠近三個頂點）
-    const perTri=4, stride=Math.max(1,Math.ceil(N*perTri/maxRays));
-    const clusters=new Map(); const maxThr=Math.max(gapThr,wallThr);
-    const total=N*perTri; let done=0, lastP=0;
-    const o=[0,0,0], d=[0,0,0];
-    for(let i=0;i<N;i+=stride){
-      const p=i*9, c=[(pos[p]+pos[p+3]+pos[p+6])/3,(pos[p+1]+pos[p+4]+pos[p+7])/3,(pos[p+2]+pos[p+5]+pos[p+8])/3];
-      const n=[nor[i*3],nor[i*3+1],nor[i*3+2]];
-      for(let s=0;s<perTri;s++){
-        for(let k=0;k<3;k++) o[k]= s===0? c[k] : pos[p+(s-1)*3+k]+(c[k]-pos[p+(s-1)*3+k])*0.3;
-        // 往外射：偵測縫隙（打到面向我們的另一個表面）
-        for(let k=0;k<3;k++)d[k]=n[k];
-        let h=cast(bvh,o,d,gapThr);
-        if(h){const q=h.i*3; if(nor[q]*d[0]+nor[q+1]*d[1]+nor[q+2]*d[2]<-0.9) addIssue(clusters,'gap',n,o,h.t,d);}
-        // 往內射：偵測薄壁（打到背面出口）
-        for(let k=0;k<3;k++)d[k]=-n[k];
-        h=cast(bvh,o,d,wallThr);
-        if(h){const q=h.i*3; if(nor[q]*d[0]+nor[q+1]*d[1]+nor[q+2]*d[2]>0.9) addIssue(clusters,'wall',n,o,h.t,d);}
-      }
-      done+=perTri*stride;
-      if((i/stride)%500===0){const pr=30+Math.min(65,done/total*65); if(pr-lastP>1){lastP=pr;setProg(pr,'ray');await frame();}}
-    }
-    const issues=[...clusters.values()].sort((a,b)=>(a.type===b.type?0:a.type==='gap'?-1:1)||a.d-b.d);
-    lastResult={issues,topo,N:prep.N,gapThr,wallThr};
-    setProg(100,'done');
-    document.getElementById('results').style.display='block';
-    renderResults(); build3D();
-  }catch(e){console.error(e);alert(t('errFile'));}
-  running=false; document.getElementById('rerun').disabled=false;
-  setTimeout(()=>document.getElementById('progress').style.display='none',1200);
-}
 // 把相近的問題點合併成一處（每 2mm 一格）
-function addIssue(map,type,n,o,dist,dir){
+function addIssue(map,type,o,dist,dir){
   const axis=Math.abs(dir[2])>0.7?'Z':'XY';
   const mid=[o[0]+dir[0]*dist/2,o[1]+dir[1]*dist/2,o[2]+dir[2]*dist/2];
   const key=type+axis+Math.round(mid[0]/2)+','+Math.round(mid[1]/2)+','+Math.round(mid[2]/2);
@@ -388,35 +428,170 @@ function addIssue(map,type,n,o,dist,dir){
   else map.set(key,{type,axis,d:dist,pos:mid,cnt:1});
 }
 
-/* ========== 結果顯示 ========== */
+/* ========== 單一檔案的完整分析 ========== */
+async function processItem(it,prog){
+  if(!it.prep){ // 第一次：讀檔 + 解析
+    prog(0.02,'reading'); const buf=await it.file.arrayBuffer(); await frame();
+    prog(0.08,'parsing'); const raw=parseSTL(buf); await frame();
+    it.prep=prepare(raw);
+    prog(0.15,'welding'); await frame();
+    it.topo=topology(it.prep.pos,it.prep.N);
+  }
+  prog(0.22,'bvh'); await frame();
+  const bvh=buildBVH(it.prep.pos,it.prep.N);
+  const gapThr=+document.getElementById('gapThr').value||0.3, wallThr=+document.getElementById('wallThr').value||0.4;
+  const maxRays=+document.getElementById('maxRays').value||60000;
+  const {pos,nor,N}=it.prep;
+  const perTri=4, stride=Math.max(1,Math.ceil(N*perTri/maxRays));
+  const clusters=new Map(); let lastP=0;
+  const o=[0,0,0], d=[0,0,0];
+  for(let i=0;i<N;i+=stride){
+    const p=i*9, c=[(pos[p]+pos[p+3]+pos[p+6])/3,(pos[p+1]+pos[p+4]+pos[p+7])/3,(pos[p+2]+pos[p+5]+pos[p+8])/3];
+    const n=[nor[i*3],nor[i*3+1],nor[i*3+2]];
+    for(let s=0;s<perTri;s++){
+      for(let k=0;k<3;k++) o[k]= s===0? c[k] : pos[p+(s-1)*3+k]+(c[k]-pos[p+(s-1)*3+k])*0.3;
+      // 往外射：偵測縫隙
+      for(let k=0;k<3;k++)d[k]=n[k];
+      let h=cast(bvh,o,d,gapThr);
+      if(h){const q=h.i*3; if(nor[q]*d[0]+nor[q+1]*d[1]+nor[q+2]*d[2]<-0.9) addIssue(clusters,'gap',o,h.t,d);}
+      // 往內射：偵測薄壁
+      for(let k=0;k<3;k++)d[k]=-n[k];
+      h=cast(bvh,o,d,wallThr);
+      if(h){const q=h.i*3; if(nor[q]*d[0]+nor[q+1]*d[1]+nor[q+2]*d[2]>0.9) addIssue(clusters,'wall',o,h.t,d);}
+    }
+    if((i/stride)%500===0){const f=0.25+0.75*(i/N); if(f-lastP>0.02){lastP=f;prog(f,'ray');await frame();}}
+  }
+  const issues=[...clusters.values()].sort((a,b)=>(a.type===b.type?0:a.type==='gap'?-1:1)||a.d-b.d);
+  const gaps=issues.filter(x=>x.type==='gap').length;
+  it.result={issues,gaps,walls:issues.length-gaps};
+}
+
+/* ========== 佇列執行（一個一個依序處理）========== */
+async function runQueue(){
+  if(running)return; running=true;
+  document.getElementById('progress').style.display='block';
+  document.getElementById('rerun').disabled=true;
+  const total=items.length;
+  for(let idx=0;idx<items.length;idx++){
+    const it=items[idx]; if(it.status!=='wait')continue;
+    it.status='run'; renderQueue();
+    const label=t('fileOf',{i:idx+1,n:total,name:it.name});
+    try{
+      await processItem(it,(f,key)=>setProg(((idx+f)/total)*100,label+' ・ '+t(key)));
+      it.status='done';
+    }catch(e){console.error(e); it.status='err'; it.result=null;}
+    renderQueue();
+    if(!cur&&it.status==='done')selectItem(it);
+  }
+  setProg(100,t('done'));
+  running=false; document.getElementById('rerun').disabled=false;
+  setTimeout(()=>{if(!running)document.getElementById('progress').style.display='none';},1500);
+}
+
+/* ========== 批次總表 ========== */
+// 狀態優先順序：縫隙 > 多實體 > 過薄 > 正常
+function verdictOf(it){
+  if(it.status==='wait')return['wait','stWait'];
+  if(it.status==='run')return['run','stRun'];
+  if(it.status==='err')return['bad','stErr'];
+  if(it.result.gaps)return['bad','stBad'];
+  if(it.topo.shells.length>1)return['bad','stMulti'];
+  if(it.result.walls)return['warn','stWarn'];
+  return['ok','stOk'];
+}
+function renderQueue(){
+  document.getElementById('queueCard').style.display=items.length?'block':'none';
+  const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const body=document.getElementById('qbody'); body.innerHTML='';
+  let ok=0,gap=0,multi=0,thin=0,err=0;
+  items.forEach((it,i)=>{
+    const [cls,key]=verdictOf(it);
+    const done=it.status==='done';
+    if(it.status==='err')err++;
+    if(done){ if(cls==='ok')ok++; if(it.result.gaps)gap++; if(it.topo.shells.length>1)multi++; if(it.result.walls)thin++; }
+    const n=done?it.topo.shells.length:0;
+    const bodyCell=!done?'-':(n===1?'<span class="pill ok">1 ✓</span>':`<span class="pill bad">${n} ✗</span>`);
+    const tr=document.createElement('tr'); tr.className='qrow'+(it===cur?' sel':'');
+    tr.innerHTML=`<td class="fname" title="${esc(it.name)}"><i class="fa-solid fa-cube" style="color:var(--accent);margin-right:6px"></i>${esc(it.name)}</td>
+      <td><span class="pill ${cls}">${t(key)}</span></td>
+      <td>${done?it.result.gaps:'-'}</td><td>${done?it.result.walls:'-'}</td><td>${bodyCell}</td>
+      <td><button class="xbtn" title="remove"><i class="fa-solid fa-xmark"></i></button></td>`;
+    tr.onclick=()=>{if(done)selectItem(it);};
+    tr.querySelector('.xbtn').onclick=e=>{e.stopPropagation();removeItem(i);};
+    body.appendChild(tr);
+  });
+  const fin=items.some(x=>x.status==='done');
+  document.getElementById('batchSum').textContent=fin||err?t('batchSum',{n:items.length,ok,gap,multi,thin,err:err?t('batchErr',{n:err}):''}):'';
+}
+function removeItem(i){
+  if(items[i].status==='run')return;
+  const it=items.splice(i,1)[0];
+  if(it===cur){cur=null;document.getElementById('results').style.display='none';
+    const next=items.find(x=>x.status==='done'); if(next)selectItem(next);}
+  renderQueue();
+}
+document.getElementById('clearBtn').onclick=()=>{
+  if(running)return; items.length=0; cur=null;
+  document.getElementById('results').style.display='none'; document.getElementById('rerun').disabled=true; renderQueue();
+};
+// 匯出 CSV（加 BOM，Excel 開啟中文不會亂碼）
+document.getElementById('csvBtn').onclick=()=>{
+  const rows=[['file','status','single_body','bodies','gaps','thin_spots','open_edges','triangles','size_x','size_y','size_z']];
+  items.forEach(it=>{
+    if(it.status!=='done'){rows.push([it.name,it.status]);return;}
+    const mn=[1e9,1e9,1e9],mx=[-1e9,-1e9,-1e9];
+    it.topo.shells.forEach(s=>{for(let k=0;k<3;k++){mn[k]=Math.min(mn[k],s.min[k]);mx[k]=Math.max(mx[k],s.max[k]);}});
+    rows.push([it.name,verdictOf(it)[1].slice(2).toLowerCase(),it.topo.shells.length===1?'yes':'NO',it.topo.shells.length,it.result.gaps,it.result.walls,it.topo.open,it.prep.N,f2(mx[0]-mn[0]),f2(mx[1]-mn[1]),f2(mx[2]-mn[2])]);
+  });
+  const csv='\ufeff'+rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\r\n');
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download='stl-check-report.csv'; a.click();
+};
+
+/* ========== 單檔結果顯示 ========== */
 const f2=x=>(Math.round(x*100)/100).toFixed(2);
-function renderResults(){
-  const {issues,topo,N}=lastResult;
-  const gaps=issues.filter(x=>x.type==='gap').length, walls=issues.length-gaps;
+// 多實體時，各實體的顯示顏色（可自行增減）
+const PALETTE=['#38bdf8','#4ade80','#a78bfa','#f472b6','#fb923c','#2dd4bf','#e879f9','#a3e635'];
+function selectItem(it){
+  cur=it; document.getElementById('results').style.display='block';
+  renderQueue(); renderResults(it); build3D(it);
+}
+function renderResults(it){
+  const {issues,gaps,walls}=it.result, topo=it.topo, N=it.prep.N, nb=topo.shells.length;
+  document.getElementById('curName').innerHTML='<i class="fa-solid fa-file"></i> '+it.name.replace(/</g,'&lt;');
+  // 單一實體判定
+  const bv=document.getElementById('bodyVerdict');
+  if(topo.type==='single'){bv.className='verdict ok';bv.innerHTML=`<i class="fa-solid fa-circle-check"></i><div>${t('bodyOk')}<small>${t('bodyOkS')}</small></div>`;}
+  else if(topo.type==='multi'){bv.className='verdict bad';bv.innerHTML=`<i class="fa-solid fa-circle-xmark"></i><div>${t('bodyMulti',{n:nb})}<small>${t('bodyMultiS')}</small></div>`;}
+  else{bv.className='verdict bad';bv.innerHTML=`<i class="fa-solid fa-link-slash"></i><div>${t('bodyTouch',{n:nb})}<small>${t('bodyTouchS')}</small></div>`;}
+  // 縫隙／薄壁判定
   const v=document.getElementById('verdict');
   if(gaps){v.className='verdict bad';v.innerHTML=`<i class="fa-solid fa-triangle-exclamation"></i><div>${t('vBad',{n:gaps})}<small>${t('vBadS')}</small></div>`;}
   else if(walls){v.className='verdict warn';v.innerHTML=`<i class="fa-solid fa-circle-exclamation"></i><div>${t('vWarn',{n:walls})}<small>${t('vWarnS')}</small></div>`;}
   else{v.className='verdict ok';v.innerHTML=`<i class="fa-solid fa-circle-check"></i><div>${t('vOk')}<small>${t('vOkS')}</small></div>`;}
   const mn=[1e9,1e9,1e9],mx=[-1e9,-1e9,-1e9];
   topo.shells.forEach(s=>{for(let k=0;k<3;k++){mn[k]=Math.min(mn[k],s.min[k]);mx[k]=Math.max(mx[k],s.max[k]);}});
-  const st=[[N.toLocaleString(),'sTri'],[topo.shells.length,'sShell'],[gaps,'sGap'],[walls,'sWall'],[topo.open,'sOpen'],
+  const st=[[N.toLocaleString(),'sTri'],[nb,'sShell'],[gaps,'sGap'],[walls,'sWall'],[topo.open,'sOpen'],
     [`${f2(mx[0]-mn[0])}×${f2(mx[1]-mn[1])}×${f2(mx[2]-mn[2])}`,'sSize']];
   document.getElementById('stats').innerHTML=st.map(s=>`<div class="stat"><b>${s[0]}</b><span>${t(s[1])}</span></div>`).join('');
   // 問題清單（最多顯示 200 筆）
   const L=document.getElementById('list');
   L.innerHTML=issues.length?'':`<p style="color:var(--sub)">${t('none')}</p>`;
-  issues.slice(0,200).forEach((x,i)=>{
+  issues.slice(0,200).forEach(x=>{
     const div=document.createElement('div'); div.className='item '+x.type;
-    const name=t(x.type+x.axis);
-    div.innerHTML=`<b>${name}</b><span class="tag">${t(x.type==='gap'?'gapD':'wallD')} ${f2(x.d)} mm</span><span>${t('at')} (${f2(x.pos[0])}, ${f2(x.pos[1])}, ${f2(x.pos[2])}) ・ ${x.cnt} ${t('cnt')}</span>`;
+    div.innerHTML=`<b>${t(x.type+x.axis)}</b><span class="tag">${t(x.type==='gap'?'gapD':'wallD')} ${f2(x.d)} mm</span><span>${t('at')} (${f2(x.pos[0])}, ${f2(x.pos[1])}, ${f2(x.pos[2])}) ・ ${x.cnt} ${t('cnt')}</span>`;
     div.onclick=()=>focusOn(x.pos);
     L.appendChild(div);
   });
-  // Shell 清單
-  let h=topo.shells.map((s,i)=>`<div class="shell">${t('shellTxt',{i:i+1,tri:s.tri.toLocaleString(),z0:f2(s.min[2]),z1:f2(s.max[2])})}${s.min[2]>0.05?' <span style="color:var(--warn)">'+t('floatTxt')+'</span>':''}</div>`).join('');
-  h+=`<p style="margin-top:10px;font-size:.88rem;color:${topo.shells.length>1?'var(--warn)':'var(--sub)'}">${topo.shells.length>1?t('multi'):t('single')}</p>`;
-  if(topo.open)h+=`<p style="margin-top:6px;font-size:.88rem;color:var(--warn)">${t('openW',{n:topo.open})}</p>`;
-  document.getElementById('shellList').innerHTML=h;
+  // 實體清單（含顏色，點擊可定位）
+  const SL=document.getElementById('shellList'); SL.innerHTML='';
+  topo.shells.forEach((s,i)=>{
+    const div=document.createElement('div'); div.className='shell';
+    const col=nb>1?PALETTE[i%PALETTE.length]:PALETTE[0];
+    div.innerHTML=`<span class="dot" style="background:${col};margin-left:0"></span>${t('shellTxt',{i:i+1,tri:s.tri.toLocaleString(),z0:f2(s.min[2]),z1:f2(s.max[2])})}${s.min[2]>0.05?' <span style="color:var(--warn)">'+t('floatTxt')+'</span>':''}`;
+    div.onclick=()=>focusOn([(s.min[0]+s.max[0])/2,(s.min[1]+s.max[1])/2,(s.min[2]+s.max[2])/2]);
+    SL.appendChild(div);
+  });
+  if(topo.open){const p=document.createElement('p');p.style.cssText='margin-top:10px;font-size:.88rem;color:var(--warn)';p.textContent=t('openW',{n:topo.open});SL.appendChild(p);}
 }
 
 /* ========== 3D 檢視 ========== */
@@ -435,17 +610,22 @@ function init3D(){
   new ResizeObserver(()=>{const w=el.clientWidth,h=el.clientHeight;if(!w)return;renderer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();}).observe(el);
   inited=true;
 }
-function build3D(){
+function build3D(it){
   if(!inited)init3D();
   if(meshObj){scene.remove(meshObj);meshObj.geometry.dispose();}
   if(markers){scene.remove(markers);markers.geometry.dispose();}
-  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(prep.pos,3)); g.computeVertexNormals();
-  meshObj=new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:0x38bdf8,transparent:true,opacity:.5,side:THREE.DoubleSide,roughness:.6}));
+  const N=it.prep.N, nb=it.topo.shells.length;
+  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(it.prep.pos,3)); g.computeVertexNormals();
+  // 依實體上色（多實體時每個實體不同色）
+  const col=new Float32Array(N*9), cc=PALETTE.map(h=>new THREE.Color(h));
+  for(let i=0;i<N;i++){const c=cc[nb>1?it.topo.triShell[i]%cc.length:0];for(let v=0;v<3;v++){col[i*9+v*3]=c.r;col[i*9+v*3+1]=c.g;col[i*9+v*3+2]=c.b;}}
+  g.setAttribute('color',new THREE.BufferAttribute(col,3));
+  meshObj=new THREE.Mesh(g,new THREE.MeshStandardMaterial({vertexColors:true,transparent:true,opacity:nb>1?.7:.5,side:THREE.DoubleSide,roughness:.6}));
   scene.add(meshObj);
   g.computeBoundingBox(); const bb=g.boundingBox, c=bb.getCenter(new THREE.Vector3()), size=bb.getSize(new THREE.Vector3()).length();
   // 標記點
-  const iss=lastResult.issues, pa=new Float32Array(iss.length*3), ca=new Float32Array(iss.length*3);
-  iss.forEach((x,i)=>{pa.set(x.pos,i*3); const col=x.type==='gap'?[.97,.44,.44]:[.98,.75,.14]; ca.set(col,i*3);});
+  const iss=it.result.issues, pa=new Float32Array(iss.length*3), ca=new Float32Array(iss.length*3);
+  iss.forEach((x,i)=>{pa.set(x.pos,i*3); ca.set(x.type==='gap'?[.97,.44,.44]:[.98,.75,.14],i*3);});
   const mg=new THREE.BufferGeometry(); mg.setAttribute('position',new THREE.BufferAttribute(pa,3)); mg.setAttribute('color',new THREE.BufferAttribute(ca,3));
   markers=new THREE.Points(mg,new THREE.PointsMaterial({size:12,sizeAttenuation:false,vertexColors:true,depthTest:false}));
   markers.renderOrder=10; scene.add(markers);
@@ -461,19 +641,24 @@ function focusOn(p){
   document.getElementById('viewer').scrollIntoView({behavior:'smooth',block:'center'});
 }
 
-/* ========== 檔案上傳 ========== */
+/* ========== 檔案上傳（多檔）========== */
 const drop=document.getElementById('drop'), fileIn=document.getElementById('file');
+function addFiles(list){
+  const arr=[...list].filter(f=>/\.stl$/i.test(f.name));
+  if(!arr.length)return;
+  arr.forEach(f=>items.push({file:f,name:f.name,status:'wait',prep:null,topo:null,result:null}));
+  renderQueue(); runQueue();
+}
 drop.onclick=()=>fileIn.click();
-fileIn.onchange=()=>fileIn.files[0]&&load(fileIn.files[0]);
+fileIn.onchange=()=>{addFiles(fileIn.files);fileIn.value='';};
 ['dragover','dragenter'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.add('over');}));
 ['dragleave','drop'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.remove('over');}));
-drop.addEventListener('drop',ev=>{if(ev.dataTransfer.files[0])load(ev.dataTransfer.files[0]);});
-document.getElementById('rerun').onclick=()=>prep&&analyse(null);
-async function load(file){
-  document.getElementById('progress').style.display='block'; setProg(2,'reading');
-  try{const buf=await file.arrayBuffer(); await frame(); analyse(parseSTL(buf));}
-  catch(e){alert(t('errFile'));}
-}
+drop.addEventListener('drop',ev=>addFiles(ev.dataTransfer.files));
+// 以新參數重新檢查全部（不用重新選檔）
+document.getElementById('rerun').onclick=()=>{
+  items.forEach(it=>{if(it.status!=='run'&&it.prep){it.status='wait';it.result=null;}});
+  const keep=cur; renderQueue(); runQueue().then(()=>{if(keep&&keep.result)selectItem(keep);});
+};
 applyLang();
 </script>
 </body>
