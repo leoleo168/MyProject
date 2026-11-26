@@ -196,6 +196,8 @@ footer{text-align:center;color:var(--sub);font-size:.85rem;padding:30px 0}
             <button class="vb" data-view="top"    title="5"><span data-i18n="vTop"></span><kbd>5</kbd></button>
             <button class="vb" data-view="bottom" title="6"><span data-i18n="vBottom"></span><kbd>6</kbd></button>
             <span class="vsep"></span>
+            <!-- 問題標記切換（全部／僅縫隙／僅過薄／隱藏）-->
+            <button class="vb" id="mkBtn"><i class="fa-solid fa-location-dot"></i> <span id="mkTxt"></span><kbd>M</kbd></button>
             <button class="vb" id="solidBtn"><i class="fa-solid fa-circle-half-stroke"></i> <span id="solidTxt"></span><kbd>T</kbd></button>
             <button class="vb" id="fsBtn"><i class="fa-solid fa-expand"></i> <span data-i18n="fs"></span><kbd>F</kbd></button>
           </div>
@@ -247,6 +249,7 @@ const I18N = {
   view:'3D 檢視・正交視圖（左鍵旋轉、右鍵平移、滾輪縮放）', lgGap:'縫隙', lgWall:'過薄', lgBody:'模型顏色：多實體時每個實體不同色',
   vIso:'等角', vFront:'前視', vBack:'後視', vLeft:'左視', vRight:'右視', vTop:'上視', vBottom:'下視', fs:'全螢幕', fsExit:'退出全螢幕',
   solid:'半透明', solidOff:'不透明',
+  mkAll:'標記：全部', mkGap:'標記：僅縫隙', mkWall:'標記：僅過薄', mkOff:'標記：隱藏',
   issues:'問題清單（點擊可定位）', shells:'獨立實體（點擊可定位）',
   tipTitle:'小提醒',
   tip1:'Tinkercad 中若兩個物件只是「靠很近」而不是重疊，匯出後就會留下縫隙。解法：讓它們互相重疊一點點，再「群組」。',
@@ -254,7 +257,7 @@ const I18N = {
   tip3:'XY 方向的極細線段若小於噴嘴寬度，切片軟體常會直接忽略。',
   tip4:'本工具假設 STL 法線朝外（Tinkercad 匯出通常正確），結果僅供參考，仍建議用切片軟體預覽逐層確認。',
   tip5:'「單一實體」判斷標準：所有表面必須透過共用的邊真正連成一體。只有點、線或面「剛好碰到」不算接合，請讓它們重疊後再群組。',
-  tip6:'3D 為正交視圖（無透視變形）。快捷鍵：0 等角、1 前、2 後、3 左、4 右、5 上、6 下、T 切換半透明、F 全螢幕。找縫隙建議用前視或右視，並用滾輪放大。',
+  tip6:'3D 為正交視圖（無透視變形）。快捷鍵：0 等角、1 前、2 後、3 左、4 右、5 上、6 下、T 切換半透明、M 切換問題標記（全部／僅縫隙／僅過薄／隱藏）、F 全螢幕。找縫隙建議用前視或右視，隱藏標記後用滾輪放大。',
   foot:'© 2026 STL 縫隙檢查器 ・ 純前端運作，檔案不會離開你的電腦',
   reading:'讀取檔案…', parsing:'解析三角形…', welding:'合併頂點與分析結構…', bvh:'建立加速結構…', ray:'偵測縫隙與薄壁…', done:'全部完成',
   errFile:'無法解析此 STL 檔案',
@@ -288,6 +291,7 @@ const I18N = {
   view:'3D view · Orthographic (left: rotate, right: pan, wheel: zoom)', lgGap:'Gap', lgWall:'Too thin', lgBody:'Model colour: each body has its own colour when multiple',
   vIso:'Isometric', vFront:'Front', vBack:'Back', vLeft:'Left', vRight:'Right', vTop:'Top', vBottom:'Bottom', fs:'Fullscreen', fsExit:'Exit fullscreen',
   solid:'Translucent', solidOff:'Opaque',
+  mkAll:'Markers: all', mkGap:'Markers: gaps', mkWall:'Markers: thin', mkOff:'Markers: off',
   issues:'Issues (click to locate)', shells:'Separate bodies (click to locate)',
   tipTitle:'Tips',
   tip1:'In Tinkercad, two objects that are merely close (not overlapping) leave a gap after export. Fix: overlap them slightly, then Group.',
@@ -295,7 +299,7 @@ const I18N = {
   tip3:'XY features thinner than the nozzle width are often ignored by slicers.',
   tip4:'This tool assumes outward-facing normals (usually true for Tinkercad). Results are a guide; still preview layers in your slicer.',
   tip5:'"Single body" means all surfaces are truly joined through shared edges. Parts that merely touch at a point, line or face do not count – overlap them, then Group.',
-  tip6:'The 3D view is orthographic (no perspective distortion). Shortcuts: 0 isometric, 1 front, 2 back, 3 left, 4 right, 5 top, 6 bottom, T translucent toggle, F fullscreen. To spot gaps use Front or Right view and zoom in with the wheel.',
+  tip6:'The 3D view is orthographic (no perspective distortion). Shortcuts: 0 isometric, 1 front, 2 back, 3 left, 4 right, 5 top, 6 bottom, T translucent toggle, M cycle markers (all / gaps / thin / off), F fullscreen. To spot gaps use Front or Right view, hide markers and zoom in with the wheel.',
   foot:'© 2026 STL Gap Checker ・ Runs 100% in your browser',
   reading:'Reading file…', parsing:'Parsing triangles…', welding:'Welding vertices & analysing…', bvh:'Building acceleration structure…', ray:'Detecting gaps & thin walls…', done:'All done',
   errFile:'Unable to parse this STL file',
@@ -319,7 +323,7 @@ function applyLang(){
   document.documentElement.lang = lang==='zh'?'zh-Hant':'en';
   document.querySelectorAll('[data-i18n]').forEach(e=>e.textContent=t(e.dataset.i18n));
   document.getElementById('langBtn').textContent = lang==='zh'?'EN':'中文';
-  updateFsBtn(); updateViewLabel(); updateSolidBtn();
+  updateFsBtn(); updateViewLabel(); updateSolidBtn(); updateMkBtn();
   renderQueue(); if(cur&&cur.result) renderResults(cur);
 }
 document.getElementById('langBtn').onclick=()=>{lang=lang==='zh'?'en':'zh';applyLang();};
@@ -697,11 +701,33 @@ document.querySelectorAll('.vb[data-view]').forEach(b=>b.onclick=()=>setView(b.d
 function updateSolidBtn(){document.getElementById('solidTxt').textContent=t(translucent?'solid':'solidOff');}
 function applyOpacity(){
   if(!meshObj)return;
-  const nb=cur?cur.topo.shells.length:1;
-  meshObj.material.opacity=translucent?(nb>1?.7:.5):1; meshObj.material.transparent=translucent; meshObj.material.needsUpdate=true;
+  const nb=cur?cur.topo.shells.length:1, m=meshObj.material;
+  m.opacity=translucent?(nb>1?.7:.5):1; m.transparent=translucent;
+  m.depthWrite=!translucent; // 半透明時標記可透過模型看到；不透明時標記會被模型擋住
+  m.needsUpdate=true;
 }
 function toggleSolid(){translucent=!translucent;updateSolidBtn();applyOpacity();}
 document.getElementById('solidBtn').onclick=toggleSolid;
+
+// 問題標記切換：全部 → 僅縫隙 → 僅過薄 → 隱藏（按 M 循環）
+const MK_MODES=['mkAll','mkGap','mkWall','mkOff']; let mkMode=0; // 想預設隱藏就把 0 改成 3
+function updateMkBtn(){
+  document.getElementById('mkTxt').textContent=t(MK_MODES[mkMode]);
+  document.getElementById('mkBtn').classList.toggle('active',mkMode===3);
+}
+function applyMarkers(){
+  if(!markers)return;
+  const m=MK_MODES[mkMode], iss=cur?cur.result.issues:[];
+  const pos=markers.geometry.getAttribute('position');
+  // 不想顯示的點，直接移到很遠的地方
+  iss.forEach((x,i)=>{
+    const show=m==='mkAll'||(m==='mkGap'&&x.type==='gap')||(m==='mkWall'&&x.type==='wall');
+    pos.setXYZ(i,show?x.pos[0]:1e9,show?x.pos[1]:1e9,show?x.pos[2]:1e9);
+  });
+  pos.needsUpdate=true; markers.visible=m!=='mkOff';
+}
+function cycleMarkers(){mkMode=(mkMode+1)%4;updateMkBtn();applyMarkers();}
+document.getElementById('mkBtn').onclick=cycleMarkers;
 
 // 全螢幕
 function updateFsBtn(){
@@ -723,6 +749,7 @@ document.addEventListener('keydown',e=>{
   if(VIEW_KEYS[e.key]){setView(VIEW_KEYS[e.key]);}
   else if(e.key==='f'||e.key==='F'){toggleFs();}
   else if(e.key==='t'||e.key==='T'){toggleSolid();}
+  else if(e.key==='m'||e.key==='M'){cycleMarkers();}
 });
 
 function build3D(it){
@@ -739,12 +766,13 @@ function build3D(it){
   scene.add(meshObj); applyOpacity();
   g.computeBoundingBox(); const bb=g.boundingBox, c=bb.getCenter(new THREE.Vector3()), size=bb.getSize(new THREE.Vector3()).length();
   viewInfo={c:c.clone(),radius:size/2};
-  // 標記點
+  // 標記點（較小；不透明模式下會被模型擋住，不會蓋在縫隙上）
   const iss=it.result.issues, pa=new Float32Array(iss.length*3), ca=new Float32Array(iss.length*3);
   iss.forEach((x,i)=>{pa.set(x.pos,i*3); ca.set(x.type==='gap'?[.97,.44,.44]:[.98,.75,.14],i*3);});
   const mg=new THREE.BufferGeometry(); mg.setAttribute('position',new THREE.BufferAttribute(pa,3)); mg.setAttribute('color',new THREE.BufferAttribute(ca,3));
-  markers=new THREE.Points(mg,new THREE.PointsMaterial({size:12,sizeAttenuation:false,vertexColors:true,depthTest:false}));
-  markers.renderOrder=10; scene.add(markers);
+  markers=new THREE.Points(mg,new THREE.PointsMaterial({size:6,sizeAttenuation:false,vertexColors:true,depthTest:true}));
+  markers.frustumCulled=false; // 隱藏的點會被移到很遠，避免被誤裁切
+  markers.renderOrder=10; scene.add(markers); applyMarkers();
   // 平台格線
   if(window._grid)scene.remove(window._grid);
   const gr=new THREE.GridHelper(Math.max(size*1.5,50),20,0x38bdf8,0x334155); gr.rotation.x=Math.PI/2; gr.position.set(c.x,c.y,bb.min.z); scene.add(gr); window._grid=gr;
