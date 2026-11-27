@@ -27,6 +27,12 @@ nav .wrap{display:flex;justify-content:space-between;align-items:center;height:6
 .btn:disabled{opacity:.5;cursor:not-allowed}
 .btn.primary{background:var(--accent);color:#0f172a;border-color:var(--accent);font-weight:700}
 .btn.primary:hover{color:#0f172a;filter:brightness(1.1)}
+/* 短網址（導覽列右側）*/
+.navR{display:flex;align-items:center;gap:8px}
+.short{display:inline-flex;align-items:center;gap:6px;color:var(--accent);text-decoration:none;font-size:.85rem;padding:7px 12px;border:1px solid var(--card2);border-radius:10px;background:var(--card);transition:.2s}
+.short:hover{border-color:var(--accent)}
+footer a{color:var(--accent);text-decoration:none}
+@media(max-width:560px){.short{display:none}}
 /* Hero */
 .hero{text-align:center;padding:50px 0 30px}
 .hero h1{font-size:clamp(1.8rem,5vw,2.8rem);margin-bottom:10px}
@@ -88,7 +94,7 @@ tr.qrow.sel{background:rgba(56,189,248,.12)}
 .stat span{font-size:.8rem;color:var(--sub)}
 .stat.wide{grid-column:span 2}
 .stat.wide b{font-size:clamp(1rem,1.7vw,1.35rem);white-space:nowrap}
-/* 3D 區塊 */
+/* 3D 區塊：畫面加大 */
 .grid2{display:grid;grid-template-columns:2.4fr 1fr;gap:20px}
 @media(max-width:1000px){.grid2{grid-template-columns:1fr}}
 #viewerBox{position:relative;width:100%;height:var(--viewer-h);border-radius:12px;background:#0b1222;overflow:hidden}
@@ -123,10 +129,14 @@ footer{text-align:center;color:var(--sub);font-size:.85rem;padding:30px 0}
 </head>
 <body>
 
-<!-- ① 導覽列 -->
+<!-- ① 導覽列（含短網址、複製按鈕、語言切換）-->
 <nav><div class="wrap">
   <div class="logo"><i class="fa-solid fa-cube"></i><span data-i18n="logo"></span></div>
-  <button class="btn" id="langBtn">EN</button>
+  <div class="navR">
+    <a class="short" href="https://is.gd/stlchecker" target="_blank" rel="noopener"><i class="fa-solid fa-link"></i> is.gd/stlchecker</a>
+    <button class="btn" id="copyBtn"><i class="fa-regular fa-copy"></i> <span data-i18n="copy"></span></button>
+    <button class="btn" id="langBtn">EN</button>
+  </div>
 </div></nav>
 
 <div class="wrap">
@@ -196,9 +206,6 @@ footer{text-align:center;color:var(--sub);font-size:.85rem;padding:30px 0}
             <button class="vb" data-view="top"    title="5"><span data-i18n="vTop"></span><kbd>5</kbd></button>
             <button class="vb" data-view="bottom" title="6"><span data-i18n="vBottom"></span><kbd>6</kbd></button>
             <span class="vsep"></span>
-            <!-- 問題標記切換（全部／僅縫隙／僅過薄／隱藏）-->
-            <button class="vb" id="mkBtn"><i class="fa-solid fa-location-dot"></i> <span id="mkTxt"></span><kbd>M</kbd></button>
-            <button class="vb" id="solidBtn"><i class="fa-solid fa-circle-half-stroke"></i> <span id="solidTxt"></span><kbd>T</kbd></button>
             <button class="vb" id="fsBtn"><i class="fa-solid fa-expand"></i> <span data-i18n="fs"></span><kbd>F</kbd></button>
           </div>
           <div id="viewLabel"></div>
@@ -222,8 +229,8 @@ footer{text-align:center;color:var(--sub);font-size:.85rem;padding:30px 0}
   </div>
 </div>
 
-<!-- ⑦ 頁尾 -->
-<footer><span data-i18n="foot"></span></footer>
+<!-- ⑦ 頁尾（含短網址）-->
+<footer><span data-i18n="foot"></span><br><a href="https://is.gd/stlchecker" target="_blank" rel="noopener">https://is.gd/stlchecker</a></footer>
 
 <!-- 3D 檢視用（Three.js） -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -233,6 +240,7 @@ footer{text-align:center;color:var(--sub);font-size:.85rem;padding:30px 0}
 /* ========== 雙語文字集中管理（要改文字改這裡）========== */
 const I18N = {
  zh:{
+  copy:'複製連結', copied:'已複製 ✓',
   logo:'STL 縫隙檢查器', h1a:'列印前先檢查', h1b:'你的 STL 有沒有隱藏縫隙',
   sub:'偵測 Tinkercad 匯出模型中「上下方塊沒接合的微小縫隙」、「XY 方向極細線段／薄壁」，並確認模型是否為單一實體。支援一次檢查多個檔案，檔案只在你的瀏覽器處理，不會上傳。',
   drop:'點擊或拖曳多個 STL 檔案到這裡', dropSub:'可一次選取多個檔案；支援二進位與 ASCII STL，單位預設為 mm',
@@ -246,10 +254,8 @@ const I18N = {
   stWait:'等待中', stRun:'檢查中', stErr:'解析失敗', stBad:'有縫隙', stMulti:'多個實體', stWarn:'有過薄', stOk:'正常',
   batchSum:'共 {n} 個檔案：{ok} 個完全正常；{gap} 個有縫隙、{multi} 個非單一實體、{thin} 個有過薄{err}',
   batchErr:'、{n} 個失敗',
-  view:'3D 檢視・正交視圖（左鍵旋轉、右鍵平移、滾輪縮放）', lgGap:'縫隙', lgWall:'過薄', lgBody:'模型顏色：多實體時每個實體不同色',
+  view:'3D 檢視（左鍵旋轉、右鍵平移、滾輪縮放）', lgGap:'縫隙', lgWall:'過薄', lgBody:'模型顏色：多實體時每個實體不同色',
   vIso:'等角', vFront:'前視', vBack:'後視', vLeft:'左視', vRight:'右視', vTop:'上視', vBottom:'下視', fs:'全螢幕', fsExit:'退出全螢幕',
-  solid:'半透明', solidOff:'不透明',
-  mkAll:'標記：全部', mkGap:'標記：僅縫隙', mkWall:'標記：僅過薄', mkOff:'標記：隱藏',
   issues:'問題清單（點擊可定位）', shells:'獨立實體（點擊可定位）',
   tipTitle:'小提醒',
   tip1:'Tinkercad 中若兩個物件只是「靠很近」而不是重疊，匯出後就會留下縫隙。解法：讓它們互相重疊一點點，再「群組」。',
@@ -257,7 +263,7 @@ const I18N = {
   tip3:'XY 方向的極細線段若小於噴嘴寬度，切片軟體常會直接忽略。',
   tip4:'本工具假設 STL 法線朝外（Tinkercad 匯出通常正確），結果僅供參考，仍建議用切片軟體預覽逐層確認。',
   tip5:'「單一實體」判斷標準：所有表面必須透過共用的邊真正連成一體。只有點、線或面「剛好碰到」不算接合，請讓它們重疊後再群組。',
-  tip6:'3D 為正交視圖（無透視變形）。快捷鍵：0 等角、1 前、2 後、3 左、4 右、5 上、6 下、T 切換半透明、M 切換問題標記（全部／僅縫隙／僅過薄／隱藏）、F 全螢幕。找縫隙建議用前視或右視，隱藏標記後用滾輪放大。',
+  tip6:'3D 畫面快捷鍵：0 等角、1 前、2 後、3 左、4 右、5 上、6 下、F 全螢幕。點問題清單會自動飛到該位置。',
   foot:'© 2026 STL 縫隙檢查器 ・ 純前端運作，檔案不會離開你的電腦',
   reading:'讀取檔案…', parsing:'解析三角形…', welding:'合併頂點與分析結構…', bvh:'建立加速結構…', ray:'偵測縫隙與薄壁…', done:'全部完成',
   errFile:'無法解析此 STL 檔案',
@@ -275,6 +281,7 @@ const I18N = {
   fileOf:'檔案 {i}/{n}：{name}'
  },
  en:{
+  copy:'Copy link', copied:'Copied ✓',
   logo:'STL Gap Checker', h1a:'Check before you print', h1b:'Does your STL hide tiny gaps?',
   sub:'Detects tiny gaps between stacked parts, ultra-thin XY features, and verifies the model is a single solid body. Batch-check many files at once. Everything runs in your browser; nothing is uploaded.',
   drop:'Click or drop multiple STL files here', dropSub:'Select many files at once; binary & ASCII STL supported, units assumed mm',
@@ -288,10 +295,8 @@ const I18N = {
   stWait:'Waiting', stRun:'Checking', stErr:'Parse failed', stBad:'Gaps', stMulti:'Multi-body', stWarn:'Too thin', stOk:'OK',
   batchSum:'{n} files: {ok} fully OK; {gap} with gaps, {multi} not a single body, {thin} too thin{err}',
   batchErr:', {n} failed',
-  view:'3D view · Orthographic (left: rotate, right: pan, wheel: zoom)', lgGap:'Gap', lgWall:'Too thin', lgBody:'Model colour: each body has its own colour when multiple',
+  view:'3D view (left: rotate, right: pan, wheel: zoom)', lgGap:'Gap', lgWall:'Too thin', lgBody:'Model colour: each body has its own colour when multiple',
   vIso:'Isometric', vFront:'Front', vBack:'Back', vLeft:'Left', vRight:'Right', vTop:'Top', vBottom:'Bottom', fs:'Fullscreen', fsExit:'Exit fullscreen',
-  solid:'Translucent', solidOff:'Opaque',
-  mkAll:'Markers: all', mkGap:'Markers: gaps', mkWall:'Markers: thin', mkOff:'Markers: off',
   issues:'Issues (click to locate)', shells:'Separate bodies (click to locate)',
   tipTitle:'Tips',
   tip1:'In Tinkercad, two objects that are merely close (not overlapping) leave a gap after export. Fix: overlap them slightly, then Group.',
@@ -299,7 +304,7 @@ const I18N = {
   tip3:'XY features thinner than the nozzle width are often ignored by slicers.',
   tip4:'This tool assumes outward-facing normals (usually true for Tinkercad). Results are a guide; still preview layers in your slicer.',
   tip5:'"Single body" means all surfaces are truly joined through shared edges. Parts that merely touch at a point, line or face do not count – overlap them, then Group.',
-  tip6:'The 3D view is orthographic (no perspective distortion). Shortcuts: 0 isometric, 1 front, 2 back, 3 left, 4 right, 5 top, 6 bottom, T translucent toggle, M cycle markers (all / gaps / thin / off), F fullscreen. To spot gaps use Front or Right view, hide markers and zoom in with the wheel.',
+  tip6:'3D shortcuts: 0 isometric, 1 front, 2 back, 3 left, 4 right, 5 top, 6 bottom, F fullscreen. Clicking an issue flies the camera to it.',
   foot:'© 2026 STL Gap Checker ・ Runs 100% in your browser',
   reading:'Reading file…', parsing:'Parsing triangles…', welding:'Welding vertices & analysing…', bvh:'Building acceleration structure…', ray:'Detecting gaps & thin walls…', done:'All done',
   errFile:'Unable to parse this STL file',
@@ -323,7 +328,7 @@ function applyLang(){
   document.documentElement.lang = lang==='zh'?'zh-Hant':'en';
   document.querySelectorAll('[data-i18n]').forEach(e=>e.textContent=t(e.dataset.i18n));
   document.getElementById('langBtn').textContent = lang==='zh'?'EN':'中文';
-  updateFsBtn(); updateViewLabel(); updateSolidBtn(); updateMkBtn();
+  updateFsBtn(); updateViewLabel();
   renderQueue(); if(cur&&cur.result) renderResults(cur);
 }
 document.getElementById('langBtn').onclick=()=>{lang=lang==='zh'?'en':'zh';applyLang();};
@@ -370,11 +375,13 @@ function topology(pos,N){
     const k=Math.round(pos[i*3]*1e4)+','+Math.round(pos[i*3+1]*1e4)+','+Math.round(pos[i*3+2]*1e4);
     let id=map.get(k); if(id===undefined){id=vc++;map.set(k,id);} idx[i]=id;
   }
+  // 頂點並查集（寬鬆）
   const par=new Int32Array(vc).map((_,i)=>i);
   const find=x=>{while(par[x]!==x){par[x]=par[par[x]];x=par[x];}return x;};
+  // 三角形並查集（嚴格）
   const tp=new Int32Array(N).map((_,i)=>i);
   const findT=x=>{while(tp[x]!==x){tp[x]=tp[tp[x]];x=tp[x];}return x;};
-  const edges=new Map();
+  const edges=new Map(); // 邊 -> [數量, 第一個三角形]
   for(let i=0;i<N;i++){
     const a=idx[i*3],b=idx[i*3+1],c=idx[i*3+2];
     par[find(a)]=find(b); par[find(b)]=find(c);
@@ -386,6 +393,7 @@ function topology(pos,N){
   }
   let open=0; edges.forEach(v=>{if(v[0]!==2)open++;});
   const loose=new Set(); for(let i=0;i<N;i++)loose.add(find(idx[i*3]));
+  // 依三角形數量由大到小整理每個實體
   const cnt=new Map(); for(let i=0;i<N;i++){const r=findT(i);cnt.set(r,(cnt.get(r)||0)+1);}
   const finalId=new Map();
   const shells=[...cnt.entries()].sort((a,b)=>b[1]-a[1]).map((e,i)=>{
@@ -449,6 +457,7 @@ function cast(B,o,d,maxT){
 }
 
 /* ========== 批次狀態 ========== */
+// items 每一項：{file, name, status:'wait|run|done|err', prep, topo, result}
 const items=[]; let cur=null, running=false;
 const frame=()=>new Promise(r=>setTimeout(r,0));
 function setProg(p,text){document.getElementById('bar').style.width=p+'%';document.getElementById('pText').textContent=text;}
@@ -465,7 +474,7 @@ function addIssue(map,type,o,dist,dir){
 
 /* ========== 單一檔案的完整分析 ========== */
 async function processItem(it,prog){
-  if(!it.prep){
+  if(!it.prep){ // 第一次：讀檔 + 解析
     prog(0.02,'reading'); const buf=await it.file.arrayBuffer(); await frame();
     prog(0.08,'parsing'); const raw=parseSTL(buf); await frame();
     it.prep=prepare(raw);
@@ -524,6 +533,7 @@ async function runQueue(){
 }
 
 /* ========== 批次總表 ========== */
+// 狀態優先順序：縫隙 > 多實體 > 過薄 > 正常
 function verdictOf(it){
   if(it.status==='wait')return['wait','stWait'];
   if(it.status==='run')return['run','stRun'];
@@ -592,19 +602,23 @@ function selectItem(it){
 function renderResults(it){
   const {issues,gaps,walls}=it.result, topo=it.topo, N=it.prep.N, nb=topo.shells.length;
   document.getElementById('curName').innerHTML='<i class="fa-solid fa-file"></i> '+it.name.replace(/</g,'&lt;');
+  // 單一實體判定
   const bv=document.getElementById('bodyVerdict');
   if(topo.type==='single'){bv.className='verdict ok';bv.innerHTML=`<i class="fa-solid fa-circle-check"></i><div>${t('bodyOk')}<small>${t('bodyOkS')}</small></div>`;}
   else if(topo.type==='multi'){bv.className='verdict bad';bv.innerHTML=`<i class="fa-solid fa-circle-xmark"></i><div>${t('bodyMulti',{n:nb})}<small>${t('bodyMultiS')}</small></div>`;}
   else{bv.className='verdict bad';bv.innerHTML=`<i class="fa-solid fa-link-slash"></i><div>${t('bodyTouch',{n:nb})}<small>${t('bodyTouchS')}</small></div>`;}
+  // 縫隙／薄壁判定
   const v=document.getElementById('verdict');
   if(gaps){v.className='verdict bad';v.innerHTML=`<i class="fa-solid fa-triangle-exclamation"></i><div>${t('vBad',{n:gaps})}<small>${t('vBadS')}</small></div>`;}
   else if(walls){v.className='verdict warn';v.innerHTML=`<i class="fa-solid fa-circle-exclamation"></i><div>${t('vWarn',{n:walls})}<small>${t('vWarnS')}</small></div>`;}
   else{v.className='verdict ok';v.innerHTML=`<i class="fa-solid fa-circle-check"></i><div>${t('vOk')}<small>${t('vOkS')}</small></div>`;}
   const mn=[1e9,1e9,1e9],mx=[-1e9,-1e9,-1e9];
   topo.shells.forEach(s=>{for(let k=0;k<3;k++){mn[k]=Math.min(mn[k],s.min[k]);mx[k]=Math.max(mx[k],s.max[k]);}});
+  // 統計卡片（第三個欄位 true = 寬版，用於尺寸）
   const st=[[N.toLocaleString(),'sTri'],[nb,'sShell'],[gaps,'sGap'],[walls,'sWall'],[topo.open,'sOpen'],
     [`${f2(mx[0]-mn[0])} × ${f2(mx[1]-mn[1])} × ${f2(mx[2]-mn[2])}`,'sSize',true]];
   document.getElementById('stats').innerHTML=st.map(s=>`<div class="stat${s[2]?' wide':''}"><b>${s[0]}</b><span>${t(s[1])}</span></div>`).join('');
+  // 問題清單（最多顯示 200 筆）
   const L=document.getElementById('list');
   L.innerHTML=issues.length?'':`<p style="color:var(--sub)">${t('none')}</p>`;
   issues.slice(0,200).forEach(x=>{
@@ -613,6 +627,7 @@ function renderResults(it){
     div.onclick=()=>focusOn(x.pos);
     L.appendChild(div);
   });
+  // 實體清單（含顏色，點擊可定位）
   const SL=document.getElementById('shellList'); SL.innerHTML='';
   topo.shells.forEach((s,i)=>{
     const div=document.createElement('div'); div.className='shell';
@@ -624,10 +639,10 @@ function renderResults(it){
   if(topo.open){const p=document.createElement('p');p.style.cssText='margin-top:10px;font-size:.88rem;color:var(--warn)';p.textContent=t('openW',{n:topo.open});SL.appendChild(p);}
 }
 
-/* ========== 3D 檢視（正交相機：沒有透視變形）========== */
+/* ========== 3D 檢視 ========== */
 let scene,camera,renderer,controls,meshObj,markers,inited=false;
-let viewInfo={c:new THREE.Vector3(),radius:50}; // 目前模型的中心與半徑
-let curView='iso', tween=null, translucent=true;
+let viewInfo={c:null,radius:50}; // 目前模型的中心與半徑（算視角距離用）
+let curView='iso', tween=null;
 
 // 六面視圖 + 等角的相機方向（Z 軸朝上；前視 = 從 -Y 看過去）
 const VIEW_DIRS={
@@ -637,22 +652,14 @@ const VIEW_DIRS={
 const VIEW_KEYS={'0':'iso','1':'front','2':'back','3':'left','4':'right','5':'top','6':'bottom'};
 const VIEW_NAMES={iso:'vIso',front:'vFront',back:'vBack',left:'vLeft',right:'vRight',top:'vTop',bottom:'vBottom'};
 
-// 依畫面長寬比更新正交相機的可視範圍（zoom=1 時剛好框住整個模型）
-function updateOrtho(){
-  const el=document.getElementById('viewer'), w=el.clientWidth, h=el.clientHeight; if(!w||!h)return;
-  const aspect=w/h, H=viewInfo.radius*1.15;
-  camera.left=-H*aspect; camera.right=H*aspect; camera.top=H; camera.bottom=-H;
-  camera.updateProjectionMatrix();
-}
 function init3D(){
   const el=document.getElementById('viewer');
   scene=new THREE.Scene(); scene.background=new THREE.Color(0x0b1222);
-  camera=new THREE.OrthographicCamera(-1,1,1,-1,0.1,1000); camera.up.set(0,0,1); // Z 軸朝上
+  camera=new THREE.PerspectiveCamera(45,el.clientWidth/el.clientHeight,0.1,10000); camera.up.set(0,0,1); // Z 軸朝上
   renderer=new THREE.WebGLRenderer({antialias:true}); renderer.setPixelRatio(devicePixelRatio);
   renderer.setSize(el.clientWidth,el.clientHeight); el.appendChild(renderer.domElement);
   controls=new THREE.OrbitControls(camera,renderer.domElement); controls.enableDamping=true;
-  controls.zoomSpeed=1.2;
-  controls.addEventListener('start',()=>{tween=null;curView='';updateViewLabel();});
+  controls.addEventListener('start',()=>{tween=null;curView='';updateViewLabel();}); // 手動旋轉後取消視角標示
   scene.add(new THREE.AmbientLight(0xffffff,.6));
   const dl=new THREE.DirectionalLight(0xffffff,.8); dl.position.set(1,-1,2); scene.add(dl);
   const dl2=new THREE.DirectionalLight(0xffffff,.4); dl2.position.set(-1,1,-1); scene.add(dl2);
@@ -661,15 +668,15 @@ function init3D(){
     stepTween();
     controls.update();renderer.render(scene,camera);
   })();
-  new ResizeObserver(()=>{const w=el.clientWidth,h=el.clientHeight;if(!w||!h)return;renderer.setSize(w,h);updateOrtho();}).observe(el);
+  new ResizeObserver(()=>{const w=el.clientWidth,h=el.clientHeight;if(!w||!h)return;renderer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();}).observe(el);
   inited=true;
 }
 
-// 平滑飛行：沿著圓弧旋轉相機，同時調整縮放倍率
-function flyTo(targetPos,dir,dist,zoom){
+// 平滑飛行：沿著圓弧旋轉相機，不會穿過模型
+function flyTo(targetPos,dir,dist){
   const t0=controls.target.clone(), off0=camera.position.clone().sub(t0);
   const d0=off0.clone().normalize(), d1=dir.clone().normalize();
-  tween={t0,t1:targetPos.clone(),d0,d1,len0:off0.length(),len1:dist,z0:camera.zoom,z1:zoom,
+  tween={t0,t1:targetPos.clone(),d0,d1,len0:off0.length(),len1:dist,
          q:new THREE.Quaternion().setFromUnitVectors(d0,d1),start:performance.now(),dur:450};
 }
 function stepTween(){
@@ -679,15 +686,13 @@ function stepTween(){
   const dir=tween.d0.clone().applyQuaternion(q), len=tween.len0+(tween.len1-tween.len0)*e;
   const tgt=new THREE.Vector3().lerpVectors(tween.t0,tween.t1,e);
   controls.target.copy(tgt); camera.position.copy(tgt).add(dir.multiplyScalar(len));
-  camera.zoom=tween.z0+(tween.z1-tween.z0)*e; camera.updateProjectionMatrix();
   if(k>=1)tween=null;
 }
-// 正交相機的距離不影響大小，只要放遠一點避免被裁切
-function camDist(){return viewInfo.radius*4;}
+function fitDist(){return viewInfo.radius/Math.sin(THREE.MathUtils.degToRad(camera.fov/2))*1.1;}
 function setView(name){
   if(!inited||!meshObj)return;
   curView=name; updateViewLabel();
-  flyTo(viewInfo.c,new THREE.Vector3(...VIEW_DIRS[name]),camDist(),1);
+  flyTo(viewInfo.c,new THREE.Vector3(...VIEW_DIRS[name]),fitDist());
 }
 function updateViewLabel(){
   const el=document.getElementById('viewLabel');
@@ -696,38 +701,6 @@ function updateViewLabel(){
   document.querySelectorAll('.vb[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===curView));
 }
 document.querySelectorAll('.vb[data-view]').forEach(b=>b.onclick=()=>setView(b.dataset.view));
-
-// 半透明 / 不透明切換（不透明時可看清外觀；半透明時可看到內部縫隙）
-function updateSolidBtn(){document.getElementById('solidTxt').textContent=t(translucent?'solid':'solidOff');}
-function applyOpacity(){
-  if(!meshObj)return;
-  const nb=cur?cur.topo.shells.length:1, m=meshObj.material;
-  m.opacity=translucent?(nb>1?.7:.5):1; m.transparent=translucent;
-  m.depthWrite=!translucent; // 半透明時標記可透過模型看到；不透明時標記會被模型擋住
-  m.needsUpdate=true;
-}
-function toggleSolid(){translucent=!translucent;updateSolidBtn();applyOpacity();}
-document.getElementById('solidBtn').onclick=toggleSolid;
-
-// 問題標記切換：全部 → 僅縫隙 → 僅過薄 → 隱藏（按 M 循環）
-const MK_MODES=['mkAll','mkGap','mkWall','mkOff']; let mkMode=0; // 想預設隱藏就把 0 改成 3
-function updateMkBtn(){
-  document.getElementById('mkTxt').textContent=t(MK_MODES[mkMode]);
-  document.getElementById('mkBtn').classList.toggle('active',mkMode===3);
-}
-function applyMarkers(){
-  if(!markers)return;
-  const m=MK_MODES[mkMode], iss=cur?cur.result.issues:[];
-  const pos=markers.geometry.getAttribute('position');
-  // 不想顯示的點，直接移到很遠的地方
-  iss.forEach((x,i)=>{
-    const show=m==='mkAll'||(m==='mkGap'&&x.type==='gap')||(m==='mkWall'&&x.type==='wall');
-    pos.setXYZ(i,show?x.pos[0]:1e9,show?x.pos[1]:1e9,show?x.pos[2]:1e9);
-  });
-  pos.needsUpdate=true; markers.visible=m!=='mkOff';
-}
-function cycleMarkers(){mkMode=(mkMode+1)%4;updateMkBtn();applyMarkers();}
-document.getElementById('mkBtn').onclick=cycleMarkers;
 
 // 全螢幕
 function updateFsBtn(){
@@ -748,8 +721,6 @@ document.addEventListener('keydown',e=>{
   if(document.getElementById('results').style.display!=='block')return;
   if(VIEW_KEYS[e.key]){setView(VIEW_KEYS[e.key]);}
   else if(e.key==='f'||e.key==='F'){toggleFs();}
-  else if(e.key==='t'||e.key==='T'){toggleSolid();}
-  else if(e.key==='m'||e.key==='M'){cycleMarkers();}
 });
 
 function build3D(it){
@@ -762,32 +733,32 @@ function build3D(it){
   const col=new Float32Array(N*9), cc=PALETTE.map(h=>new THREE.Color(h));
   for(let i=0;i<N;i++){const c=cc[nb>1?it.topo.triShell[i]%cc.length:0];for(let v=0;v<3;v++){col[i*9+v*3]=c.r;col[i*9+v*3+1]=c.g;col[i*9+v*3+2]=c.b;}}
   g.setAttribute('color',new THREE.BufferAttribute(col,3));
-  meshObj=new THREE.Mesh(g,new THREE.MeshStandardMaterial({vertexColors:true,transparent:true,opacity:.5,side:THREE.DoubleSide,roughness:.6}));
-  scene.add(meshObj); applyOpacity();
+  meshObj=new THREE.Mesh(g,new THREE.MeshStandardMaterial({vertexColors:true,transparent:true,opacity:nb>1?.7:.5,side:THREE.DoubleSide,roughness:.6}));
+  scene.add(meshObj);
   g.computeBoundingBox(); const bb=g.boundingBox, c=bb.getCenter(new THREE.Vector3()), size=bb.getSize(new THREE.Vector3()).length();
   viewInfo={c:c.clone(),radius:size/2};
-  // 標記點（較小；不透明模式下會被模型擋住，不會蓋在縫隙上）
+  // 標記點
   const iss=it.result.issues, pa=new Float32Array(iss.length*3), ca=new Float32Array(iss.length*3);
   iss.forEach((x,i)=>{pa.set(x.pos,i*3); ca.set(x.type==='gap'?[.97,.44,.44]:[.98,.75,.14],i*3);});
   const mg=new THREE.BufferGeometry(); mg.setAttribute('position',new THREE.BufferAttribute(pa,3)); mg.setAttribute('color',new THREE.BufferAttribute(ca,3));
-  markers=new THREE.Points(mg,new THREE.PointsMaterial({size:6,sizeAttenuation:false,vertexColors:true,depthTest:true}));
-  markers.frustumCulled=false; // 隱藏的點會被移到很遠，避免被誤裁切
-  markers.renderOrder=10; scene.add(markers); applyMarkers();
+  markers=new THREE.Points(mg,new THREE.PointsMaterial({size:12,sizeAttenuation:false,vertexColors:true,depthTest:false}));
+  markers.renderOrder=10; scene.add(markers);
   // 平台格線
   if(window._grid)scene.remove(window._grid);
   const gr=new THREE.GridHelper(Math.max(size*1.5,50),20,0x38bdf8,0x334155); gr.rotation.x=Math.PI/2; gr.position.set(c.x,c.y,bb.min.z); scene.add(gr); window._grid=gr;
-  // 正交相機：設定可視範圍、遠近裁切，並直接就位在等角視圖
-  camera.near=0.01; camera.far=size*20; camera.zoom=1; updateOrtho();
+  camera.near=size/1000;camera.far=size*20;camera.updateProjectionMatrix();
+  // 套用預設的等角視圖（不播動畫，直接就位）
   tween=null; curView='iso'; updateViewLabel();
   controls.target.copy(c);
-  camera.position.copy(c).add(new THREE.Vector3(...VIEW_DIRS.iso).normalize().multiplyScalar(camDist()));
+  camera.position.copy(c).add(new THREE.Vector3(...VIEW_DIRS.iso).normalize().multiplyScalar(fitDist()));
 }
-// 點問題清單：飛到該位置並放大，視角方向保持不變
+// 點問題清單：飛到該位置並拉近，視角方向保持不變
 function focusOn(p){
   if(!meshObj)return;
   const tgt=new THREE.Vector3(...p), dir=camera.position.clone().sub(controls.target).normalize();
+  const dist=Math.max(6,viewInfo.radius*0.35);
   curView=''; updateViewLabel();
-  flyTo(tgt,dir,camDist(),Math.max(camera.zoom,6)); // 放大倍率最少 6 倍（想更大改這個數字）
+  flyTo(tgt,dir,dist);
   document.getElementById('viewerBox').scrollIntoView({behavior:'smooth',block:'center'});
 }
 
@@ -804,10 +775,20 @@ fileIn.onchange=()=>{addFiles(fileIn.files);fileIn.value='';};
 ['dragover','dragenter'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.add('over');}));
 ['dragleave','drop'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.remove('over');}));
 drop.addEventListener('drop',ev=>addFiles(ev.dataTransfer.files));
+// 以新參數重新檢查全部（不用重新選檔）
 document.getElementById('rerun').onclick=()=>{
   items.forEach(it=>{if(it.status!=='run'&&it.prep){it.status='wait';it.result=null;}});
   const keep=cur; renderQueue(); runQueue().then(()=>{if(keep&&keep.result)selectItem(keep);});
 };
+
+/* ========== 複製短網址 ========== */
+document.getElementById('copyBtn').onclick=async()=>{
+  const url='https://is.gd/stlchecker', sp=document.querySelector('#copyBtn span');
+  try{ await navigator.clipboard.writeText(url); }
+  catch(e){ const a=document.createElement('textarea'); a.value=url; document.body.appendChild(a); a.select(); document.execCommand('copy'); a.remove(); }
+  sp.textContent=t('copied'); setTimeout(()=>sp.textContent=t('copy'),1500);
+};
+
 applyLang();
 </script>
 </body>
