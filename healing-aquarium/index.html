@@ -2,11 +2,18 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0b2a3d">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="水族箱">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' fill='%230b2a3d'/%3E%3Ctext x='256' y='340' font-size='300' text-anchor='middle'%3E🐠%3C/text%3E%3C/svg%3E">
+<link id="mf" rel="manifest" href="">
 <title>療癒海水水族箱</title>
 <style>
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
-  body{margin:0;font-family:"Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;background:#0b2a3d;color:#e8f6ff;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+  body{margin:0;font-family:"Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;background:#0b2a3d;color:#e8f6ff;height:100vh;height:100dvh;display:flex;flex-direction:column;overflow:hidden}
   #top{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;padding:8px 14px;background:#0d3550;font-size:15px}
   #top b{font-size:20px;color:#ffe9a8}
   #top button{background:#1d5a7d;color:#fff;border:0;border-radius:8px;padding:6px 10px;cursor:pointer;margin-left:4px}
@@ -45,6 +52,12 @@
   #dev button{background:#245f7f;color:#fff;border:0;border-radius:6px;padding:4px 7px;margin:2px 2px 0 0;cursor:pointer;font-size:12px}
   #dev button.on{background:#c98a1a}
   #dev .info{color:#9fe3ff;font-family:monospace;white-space:pre-wrap;margin-top:4px}
+  /* PWA */
+  body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right);overscroll-behavior:none;touch-action:manipulation}
+  #stage{touch-action:none}
+  #inst{display:none;position:fixed;left:50%;bottom:calc(12px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:30;background:#c98a1a;color:#fff;border:0;border-radius:22px;padding:10px 18px;font-size:14px;box-shadow:0 4px 14px rgba(0,0,0,.45);cursor:pointer}
+  #inst:active{transform:translateX(-50%) scale(.96)}
+  #iosTip{display:none;position:fixed;left:10px;right:10px;bottom:calc(12px + env(safe-area-inset-bottom));z-index:30;background:rgba(255,255,255,.96);color:#134;border-radius:14px;padding:10px 14px;font-size:13px;text-align:center;box-shadow:0 4px 14px rgba(0,0,0,.4)}
 </style>
 </head>
 <body>
@@ -61,8 +74,55 @@
 <div id="dex" class="modal"><div class="panel" id="dexp"></div></div>
 <div id="sdx" class="modal"><div class="panel" id="sdp"></div></div>
 <div id="dev"></div>
+<button id="inst">📲 安裝為手機 App</button>
+<div id="iosTip">iPhone 安裝方式:點下方「分享」圖示 → 選「加入主畫面」<br><u id="iosClose">知道了</u></div>
 
 <script>
+// ===== PWA =====
+(function(){
+  const base=location.href.split('#')[0].split('?')[0];
+  const icon="data:image/svg+xml,"+encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' fill='#0b2a3d'/><text x='256' y='340' font-size='300' text-anchor='middle'>🐠</text></svg>");
+  const manifest={
+    name:"療癒海水水族箱",short_name:"水族箱",
+    start_url:base,scope:base.replace(/[^\/]*$/,''),
+    display:"standalone",orientation:"any",
+    background_color:"#0b2a3d",theme_color:"#0b2a3d",
+    icons:[{src:icon,sizes:"any",type:"image/svg+xml",purpose:"any"},
+           {src:icon,sizes:"512x512",type:"image/svg+xml",purpose:"maskable"}]
+  };
+  document.getElementById('mf').href="data:application/manifest+json,"+encodeURIComponent(JSON.stringify(manifest));
+
+  // Service Worker:先試 Blob URL,失敗再試同目錄 sw.js
+  if('serviceWorker' in navigator && location.protocol.startsWith('http')){
+    const swCode=`
+      const CACHE='aquarium-v1';
+      self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.add('${base}')).catch(()=>{}))});
+      self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
+      self.addEventListener('fetch',e=>{
+        if(e.request.method!=='GET')return;
+        e.respondWith(fetch(e.request).then(r=>{const cp=r.clone();caches.open(CACHE).then(c=>c.put(e.request,cp));return r}).catch(()=>caches.match(e.request).then(r=>r||caches.match('${base}'))));
+      });`;
+    const fallback=()=>navigator.serviceWorker.register('sw.js').catch(()=>{});
+    try{
+      const url=URL.createObjectURL(new Blob([swCode],{type:'text/javascript'}));
+      navigator.serviceWorker.register(url).catch(fallback);
+    }catch(e){fallback()}
+  }
+
+  // 安裝按鈕
+  let dp=null;const btn=document.getElementById('inst');
+  const standalone=matchMedia('(display-mode: standalone)').matches||navigator.standalone;
+  addEventListener('beforeinstallprompt',e=>{e.preventDefault();dp=e;if(!standalone)btn.style.display='block'});
+  btn.onclick=async()=>{if(!dp)return;dp.prompt();await dp.userChoice;dp=null;btn.style.display='none'};
+  addEventListener('appinstalled',()=>{btn.style.display='none'});
+  // iOS 沒有 beforeinstallprompt,改用提示
+  const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+  if(isIOS&&!standalone&&!localStorage.getItem('iosTipSeen')){
+    const tip=document.getElementById('iosTip');tip.style.display='block';
+    document.getElementById('iosClose').onclick=()=>{tip.style.display='none';localStorage.setItem('iosTipSeen','1')};
+  }
+})();
+
 // ★ 工程模式密碼(請自行修改;發布給玩家前請整段刪除「工程模式」區塊)
 const DEV_PASS='fish-dev-2026';
 
@@ -377,6 +437,7 @@ function pop(f=600){if(!soundOn)return;const o=ac.createOscillator(),g=ac.create
 function chime(){[523,659,784].forEach((f,i)=>setTimeout(()=>pop(f),i*90))}
 document.getElementById('snd').onclick=e=>{
   if(!ac)ac=new (window.AudioContext||window.webkitAudioContext)();
+  if(ac.state==='suspended')ac.resume();
   soundOn=!soundOn;e.target.textContent=soundOn?'🔊 音效':'🔇 音效';
   if(soundOn){ambientSound()}else if(noise){noise.stop();noise=null}
 };
@@ -678,7 +739,7 @@ function dAngel(C,w,t){
   eye(.56,-.12,.19);blush(.6,.42);smile(.84,.32);
 }
 
-// 7. 浣熊蝴蝶魚:淡黃身、黑色眼罩、後方白帶、尾端黑條
+// 7. 浣熊蝴蝶魚
 function dRaccoon(C,w,t){
   const Y=C('#f3d85a'),Yd=C('#e5b92c'),Wh=C('#fffbe8'),K=C('#1c1c24');
   ctx.save();ctx.translate(-.82,0);ctx.rotate(w*.2);ctx.fillStyle=Y;
@@ -700,7 +761,7 @@ function dRaccoon(C,w,t){
   eye(.57,-.1,.19);smile(.88,.22);
 }
 
-// 8. 海馬:直立、管狀吻、頭冠、環紋腹部、捲尾
+// 8. 海馬
 const SP=[[.05,-.82,.4],[-.02,-.48,.37],[0,-.12,.41],[-.08,.28,.31],[-.2,.62,.22],[-.14,.92,.17],[.05,1.08,.14],[.25,1.02,.115],[.33,.85,.095],[.26,.72,.075],[.16,.76,.06]];
 function beads(col,gr,to,ox,sc){
   ctx.fillStyle=col;
@@ -709,33 +770,27 @@ function beads(col,gr,to,ox,sc){
 }
 function dSea(C,w,t){
   const B=C('#f5b83a'),B2=C('#c9791a'),Lt=C('#ffe6a8'),Dt=C('#e8782a');
-  // 背鰭(快速振動)
   ctx.save();ctx.translate(-.3,-.15);ctx.rotate(Math.sin(t*22)*.12);
   ctx.globalAlpha*=.8;ctx.fillStyle=C('#ffd98a');
   ctx.beginPath();ctx.moveTo(.1,-.35);ctx.quadraticCurveTo(-.55,-.25,-.5,.1);ctx.quadraticCurveTo(-.5,.38,.1,.48);ctx.closePath();ctx.fill();
   ctx.strokeStyle=C('#e8a02a');ctx.lineWidth=.03;
   for(let i=0;i<5;i++){ctx.beginPath();ctx.moveTo(.08,-.25+i*.15);ctx.lineTo(-.42,-.15+i*.12);ctx.stroke()}
   ctx.restore();
-  // 吻
   ctx.lineCap='round';
   ctx.strokeStyle=B2;ctx.lineWidth=.26;ctx.beginPath();ctx.moveTo(.3,-.85);ctx.lineTo(.8,-.72);ctx.stroke();
   ctx.strokeStyle=B;ctx.lineWidth=.19;ctx.beginPath();ctx.moveTo(.3,-.85);ctx.lineTo(.8,-.72);ctx.stroke();
   beads(B2,.04,10,0,1);beads(B,0,10,0,1);
   beads(Lt,0,4,.1,.5);
-  // 腹部環紋
   ctx.strokeStyle='rgba(180,100,20,.4)';ctx.lineWidth=.035;
   [-.5,-.25,0,.25].forEach(y=>{ctx.beginPath();ctx.moveTo(-.22,y);ctx.quadraticCurveTo(.05,y+.12,.3,y);ctx.stroke()});
-  // 斑點
   ctx.fillStyle=Dt;[[-.05,-.35,.045],[-.08,-.05,.045],[.02,.2,.04],[-.15,.5,.035]].forEach(p=>{ctx.beginPath();ctx.arc(p[0],p[1],p[2],0,7);ctx.fill()});
-  // 胸鰭
   ctx.save();ctx.translate(.12,-.45);ctx.rotate(Math.sin(t*18)*.25+.3);ctx.globalAlpha*=.85;fillE(C('#ffd98a'),0,.12,.1,.2);ctx.restore();
-  // 頭冠
   ctx.fillStyle=Dt;[[-.08,-1.2,.065],[.05,-1.25,.07],[.18,-1.17,.06]].forEach(p=>{ctx.beginPath();ctx.arc(p[0],p[1],p[2],0,7);ctx.fill()});
   eye(.22,-.92,.13);blush(.26,-.68);
   ctx.fillStyle=B2;ctx.beginPath();ctx.arc(.82,-.72,.04,0,7);ctx.fill();
 }
 
-// 9. 鸚哥魚:青綠身、粉紅頭、鳥喙牙板、鱗片
+// 9. 鸚哥魚
 function dParrot(C,w,t){
   const G=C('#2fb7a8'),G2=C('#1d8f86'),P=C('#ff8fb1'),Yl=C('#ffd36a'),Wh=C('#fff7e6');
   ctx.save();ctx.translate(-.95,0);ctx.rotate(w*.2);ctx.fillStyle=P;
@@ -752,12 +807,9 @@ function dParrot(C,w,t){
   ctx.strokeStyle='rgba(255,255,255,.35)';ctx.lineWidth=.035;
   for(let r=0;r<5;r++)for(let x=-.95;x<.35;x+=.28){ctx.beginPath();ctx.arc(x+(r%2?.14:0),-.5+r*.27,.14,Math.PI*.55,Math.PI*1.45);ctx.stroke()}
   ctx.restore();
-  // 牙板(鳥喙)
   fillE(Wh,1.06,.15,.14,.17);
   ctx.strokeStyle='#d0bfa0';ctx.lineWidth=.035;ctx.beginPath();ctx.moveTo(.95,.15);ctx.lineTo(1.2,.15);ctx.stroke();
-  // 胸鰭
   ctx.save();ctx.translate(.25,.2);ctx.rotate(Math.sin(t*9)*.25-.3);fillE(Yl,-.1,.1,.3,.16);ctx.restore();
-  // 臉頰紋與眼睛
   ctx.strokeStyle=Yl;ctx.lineWidth=.05;
   [[.45,0,.2,.05],[.5,.1,.25,.2]].forEach(p=>{ctx.beginPath();ctx.moveTo(p[0],p[1]);ctx.lineTo(p[2],p[3]);ctx.stroke()});
   eye(.62,-.2,.2);
@@ -765,10 +817,9 @@ function dParrot(C,w,t){
   smile(.82,.36);
 }
 
-// 10. 魟魚:扁平身體、藍斑、白肚、長尾、波浪翅膀
+// 10. 魟魚
 function dRay(C,w,t){
   const B=C('#d9b96e'),B2=C('#b8944a'),Bl=C('#3fa7ff'),Wh=C('#fff3d6');
-  // 尾巴
   const ty=Math.sin(t*3)*.12;
   ctx.lineCap='round';ctx.strokeStyle=B2;ctx.lineWidth=.1;
   ctx.beginPath();ctx.moveTo(-1.15,.02);ctx.bezierCurveTo(-1.7,.08,-2.0,.35+ty,-2.5,.2+ty*2);ctx.stroke();
@@ -986,6 +1037,8 @@ function loop(now){
 }
 requestAnimationFrame(loop);
 addEventListener('beforeunload',save);
+addEventListener('pagehide',save);
+document.addEventListener('visibilitychange',()=>{if(document.hidden)save()});
 toast('🌊 歡迎來到你的海水水族箱<br>滑鼠掃過珍珠就能收集<br>點水裡可以撒飼料');
 </script>
 </body>
