@@ -12,7 +12,7 @@
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 html,body{margin:0;height:100%;overflow:hidden;background:#1b2330;font-family:system-ui,-apple-system,"Noto Sans TC","PingFang TC",sans-serif;touch-action:none;overscroll-behavior:none;color:#fff}
-canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block}
 :root{--sa-t:env(safe-area-inset-top,0px);--sa-b:env(safe-area-inset-bottom,0px);--sa-l:env(safe-area-inset-left,0px);--sa-r:env(safe-area-inset-right,0px);--s:clamp(104px,27vmin,150px)}
 #loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#1b2330;font-size:18px;z-index:50;text-align:center;padding:20px}
 #hud{position:fixed;top:calc(var(--sa-t) + 8px);left:calc(var(--sa-l) + 8px);right:calc(var(--sa-r) + 8px);display:flex;justify-content:space-between;align-items:flex-start;pointer-events:none}
@@ -116,28 +116,56 @@ body[data-mode="2"] #padDrive{left:calc(var(--sa-l) + 18px)}
 <script>
 /* ================= PWA 設定 ================= */
 (function(){
-  const svg=`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='110' fill='#1b2330'/><text x='256' y='350' font-size='300' text-anchor='middle'>🏗️</text></svg>`;
-  const svgUrl='data:image/svg+xml,'+encodeURIComponent(svg);
-  try{
-    const cv=document.createElement('canvas');cv.width=cv.height=180;const x=cv.getContext('2d');
-    x.fillStyle='#1b2330';x.fillRect(0,0,180,180);x.font='110px serif';x.textAlign='center';x.textBaseline='middle';x.fillText('🏗️',90,98);
-    const l=document.createElement('link');l.rel='apple-touch-icon';l.href=cv.toDataURL('image/png');document.head.appendChild(l);
-  }catch(e){}
-  const manifest={name:'挖土機模擬器',short_name:'挖土機',description:'3D 挖土機模擬器',start_url:location.href.split('#')[0],scope:location.href.split('#')[0].replace(/[^/]*$/,''),display:'standalone',orientation:'any',background_color:'#1b2330',theme_color:'#f2b705',icons:[{src:svgUrl,sizes:'any',type:'image/svg+xml',purpose:'any'}]};
-  const ml=document.createElement('link');ml.rel='manifest';
-  ml.href='data:application/manifest+json;charset=utf-8,'+encodeURIComponent(JSON.stringify(manifest));
-  document.head.appendChild(ml);
+  // 用 Canvas 畫挖土機圖示
+  function drawIcon(size){
+    const cv=document.createElement('canvas');cv.width=cv.height=size;
+    const x=cv.getContext('2d');x.scale(size/512,size/512);
+    x.fillStyle='#1b2330';x.fillRect(0,0,512,512);
+    x.translate(256,256);x.scale(.82,.82);x.translate(-256,-256);
+    const rr=(a,b,w,h,r,c)=>{x.fillStyle=c;x.beginPath();x.roundRect?x.roundRect(a,b,w,h,r):x.rect(a,b,w,h);x.fill()};
+    rr(80,372,250,64,32,'#2b2f36');                         // 履帶
+    x.fillStyle='#4a505a';[112,205,298].forEach(cx=>{x.beginPath();x.arc(cx,404,15,0,7);x.fill()});
+    rr(100,300,220,78,10,'#f2b705');                        // 車身
+    rr(100,222,98,84,10,'#f2b705');                         // 駕駛艙
+    rr(116,238,66,48,6,'#7fc4ee');                          // 車窗
+    rr(100,288,220,14,0,'#c99000');
+    x.lineCap='round';x.lineJoin='round';
+    x.strokeStyle='#f2b705';x.lineWidth=36;                 // 大臂
+    x.beginPath();x.moveTo(262,312);x.lineTo(330,150);x.lineTo(430,226);x.stroke();
+    x.strokeStyle='#c99000';x.lineWidth=12;                 // 油壓缸
+    x.beginPath();x.moveTo(236,300);x.lineTo(318,170);x.stroke();
+    x.fillStyle='#2a2e35';x.beginPath();                    // 鏟斗
+    x.moveTo(396,222);x.lineTo(476,206);x.lineTo(486,290);x.lineTo(430,318);x.lineTo(398,280);x.closePath();x.fill();
+    x.fillStyle='#16181c';
+    for(let i=0;i<3;i++){x.beginPath();x.moveTo(414+i*22,300+i*4);x.lineTo(422+i*22,336+i*2);x.lineTo(432+i*22,296+i*4);x.fill()}
+    x.fillStyle='#c4cad2';x.beginPath();x.arc(430,226,9,0,7);x.fill();
+    return cv.toDataURL('image/png');
+  }
+  let i192='',i512='',i180='';
+  try{i192=drawIcon(192);i512=drawIcon(512);i180=drawIcon(180)}catch(e){}
+  if(i180){const l=document.createElement('link');l.rel='apple-touch-icon';l.href=i180;document.head.appendChild(l);
+    const f=document.createElement('link');f.rel='icon';f.type='image/png';f.href=i192;document.head.appendChild(f)}
 
-  const swCode=`const C='exc-sim-v10';
-self.addEventListener('install',e=>{self.skipWaiting()});
-self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==C).map(x=>caches.delete(x)))).then(()=>self.clients.claim()))});
-self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;
-e.respondWith(fetch(e.request).then(res=>{const cp=res.clone();caches.open(C).then(c=>c.put(e.request,cp)).catch(()=>{});return res}).catch(()=>caches.match(e.request).then(r=>r||caches.match(self.registration.scope))))});`;
+  // Manifest（Blob URL；圖示為 PNG）
+  const base=location.href.split('#')[0].split('?')[0];
+  const manifest={name:'挖土機模擬器',short_name:'挖土機',description:'3D 挖土機模擬器',
+    start_url:base,scope:base.replace(/[^/]*$/,''),id:base,display:'standalone',orientation:'any',
+    background_color:'#1b2330',theme_color:'#f2b705',
+    icons:i512?[
+      {src:i192,sizes:'192x192',type:'image/png',purpose:'any'},
+      {src:i512,sizes:'512x512',type:'image/png',purpose:'any'},
+      {src:i512,sizes:'512x512',type:'image/png',purpose:'maskable'}
+    ]:[]};
+  try{
+    const ml=document.createElement('link');ml.rel='manifest';
+    ml.href=URL.createObjectURL(new Blob([JSON.stringify(manifest)],{type:'application/manifest+json'}));
+    document.head.appendChild(ml);
+  }catch(e){}
+
+  // Service Worker：必須是真實檔案 ./sw.js
   if('serviceWorker' in navigator){
     window.addEventListener('load',()=>{
-      let url;try{url=URL.createObjectURL(new Blob([swCode],{type:'text/javascript'}))}catch(e){}
-      const tryFile=()=>navigator.serviceWorker.register('./sw.js').catch(()=>{});
-      if(url) navigator.serviceWorker.register(url).catch(tryFile); else tryFile();
+      navigator.serviceWorker.register('./sw.js').catch(()=>{});
     });
   }
   let dp=null;const ib=document.getElementById('install');
