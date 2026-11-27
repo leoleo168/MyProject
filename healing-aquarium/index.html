@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="水族箱">
-<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' fill='%230b2a3d'/%3E%3Ctext x='256' y='340' font-size='300' text-anchor='middle'%3E🐠%3C/text%3E%3C/svg%3E">
+<link id="ati" rel="apple-touch-icon" href="">
 <link id="mf" rel="manifest" href="">
 <title>療癒海水水族箱</title>
 <style>
@@ -55,8 +55,10 @@
   /* PWA */
   body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right);overscroll-behavior:none;touch-action:manipulation}
   #stage{touch-action:none}
-  #inst{display:none;position:fixed;left:50%;bottom:calc(12px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:30;background:#c98a1a;color:#fff;border:0;border-radius:22px;padding:10px 18px;font-size:14px;box-shadow:0 4px 14px rgba(0,0,0,.45);cursor:pointer}
-  #inst:active{transform:translateX(-50%) scale(.96)}
+  #inst{display:none;position:absolute;right:10px;bottom:10px;z-index:8;background:linear-gradient(135deg,#e0a02a,#c98a1a);color:#fff;border:0;border-radius:18px;padding:6px 8px 6px 12px;font-size:12px;box-shadow:0 3px 10px rgba(0,0,0,.4);cursor:pointer;align-items:center;gap:8px;opacity:.95}
+  #inst.show{display:flex}
+  #inst:active{transform:scale(.96)}
+  #inst i{font-style:normal;background:rgba(0,0,0,.25);border-radius:50%;width:18px;height:18px;line-height:18px;text-align:center;font-size:11px}
   #iosTip{display:none;position:fixed;left:10px;right:10px;bottom:calc(12px + env(safe-area-inset-bottom));z-index:30;background:rgba(255,255,255,.96);color:#134;border-radius:14px;padding:10px 14px;font-size:13px;text-align:center;box-shadow:0 4px 14px rgba(0,0,0,.4)}
 </style>
 </head>
@@ -69,28 +71,73 @@
   <canvas id="c"></canvas>
   <div id="goal"></div>
   <div id="toast"></div>
+  <button id="inst"><span id="instGo">📲 安裝 App</span><i id="instX">✕</i></button>
 </div>
 <div id="shop"></div>
 <div id="dex" class="modal"><div class="panel" id="dexp"></div></div>
 <div id="sdx" class="modal"><div class="panel" id="sdp"></div></div>
 <div id="dev"></div>
-<button id="inst">📲 安裝為手機 App</button>
 <div id="iosTip">iPhone 安裝方式:點下方「分享」圖示 → 選「加入主畫面」<br><u id="iosClose">知道了</u></div>
 
 <script>
 // ===== PWA =====
 (function(){
   const base=location.href.split('#')[0].split('?')[0];
-  const icon="data:image/svg+xml,"+encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' fill='#0b2a3d'/><text x='256' y='340' font-size='300' text-anchor='middle'>🐠</text></svg>");
-  const manifest={
-    name:"療癒海水水族箱",short_name:"水族箱",
-    start_url:base,scope:base.replace(/[^\/]*$/,''),
-    display:"standalone",orientation:"any",
-    background_color:"#0b2a3d",theme_color:"#0b2a3d",
-    icons:[{src:icon,sizes:"any",type:"image/svg+xml",purpose:"any"},
-           {src:icon,sizes:"512x512",type:"image/svg+xml",purpose:"maskable"}]
+  const svg=`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512' width='512' height='512'>
+<defs>
+<linearGradient id='bg' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#2aa3c9'/><stop offset='1' stop-color='#0b3a5e'/></linearGradient>
+<clipPath id='bd'><ellipse cx='256' cy='270' rx='140' ry='98'/></clipPath>
+</defs>
+<rect width='512' height='512' fill='url(#bg)'/>
+<path d='M120 0 L200 0 L330 512 L190 512Z' fill='#fff' opacity='.07'/>
+<path d='M0 430 Q130 395 256 425 T512 410 L512 512 L0 512Z' fill='#e8d29b'/>
+<ellipse cx='110' cy='448' rx='34' ry='16' fill='#56677a'/>
+<circle cx='400' cy='120' r='22' fill='#fff' opacity='.35'/><circle cx='440' cy='175' r='12' fill='#fff' opacity='.3'/><circle cx='95' cy='150' r='14' fill='#fff' opacity='.3'/>
+<path d='M118 270 C70 205 40 215 52 270 C40 325 70 335 118 270Z' fill='#ff8a2a' stroke='#2a1810' stroke-width='7' stroke-linejoin='round'/>
+<path d='M190 195 C215 130 310 125 345 190Z' fill='#ff8a2a' stroke='#2a1810' stroke-width='7' stroke-linejoin='round'/>
+<path d='M210 345 C235 395 285 395 300 340Z' fill='#ff8a2a' stroke='#2a1810' stroke-width='7' stroke-linejoin='round'/>
+<ellipse cx='256' cy='270' rx='140' ry='98' fill='#ff8a2a'/>
+<g clip-path='url(#bd)' fill='#fff' stroke='#2a1810' stroke-width='7'>
+<path d='M300 160 Q285 270 300 380 L340 380 Q325 270 340 160Z'/>
+<path d='M225 160 Q210 270 225 380 L250 380 Q235 270 250 160Z'/>
+<path d='M155 180 Q145 270 155 360 L172 360 Q162 270 172 180Z'/>
+</g>
+<ellipse cx='256' cy='270' rx='140' ry='98' fill='none' stroke='#2a1810' stroke-width='7'/>
+<circle cx='338' cy='248' r='30' fill='#fff'/><circle cx='344' cy='250' r='20' fill='#1b2438'/><circle cx='351' cy='242' r='7' fill='#fff'/>
+<ellipse cx='320' cy='296' rx='16' ry='10' fill='#ff7096' opacity='.5'/>
+<path d='M362 292 Q376 304 390 290' stroke='#5a2a20' stroke-width='6' fill='none' stroke-linecap='round'/>
+</svg>`;
+  const icon="data:image/svg+xml,"+encodeURIComponent(svg);
+  const ati=document.getElementById('ati'),mf=document.getElementById('mf');
+  ati.href=icon;
+
+  function setManifest(icons){
+    const manifest={
+      name:"療癒海水水族箱",short_name:"水族箱",
+      start_url:base,scope:base.replace(/[^\/]*$/,''),
+      display:"standalone",orientation:"any",
+      background_color:"#0b2a3d",theme_color:"#0b2a3d",
+      icons:icons
+    };
+    mf.href="data:application/manifest+json,"+encodeURIComponent(JSON.stringify(manifest));
+  }
+  setManifest([{src:icon,sizes:"any",type:"image/svg+xml",purpose:"any"}]);
+
+  // 把 SVG 轉成 PNG,讓 iOS / Android 都能穩定顯示圖示
+  const img=new Image();
+  img.onload=()=>{
+    try{
+      const mk=n=>{const c=document.createElement('canvas');c.width=c.height=n;c.getContext('2d').drawImage(img,0,0,n,n);return c.toDataURL('image/png')};
+      const p180=mk(180),p192=mk(192),p512=mk(512);
+      ati.href=p180;
+      setManifest([
+        {src:p192,sizes:"192x192",type:"image/png",purpose:"any"},
+        {src:p512,sizes:"512x512",type:"image/png",purpose:"any"},
+        {src:p512,sizes:"512x512",type:"image/png",purpose:"maskable"}
+      ]);
+    }catch(e){}
   };
-  document.getElementById('mf').href="data:application/manifest+json,"+encodeURIComponent(JSON.stringify(manifest));
+  img.src=icon;
 
   // Service Worker:先試 Blob URL,失敗再試同目錄 sw.js
   if('serviceWorker' in navigator && location.protocol.startsWith('http')){
@@ -112,9 +159,17 @@
   // 安裝按鈕
   let dp=null;const btn=document.getElementById('inst');
   const standalone=matchMedia('(display-mode: standalone)').matches||navigator.standalone;
-  addEventListener('beforeinstallprompt',e=>{e.preventDefault();dp=e;if(!standalone)btn.style.display='block'});
-  btn.onclick=async()=>{if(!dp)return;dp.prompt();await dp.userChoice;dp=null;btn.style.display='none'};
-  addEventListener('appinstalled',()=>{btn.style.display='none'});
+  addEventListener('beforeinstallprompt',e=>{
+    e.preventDefault();dp=e;
+    if(!standalone&&!sessionStorage.getItem('instHide'))btn.classList.add('show');
+  });
+  document.getElementById('instGo').onclick=async()=>{
+    if(!dp)return;dp.prompt();await dp.userChoice;dp=null;btn.classList.remove('show');
+  };
+  document.getElementById('instX').onclick=e=>{
+    e.stopPropagation();btn.classList.remove('show');sessionStorage.setItem('instHide','1');
+  };
+  addEventListener('appinstalled',()=>btn.classList.remove('show'));
   // iOS 沒有 beforeinstallprompt,改用提示
   const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
   if(isIOS&&!standalone&&!localStorage.getItem('iosTipSeen')){
