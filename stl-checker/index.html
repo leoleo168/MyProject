@@ -206,6 +206,8 @@ footer{text-align:center;color:var(--sub);font-size:.85rem;padding:30px 0}
             <button class="vb" data-view="top"    title="5"><span data-i18n="vTop"></span><kbd>5</kbd></button>
             <button class="vb" data-view="bottom" title="6"><span data-i18n="vBottom"></span><kbd>6</kbd></button>
             <span class="vsep"></span>
+            <!-- 問題標示方式：面／點 -->
+            <button class="vb" id="modeBtn"></button>
             <!-- 正交／透視切換（預設正交）-->
             <button class="vb" id="projBtn"></button>
             <button class="vb" id="fsBtn"><i class="fa-solid fa-expand"></i> <span data-i18n="fs"></span><kbd>F</kbd></button>
@@ -256,9 +258,10 @@ const I18N = {
   stWait:'等待中', stRun:'檢查中', stErr:'解析失敗', stBad:'有縫隙', stMulti:'多個實體', stWarn:'有過薄', stOk:'正常',
   batchSum:'共 {n} 個檔案：{ok} 個完全正常；{gap} 個有縫隙、{multi} 個非單一實體、{thin} 個有過薄{err}',
   batchErr:'、{n} 個失敗',
-  view:'3D 檢視（左鍵旋轉、右鍵平移、滾輪縮放）', lgGap:'縫隙', lgWall:'過薄', lgBody:'模型顏色：多實體時每個實體不同色',
+  view:'3D 檢視（左鍵旋轉、右鍵平移、滾輪縮放）', lgGap:'縫隙（面）', lgWall:'過薄（面）', lgBody:'模型顏色：多實體時每個實體不同色',
   vIso:'等角', vFront:'前視', vBack:'後視', vLeft:'左視', vRight:'右視', vTop:'上視', vBottom:'下視', fs:'全螢幕', fsExit:'退出全螢幕',
   ortho:'正交', persp:'透視', projTip:'點擊切換 正交／透視',
+  modeFace:'標示：面', modePoint:'標示：點', modeTip:'點擊切換 面／點 顯示',
   issues:'問題清單（點擊可定位）', shells:'獨立實體（點擊可定位）',
   tipTitle:'小提醒',
   tip1:'Tinkercad 中若兩個物件只是「靠很近」而不是重疊，匯出後就會留下縫隙。解法：讓它們互相重疊一點點，再「群組」。',
@@ -266,8 +269,8 @@ const I18N = {
   tip3:'XY 方向的極細線段若小於噴嘴寬度，切片軟體常會直接忽略。',
   tip4:'本工具假設 STL 法線朝外（Tinkercad 匯出通常正確），結果僅供參考，仍建議用切片軟體預覽逐層確認。',
   tip5:'「單一實體」判斷標準：所有表面必須透過共用的邊真正連成一體。只有點、線或面「剛好碰到」不算接合，請讓它們重疊後再群組。',
-  tip6:'3D 畫面快捷鍵：0 等角、1 前、2 後、3 左、4 右、5 上、6 下、P 正交／透視、F 全螢幕。點問題清單會自動飛到該位置。',
-  tip7:'找縫隙建議用「正交」搭配前視／右視：沒有透視變形，Z 方向縫隙會變成一條清楚的橫線。',
+  tip6:'3D 畫面快捷鍵：0 等角、1 前、2 後、3 左、4 右、5 上、6 下、P 正交／透視、V 面／點、F 全螢幕。點問題清單會自動飛到該位置。',
+  tip7:'找縫隙建議用「正交」搭配前視／右視，並用「面」標示：縫隙兩側的表面會被塗成紅色，一眼就能看出範圍。',
   foot:'© 2026 STL 縫隙檢查器 ・ 純前端運作，檔案不會離開你的電腦',
   reading:'讀取檔案…', parsing:'解析三角形…', welding:'合併頂點與分析結構…', bvh:'建立加速結構…', ray:'偵測縫隙與薄壁…', done:'全部完成',
   errFile:'無法解析此 STL 檔案',
@@ -299,9 +302,10 @@ const I18N = {
   stWait:'Waiting', stRun:'Checking', stErr:'Parse failed', stBad:'Gaps', stMulti:'Multi-body', stWarn:'Too thin', stOk:'OK',
   batchSum:'{n} files: {ok} fully OK; {gap} with gaps, {multi} not a single body, {thin} too thin{err}',
   batchErr:', {n} failed',
-  view:'3D view (left: rotate, right: pan, wheel: zoom)', lgGap:'Gap', lgWall:'Too thin', lgBody:'Model colour: each body has its own colour when multiple',
+  view:'3D view (left: rotate, right: pan, wheel: zoom)', lgGap:'Gap (faces)', lgWall:'Too thin (faces)', lgBody:'Model colour: each body has its own colour when multiple',
   vIso:'Isometric', vFront:'Front', vBack:'Back', vLeft:'Left', vRight:'Right', vTop:'Top', vBottom:'Bottom', fs:'Fullscreen', fsExit:'Exit fullscreen',
   ortho:'Orthographic', persp:'Perspective', projTip:'Click to switch Orthographic / Perspective',
+  modeFace:'Mark: Faces', modePoint:'Mark: Points', modeTip:'Click to switch Faces / Points',
   issues:'Issues (click to locate)', shells:'Separate bodies (click to locate)',
   tipTitle:'Tips',
   tip1:'In Tinkercad, two objects that are merely close (not overlapping) leave a gap after export. Fix: overlap them slightly, then Group.',
@@ -309,8 +313,8 @@ const I18N = {
   tip3:'XY features thinner than the nozzle width are often ignored by slicers.',
   tip4:'This tool assumes outward-facing normals (usually true for Tinkercad). Results are a guide; still preview layers in your slicer.',
   tip5:'"Single body" means all surfaces are truly joined through shared edges. Parts that merely touch at a point, line or face do not count – overlap them, then Group.',
-  tip6:'3D shortcuts: 0 isometric, 1 front, 2 back, 3 left, 4 right, 5 top, 6 bottom, P ortho/perspective, F fullscreen. Clicking an issue flies the camera to it.',
-  tip7:'To hunt for gaps, use Orthographic with Front / Right view: no perspective distortion, so a Z gap shows up as a clear horizontal line.',
+  tip6:'3D shortcuts: 0 isometric, 1 front, 2 back, 3 left, 4 right, 5 top, 6 bottom, P ortho/perspective, V faces/points, F fullscreen. Clicking an issue flies the camera to it.',
+  tip7:'To hunt for gaps, use Orthographic with Front / Right view and Faces marking: the surfaces on both sides of a gap are painted red so the extent is obvious.',
   foot:'© 2026 STL Gap Checker ・ Runs 100% in your browser',
   reading:'Reading file…', parsing:'Parsing triangles…', welding:'Welding vertices & analysing…', bvh:'Building acceleration structure…', ray:'Detecting gaps & thin walls…', done:'All done',
   errFile:'Unable to parse this STL file',
@@ -334,7 +338,7 @@ function applyLang(){
   document.documentElement.lang = lang==='zh'?'zh-Hant':'en';
   document.querySelectorAll('[data-i18n]').forEach(e=>e.textContent=t(e.dataset.i18n));
   document.getElementById('langBtn').textContent = lang==='zh'?'EN':'中文';
-  updateFsBtn(); updateViewLabel(); updateProjBtn();
+  updateFsBtn(); updateViewLabel(); updateProjBtn(); updateModeBtn();
   renderQueue(); if(cur&&cur.result) renderResults(cur);
 }
 document.getElementById('langBtn').onclick=()=>{lang=lang==='zh'?'en':'zh';applyLang();};
@@ -494,26 +498,28 @@ async function processItem(it,prog){
   const {pos,nor,N}=it.prep;
   const perTri=4, stride=Math.max(1,Math.ceil(N*perTri/maxRays));
   const clusters=new Map(); let lastP=0;
+  // 記錄「有問題的三角形」，用來在 3D 中把整個面塗色
+  const gapTri=new Set(), wallTri=new Set();
   const o=[0,0,0], d=[0,0,0];
   for(let i=0;i<N;i+=stride){
     const p=i*9, c=[(pos[p]+pos[p+3]+pos[p+6])/3,(pos[p+1]+pos[p+4]+pos[p+7])/3,(pos[p+2]+pos[p+5]+pos[p+8])/3];
     const n=[nor[i*3],nor[i*3+1],nor[i*3+2]];
     for(let s=0;s<perTri;s++){
       for(let k=0;k<3;k++) o[k]= s===0? c[k] : pos[p+(s-1)*3+k]+(c[k]-pos[p+(s-1)*3+k])*0.3;
-      // 往外射：偵測縫隙
+      // 往外射：偵測縫隙（出發面與撞到的對面，兩個面都標記）
       for(let k=0;k<3;k++)d[k]=n[k];
       let h=cast(bvh,o,d,gapThr);
-      if(h){const q=h.i*3; if(nor[q]*d[0]+nor[q+1]*d[1]+nor[q+2]*d[2]<-0.9) addIssue(clusters,'gap',o,h.t,d);}
-      // 往內射：偵測薄壁
+      if(h){const q=h.i*3; if(nor[q]*d[0]+nor[q+1]*d[1]+nor[q+2]*d[2]<-0.9){addIssue(clusters,'gap',o,h.t,d);gapTri.add(i);gapTri.add(h.i);}}
+      // 往內射：偵測薄壁（出發面與背面出口，兩個面都標記）
       for(let k=0;k<3;k++)d[k]=-n[k];
       h=cast(bvh,o,d,wallThr);
-      if(h){const q=h.i*3; if(nor[q]*d[0]+nor[q+1]*d[1]+nor[q+2]*d[2]>0.9) addIssue(clusters,'wall',o,h.t,d);}
+      if(h){const q=h.i*3; if(nor[q]*d[0]+nor[q+1]*d[1]+nor[q+2]*d[2]>0.9){addIssue(clusters,'wall',o,h.t,d);wallTri.add(i);wallTri.add(h.i);}}
     }
     if((i/stride)%500===0){const f=0.25+0.75*(i/N); if(f-lastP>0.02){lastP=f;prog(f,'ray');await frame();}}
   }
   const issues=[...clusters.values()].sort((a,b)=>(a.type===b.type?0:a.type==='gap'?-1:1)||a.d-b.d);
   const gaps=issues.filter(x=>x.type==='gap').length;
-  it.result={issues,gaps,walls:issues.length-gaps};
+  it.result={issues,gaps,walls:issues.length-gaps,gapTri,wallTri};
 }
 
 /* ========== 佇列執行（一個一個依序處理）========== */
@@ -647,8 +653,9 @@ function renderResults(it){
 
 /* ========== 3D 檢視 ========== */
 // 兩台相機：persp（透視）與 ortho（正交），camera 指向目前使用的那一台
-let scene,persp,ortho,camera,renderer,controls,meshObj,markers,inited=false;
+let scene,persp,ortho,camera,renderer,controls,meshObj,markers,overlay,inited=false;
 let isOrtho=true;                       // 預設為正交視圖（想改預設透視，把 true 改 false）
+let markMode='face';                    // 問題標示方式：'face' 面（預設）／'point' 點
 let viewInfo={c:null,radius:50};        // 目前模型的中心與半徑
 let curView='iso', tween=null;
 
@@ -750,6 +757,19 @@ function updateProjBtn(){
 }
 document.getElementById('projBtn').onclick=()=>setProjection(!isOrtho);
 
+// 切換問題標示方式：面（把有問題的表面塗色＋描邊）／點
+function applyMarkMode(){
+  if(overlay)overlay.visible=(markMode==='face');
+  if(markers)markers.visible=(markMode==='point');
+}
+function updateModeBtn(){
+  const b=document.getElementById('modeBtn');
+  b.innerHTML=`<i class="fa-solid ${markMode==='face'?'fa-square':'fa-circle'}"></i> ${t(markMode==='face'?'modeFace':'modePoint')}<kbd>V</kbd>`;
+  b.title=t('modeTip'); b.classList.toggle('active',markMode==='face');
+}
+function toggleMode(){markMode=markMode==='face'?'point':'face'; applyMarkMode(); updateModeBtn();}
+document.getElementById('modeBtn').onclick=toggleMode;
+
 // 全螢幕
 function updateFsBtn(){
   const on=!!document.fullscreenElement;
@@ -770,12 +790,40 @@ document.addEventListener('keydown',e=>{
   if(VIEW_KEYS[e.key]){setView(VIEW_KEYS[e.key]);}
   else if(e.key==='f'||e.key==='F'){toggleFs();}
   else if(e.key==='p'||e.key==='P'){setProjection(!isOrtho);}
+  else if(e.key==='v'||e.key==='V'){toggleMode();}
 });
+
+// 建立「面」標示：把有問題的三角形塗成半透明色，並畫出外框線（從側面看時薄縫也看得到）
+function makeFaceOverlay(triSet,pos,colorHex){
+  const grp=new THREE.Group(); if(!triSet.size)return grp;
+  const arr=new Float32Array(triSet.size*9); let k=0;
+  const edgeCnt=new Map(), key=(a)=>Math.round(pos[a]*1e3)+','+Math.round(pos[a+1]*1e3)+','+Math.round(pos[a+2]*1e3);
+  triSet.forEach(i=>{
+    for(let j=0;j<9;j++)arr[k++]=pos[i*9+j];
+    // 統計邊：只出現一次的邊 = 這塊區域的外框
+    for(let v=0;v<3;v++){
+      const a=i*9+v*3, b=i*9+((v+1)%3)*3, ka=key(a), kb=key(b);
+      const ek=ka<kb?ka+'|'+kb:kb+'|'+ka, e=edgeCnt.get(ek);
+      if(e)e.n++; else edgeCnt.set(ek,{n:1,a,b});
+    }
+  });
+  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(arr,3));
+  const fill=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:colorHex,transparent:true,opacity:.6,side:THREE.DoubleSide,depthTest:false}));
+  fill.renderOrder=8; grp.add(fill);
+  const ln=[]; edgeCnt.forEach(e=>{if(e.n===1)ln.push(pos[e.a],pos[e.a+1],pos[e.a+2],pos[e.b],pos[e.b+1],pos[e.b+2]);});
+  if(ln.length){
+    const lg=new THREE.BufferGeometry(); lg.setAttribute('position',new THREE.BufferAttribute(new Float32Array(ln),3));
+    const lines=new THREE.LineSegments(lg,new THREE.LineBasicMaterial({color:colorHex,depthTest:false}));
+    lines.renderOrder=9; grp.add(lines);
+  }
+  return grp;
+}
 
 function build3D(it){
   if(!inited)init3D();
   if(meshObj){scene.remove(meshObj);meshObj.geometry.dispose();}
   if(markers){scene.remove(markers);markers.geometry.dispose();}
+  if(overlay){scene.remove(overlay);overlay.traverse(o=>{if(o.geometry)o.geometry.dispose();});}
   const N=it.prep.N, nb=it.topo.shells.length;
   const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(it.prep.pos,3)); g.computeVertexNormals();
   // 依實體上色（多實體時每個實體不同色）
@@ -786,12 +834,18 @@ function build3D(it){
   scene.add(meshObj);
   g.computeBoundingBox(); const bb=g.boundingBox, c=bb.getCenter(new THREE.Vector3()), size=bb.getSize(new THREE.Vector3()).length();
   viewInfo={c:c.clone(),radius:size/2};
-  // 標記點
+  // 「點」標示
   const iss=it.result.issues, pa=new Float32Array(iss.length*3), ca=new Float32Array(iss.length*3);
   iss.forEach((x,i)=>{pa.set(x.pos,i*3); ca.set(x.type==='gap'?[.97,.44,.44]:[.98,.75,.14],i*3);});
   const mg=new THREE.BufferGeometry(); mg.setAttribute('position',new THREE.BufferAttribute(pa,3)); mg.setAttribute('color',new THREE.BufferAttribute(ca,3));
   markers=new THREE.Points(mg,new THREE.PointsMaterial({size:12,sizeAttenuation:false,vertexColors:true,depthTest:false}));
   markers.renderOrder=10; scene.add(markers);
+  // 「面」標示：縫隙＝紅、過薄＝黃
+  overlay=new THREE.Group();
+  overlay.add(makeFaceOverlay(it.result.wallTri,it.prep.pos,0xfbbf24));
+  overlay.add(makeFaceOverlay(it.result.gapTri,it.prep.pos,0xf87171));
+  scene.add(overlay);
+  applyMarkMode(); updateModeBtn();
   // 平台格線
   if(window._grid)scene.remove(window._grid);
   const gr=new THREE.GridHelper(Math.max(size*1.5,50),20,0x38bdf8,0x334155); gr.rotation.x=Math.PI/2; gr.position.set(c.x,c.y,bb.min.z); scene.add(gr); window._grid=gr;
