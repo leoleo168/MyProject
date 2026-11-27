@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>剪影鑰匙圈STL產生器 | Silhouette Keychain STL Maker</title>
-  
+
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Three.js 核心、SVG載入器與 STL 匯出器 -->
@@ -12,8 +12,10 @@
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/SVGLoader.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/STLExporter.js"></script>
-  <!-- opentype.js 向量字型解析核心 (徹底告別馬賽克鋸齒) -->
+  <!-- opentype.js 向量字型解析核心 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/opentype.js/1.3.4/opentype.min.js"></script>
+  <!-- polygon-clipping：2D 多邊形聯集/差集 -->
+  <script src="https://cdn.jsdelivr.net/npm/polygon-clipping@0.15.7/dist/polygon-clipping.umd.min.js"></script>
   <!-- FontAwesome 圖示 -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
@@ -32,8 +34,12 @@
         <i class="fa-solid fa-cube"></i>
       </div>
       <div>
-        <h1 class="text-base sm:text-lg font-bold text-white tracking-wide" data-lang="title">剪影鑰匙圈STL產生器</h1>
-        <p class="text-xs text-slate-400" data-lang="subtitle">真向量立體刻字・平滑直線無鋸齒・一鍵 STL 匯出</p>
+        <!-- 標題 + 版本標籤（版本號由下方 APP_VERSION 自動填入） -->
+        <h1 class="text-base sm:text-lg font-bold text-white tracking-wide flex items-center gap-2 flex-wrap">
+          <span data-lang="title">剪影鑰匙圈STL產生器</span>
+          <span id="versionBadge" class="text-[11px] font-mono font-medium text-sky-400 bg-sky-500/10 border border-sky-500/30 px-2 py-0.5 rounded-full"></span>
+        </h1>
+        <p class="text-xs text-slate-400" data-lang="subtitle">文字與圖形皆從平台長起・精準厚度貼平熱床</p>
       </div>
     </div>
 
@@ -46,17 +52,17 @@
 
   <!-- 主工作區 -->
   <main class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 p-4 sm:p-6 max-w-7xl mx-auto w-full">
-    
-    <!-- 左側控制面板 (佔 5 欄) -->
+
+    <!-- 左側控制面板 -->
     <div class="lg:col-span-5 flex flex-col gap-4 overflow-y-auto max-h-[calc(100vh-100px)] pr-1">
-      
+
       <!-- 步驟 1: 上傳剪影圖片 -->
       <section class="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-4 shadow-sm">
         <h2 class="text-sm font-bold text-sky-400 mb-2 flex items-center gap-2">
           <i class="fa-solid fa-image"></i>
           <span data-lang="step1">第一步：上傳剪影圖片</span>
         </h2>
-        
+
         <div id="dropZone" class="border-2 border-dashed border-slate-600 hover:border-sky-400 rounded-xl p-3 text-center cursor-pointer transition bg-slate-900/40">
           <input type="file" id="fileInput" accept="image/*" class="hidden">
           <i class="fa-solid fa-cloud-arrow-up text-2xl text-slate-400 mb-1"></i>
@@ -64,7 +70,6 @@
           <p class="text-[11px] text-slate-500 mt-0.5" data-lang="dropTip">白底黑剪影效果最佳，自動保持真實長寬比例</p>
         </div>
 
-        <!-- 2D 剪影預覽 & 參數 -->
         <div class="mt-2.5 grid grid-cols-3 gap-3 items-center bg-slate-900/60 p-2 rounded-xl border border-slate-800">
           <div class="text-center">
             <span class="text-[11px] text-slate-400 block mb-1" data-lang="preview2D">提取預覽</span>
@@ -166,7 +171,7 @@
         </div>
       </section>
 
-      <!-- 步驟 4: 真向量立體文字刻字 (平滑直線無鋸齒) -->
+      <!-- 步驟 4: 真向量立體文字 -->
       <section id="textSection" class="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-4 shadow-sm space-y-3 transition-opacity">
         <div class="flex justify-between items-center">
           <h2 class="text-sm font-bold text-sky-400 flex items-center gap-2">
@@ -179,13 +184,11 @@
         </div>
 
         <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-800 space-y-2.5">
-          <!-- 文字輸入框 -->
           <div>
             <label class="text-xs text-slate-300 block mb-1" data-lang="textInputLabel">輸入文字 (支援中文、英文、座號)</label>
             <input type="text" id="customTextInput" maxlength="12" placeholder="例：TAIWAN 或 你好" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-sky-400 transition placeholder:text-slate-500">
           </div>
 
-          <!-- 文字控制滑桿 -->
           <div id="textControlsArea" class="space-y-2 pt-1 border-t border-slate-800">
             <div class="grid grid-cols-2 gap-3">
               <div>
@@ -297,16 +300,17 @@
 
     </div>
 
-    <!-- 右側面板：3D 預覽 (佔 7 欄) -->
+    <!-- 右側面板：3D 預覽 -->
     <div class="lg:col-span-7 bg-slate-800/50 border border-slate-800 rounded-2xl overflow-hidden relative flex flex-col min-h-[480px] lg:min-h-full">
       <div class="absolute top-4 left-4 z-10 flex flex-col gap-2 pointer-events-none">
         <span class="bg-slate-900/85 backdrop-blur border border-slate-700/80 px-3 py-1 rounded-full text-xs text-sky-400 flex items-center gap-1.5 shadow">
           <i class="fa-solid fa-layer-group text-xs"></i>
-          <span data-lang="previewTip">真向量曲線字體；直線筆畫平滑無馬賽克鋸齒</span>
+          <span data-lang="previewTip">白色網格為列印平台；模型底面精準貼平 Z=0</span>
         </span>
+        <!-- 合併狀態與實際尺寸標籤 -->
+        <span id="mergeBadge" class="bg-slate-900/85 backdrop-blur border border-slate-700/80 px-3 py-1 rounded-full text-xs text-emerald-400 flex items-center gap-1.5 shadow"></span>
       </div>
 
-      <!-- 3D WebGL Canvas 容器 -->
       <div id="threeContainer" class="w-full h-full flex-1"></div>
     </div>
 
@@ -314,12 +318,23 @@
 
   <script>
     /* ==========================================================
-       雙語字典 (已全面更新為「剪影鑰匙圈STL產生器」)
+       版本資訊（以後更新只要改這裡的兩個值）
+       ========================================================== */
+    const APP_VERSION = "1.0.0";
+    const APP_DATE = "2026-11-27";
+
+    const versionBadgeEl = document.getElementById('versionBadge');
+    versionBadgeEl.innerText = 'v' + APP_VERSION;
+    versionBadgeEl.title = 'Version ' + APP_VERSION + ' (' + APP_DATE + ')';
+    console.log('剪影鑰匙圈STL產生器 v' + APP_VERSION + ' (' + APP_DATE + ')');
+
+    /* ==========================================================
+       雙語字典（文字集中管理）
        ========================================================== */
     const translations = {
       zh: {
         title: "剪影鑰匙圈STL產生器",
-        subtitle: "真向量立體刻字・平滑直線無鋸齒・一鍵 STL 匯出",
+        subtitle: "文字與圖形皆從平台長起・精準厚度貼平熱床",
         step1: "第一步：上傳剪影圖片",
         dropText: "點擊或拖曳圖片到這裡",
         dropTip: "白底黑剪影效果最佳，自動保持真實長寬比例",
@@ -341,8 +356,6 @@
         graphicX: "圖形左右 (X)",
         graphicY: "圖形上下 (Y)",
         stepText: "第四步：底板立體文字 (真向量平滑筆畫)",
-        fontReadyTip: "真向量字型就緒",
-        textDisabledTip: "純剪影模式不可刻字，請先選擇底板樣式",
         textInputLabel: "輸入文字 (支援中文、英文、座號)",
         textSize: "字體大小",
         textRotation: "旋轉角度",
@@ -362,12 +375,15 @@
         thicknessLabel: "浮雕總厚度",
         holeSizeLabel: "孔洞直徑",
         downloadBtn: "下載 3D 列印 STL 檔案",
-        previewTip: "真向量曲線字體；直線筆畫平滑無馬賽克鋸齒",
+        previewTip: "白色網格為列印平台；模型底面精準貼平 Z=0",
+        mergeOk: "文字與圖形皆從平台 Z=0 長起",
+        mergeFallback: "合併失敗，目前為重疊模式",
+        heightLabel: "實際高度",
         langBtn: "English"
       },
       en: {
         title: "Silhouette Keychain STL Maker",
-        subtitle: "True Vector Smooth Font & STL Export",
+        subtitle: "Text and graphics both rise from the bed, exact thickness",
         step1: "Step 1: Upload Silhouette Image",
         dropText: "Click or drag silhouette image here",
         dropTip: "Black silhouette on white is best",
@@ -389,8 +405,6 @@
         graphicX: "Graphic X Offset",
         graphicY: "Graphic Y Offset",
         stepText: "Step 4: Smooth 3D Text (True Vector)",
-        fontReadyTip: "Vector Font Ready",
-        textDisabledTip: "Text unavailable in Pure Silhouette mode",
         textInputLabel: "Custom Text (Chinese, English, Numbers)",
         textSize: "Font Size",
         textRotation: "Rotation",
@@ -410,7 +424,10 @@
         thicknessLabel: "Total Thickness",
         holeSizeLabel: "Hole Diameter",
         downloadBtn: "Download 3D Printable .STL",
-        previewTip: "True vector font; straight edges without pixel stairs",
+        previewTip: "White grid is the bed; model bottom sits exactly at Z=0",
+        mergeOk: "Text and graphics both start at bed Z=0",
+        mergeFallback: "Merge failed, using overlap mode",
+        heightLabel: "Actual height",
         langBtn: "繁體中文"
       }
     };
@@ -426,6 +443,7 @@
       });
       document.getElementById('langText').innerText = translations[currentLang].langBtn;
       validateHoleSafety();
+      renderMergeBadge();
     });
 
     /* ==========================================================
@@ -451,7 +469,9 @@
       textX: 0,
       textY: -13,
       holeSafetyStatus: 'ok',
-      loadedFont: null
+      loadedFont: null,
+      mergeOk: true,
+      modelHeight: 0
     };
 
     /* ==========================================================
@@ -479,36 +499,41 @@
     scene.add(gridHelper);
 
     // 光源
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
-    scene.add(ambientLight);
-
+    scene.add(new THREE.AmbientLight(0xffffff, 0.85));
     const dirLight1 = new THREE.DirectionalLight(0x38bdf8, 1.2);
     dirLight1.position.set(40, 50, 70);
     scene.add(dirLight1);
-
     const dirLight2 = new THREE.DirectionalLight(0xffffff, 0.6);
     dirLight2.position.set(-40, -50, 30);
     scene.add(dirLight2);
 
     window.addEventListener('resize', () => {
-      if (!container) return;
       camera.aspect = container.clientWidth / container.clientHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(container.clientWidth, container.clientHeight);
     });
 
+    // currentGroup：只放「實體零件」，STL 只匯出這個群組
+    // indicatorMesh：孔洞警示環，只用於預覽，不會被匯出
     let currentGroup = null;
+    let indicatorMesh = null;
+
+    function disposeObject(obj) {
+      obj.traverse(child => {
+        if (child.geometry) child.geometry.dispose();
+      });
+    }
 
     /* ==========================================================
-       載入開源繁體中文真向量字型 (Noto Sans TC)
+       載入繁體中文向量字型
        ========================================================== */
-    const FONT_URL_BACKUP = "https://cdn.jsdelivr.net/npm/@openfonts/noto-sans-tc_chinese-traditional@1.44.1/files/noto-sans-tc-chinese-traditional-700.woff";
+    const FONT_URL = "https://cdn.jsdelivr.net/npm/@openfonts/noto-sans-tc_chinese-traditional@1.44.1/files/noto-sans-tc-chinese-traditional-700.woff";
 
-    opentype.load(FONT_URL_BACKUP, (err, font) => {
+    opentype.load(FONT_URL, (err, font) => {
       const badge = document.getElementById('fontStatusBadge');
       if (err) {
-        console.warn("字型載入備用，切換中...", err);
-        badge.innerHTML = `<i class="fa-solid fa-check mr-1"></i>字型備用模式`;
+        console.warn("字型載入失敗", err);
+        badge.innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-1"></i>字型載入失敗`;
       } else {
         state.loadedFont = font;
         badge.className = "text-[11px] text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800/50";
@@ -518,7 +543,7 @@
     });
 
     /* ==========================================================
-       官方真實台灣向量路徑
+       台灣向量路徑
        ========================================================== */
     const TAIWAN_SVG_STRING = `<svg version="1.1" viewBox="0 0 612 612" xmlns="http://www.w3.org/2000/svg"><path d="M 412.5 72 L 421 75.5 L 422 82 L 430 87.5 L 432.5 91 L 436.5 93 L 439.5 92 L 443.5 95 L 456.5 95 L 458 96.5 L 457 99.5 L 459 109 L 463.5 108 L 467 110.5 L 465.5 113 L 454 121.5 L 449.5 128 L 448 129.5 L 445 141.5 L 447 159.5 L 452 166.5 L 452 178 Q 446 176.1 449 185.5 L 445 188 L 440 211.5 L 430.5 221 L 428 222.5 L 427 224.5 L 428 230.5 L 422 238.5 L 422 243.5 L 425 250.5 L 421 255.5 L 421 266.5 L 417 276.5 L 417 284.5 L 414 290.5 L 409 313.5 L 409 322.5 L 407 324.5 L 408 328.5 L 405 340.5 L 395 361.5 Q 398.7 363.3 397 370.5 L 389 377.5 L 386 388.5 L 375.5 407 L 370 409.5 L 371 416.5 L 365 426 L 349 435.5 L 347 445.5 L 341 452.5 Q 340 466.5 334 475.5 L 333 496.5 L 334 501.5 L 332 509.5 L 333 514.5 L 332 517.5 L 333 522.5 Q 326.9 525.9 326 534.5 L 328 539 L 315.5 532 L 313 538 L 310 536.5 Q 310.9 527.6 307 523.5 L 310 510.5 L 299 483.5 L 291.5 474 L 280 467.5 L 278.5 465 L 276 463.5 L 273.5 460 L 269.5 462 L 260 453.5 L 262 453 L 260.5 449 L 250 441.5 L 254 430 L 250 429 L 241 404.5 L 240 393.5 L 241 391 L 235 392 L 232.5 387 L 228 385.5 L 227 382.5 L 231 379.5 L 226 377 L 227 380.5 L 224.5 381 L 223 376.5 L 224 374 L 229 373 L 228 362.5 L 232 353.5 L 231 350.5 L 235.5 339 L 237.5 340 L 238 329.5 L 236 326.5 L 238 322 Q 232.8 324.1 234 319.5 L 239 316.5 L 236 307.5 L 242 290.5 L 240 282.5 L 242 277 L 252 274 L 251 271.5 L 256 267.5 L 259 260 L 257 258.5 L 268 243.5 L 265 242.5 L 274 238.5 L 273 236.5 L 274 234 L 271 235.5 Q 272.1 239.7 268 238 L 273.5 230 L 277 229 L 278 225 L 280 224.5 L 278 220.5 L 282 219 L 285 211 L 283 210.5 L 292 207 L 289 203.5 L 302 185.5 L 310 167 L 314 166 L 315 161 L 323 157.5 L 328.5 149 L 331 147.5 L 332 138.5 L 339 128.5 L 340 121 L 344 118.5 Q 344.8 108.7 352.5 106 L 373.5 97 L 396.5 91 L 399 92.5 L 396.5 89 L 395 86.5 L 402.5 76 L 412.5 72 Z" fill="#000000"></path></svg>`;
 
@@ -530,7 +555,7 @@
         shapes.push(...THREE.SVGLoader.createShapes(p));
       });
       if (shapes.length === 0) return null;
-      
+
       const rawShape = shapes[0];
       const pts = rawShape.extractPoints(300).shape;
 
@@ -548,14 +573,9 @@
       const scale = targetHeight / (maxY - minY);
 
       const normalizedShape = new THREE.Shape();
-      const firstX = (pts[0].x - centerX) * scale;
-      const firstY = -(pts[0].y - centerY) * scale;
-      normalizedShape.moveTo(firstX, firstY);
-
+      normalizedShape.moveTo((pts[0].x - centerX) * scale, -(pts[0].y - centerY) * scale);
       for (let i = 1; i < pts.length; i++) {
-        const px = (pts[i].x - centerX) * scale;
-        const py = -(pts[i].y - centerY) * scale;
-        normalizedShape.lineTo(px, py);
+        normalizedShape.lineTo((pts[i].x - centerX) * scale, -(pts[i].y - centerY) * scale);
       }
       normalizedShape.closePath();
       return normalizedShape;
@@ -572,7 +592,7 @@
       const baseShape = new THREE.Shape();
       const radius = (targetSize * 1.3) / 2;
 
-      switch(preset) {
+      switch (preset) {
         case 'shield': {
           const sw = targetSize * 0.65, sh = targetSize * 0.7;
           baseShape.moveTo(-sw, sh);
@@ -582,7 +602,6 @@
           baseShape.closePath();
           break;
         }
-
         case 'heart': {
           const hs = targetSize * 0.042;
           baseShape.moveTo(0, 4 * hs);
@@ -593,7 +612,6 @@
           baseShape.closePath();
           break;
         }
-
         case 'tag': {
           const tw = targetSize * 0.6, th = targetSize * 0.7, cut = 7;
           baseShape.moveTo(-tw + cut, th);
@@ -607,41 +625,37 @@
           baseShape.closePath();
           break;
         }
-
         case 'circle': {
           baseShape.absarc(0, 0, radius, 0, Math.PI * 2, false);
           break;
         }
-
         case 'roundRect': {
           const bw = targetSize * 1.25, bh = targetSize * 1.25, cr = 6;
-          baseShape.moveTo(-bw/2 + cr, -bh/2);
-          baseShape.lineTo(bw/2 - cr, -bh/2);
-          baseShape.quadraticCurveTo(bw/2, -bh/2, bw/2, -bh/2 + cr);
-          baseShape.lineTo(bw/2, bh/2 - cr);
-          baseShape.quadraticCurveTo(bw/2, bh/2, bw/2 - cr, bh/2);
-          baseShape.lineTo(-bw/2 + cr, bh/2);
-          baseShape.quadraticCurveTo(-bw/2, bh/2, -bw/2, bh/2 - cr);
-          baseShape.lineTo(-bw/2, -bh/2 + cr);
-          baseShape.quadraticCurveTo(-bw/2, -bh/2, -bw/2 + cr, -bh/2);
+          baseShape.moveTo(-bw / 2 + cr, -bh / 2);
+          baseShape.lineTo(bw / 2 - cr, -bh / 2);
+          baseShape.quadraticCurveTo(bw / 2, -bh / 2, bw / 2, -bh / 2 + cr);
+          baseShape.lineTo(bw / 2, bh / 2 - cr);
+          baseShape.quadraticCurveTo(bw / 2, bh / 2, bw / 2 - cr, bh / 2);
+          baseShape.lineTo(-bw / 2 + cr, bh / 2);
+          baseShape.quadraticCurveTo(-bw / 2, bh / 2, -bw / 2, bh / 2 - cr);
+          baseShape.lineTo(-bw / 2, -bh / 2 + cr);
+          baseShape.quadraticCurveTo(-bw / 2, -bh / 2, -bw / 2 + cr, -bh / 2);
           break;
         }
-
         case 'capsule':
         default: {
           const cr = radius * 0.75;
-          baseShape.absarc(8, 0, cr, -Math.PI/2, Math.PI/2, false);
-          baseShape.absarc(-8, 0, cr, Math.PI/2, -Math.PI/2, false);
+          baseShape.absarc(8, 0, cr, -Math.PI / 2, Math.PI / 2, false);
+          baseShape.absarc(-8, 0, cr, Math.PI / 2, -Math.PI / 2, false);
           baseShape.closePath();
           break;
         }
       }
-
       return baseShape;
     }
 
     /* ==========================================================
-       智慧孔洞安全檢測 (Point-in-Polygon & Margin)
+       孔洞安全檢測
        ========================================================== */
     function isPointInsidePolygon(pt, poly) {
       let inside = false;
@@ -649,7 +663,7 @@
         const xi = poly[i].x, yi = poly[i].y;
         const xj = poly[j].x, yj = poly[j].y;
         const intersect = ((yi > pt.y) !== (yj > pt.y)) &&
-            (pt.x < (xj - xi) * (pt.y - yi) / (yj - yi) + xi);
+          (pt.x < (xj - xi) * (pt.y - yi) / (yj - yi) + xi);
         if (intersect) inside = !inside;
       }
       return inside;
@@ -662,11 +676,9 @@
         const dx = p2.x - p1.x;
         const dy = p2.y - p1.y;
         const l2 = dx * dx + dy * dy;
-        let t = ((pt.x - p1.x) * dx + (pt.y - p1.y) * dy) / l2;
+        let t = l2 === 0 ? 0 : ((pt.x - p1.x) * dx + (pt.y - p1.y) * dy) / l2;
         t = Math.max(0, Math.min(1, t));
-        const projX = p1.x + t * dx;
-        const projY = p1.y + t * dy;
-        const dst = Math.hypot(pt.x - projX, pt.y - projY);
+        const dst = Math.hypot(pt.x - (p1.x + t * dx), pt.y - (p1.y + t * dy));
         if (dst < minDst) minDst = dst;
       }
       return minDst;
@@ -676,10 +688,11 @@
       const box = document.getElementById('holeWarningBox');
       const icon = document.getElementById('holeWarningIcon');
       const text = document.getElementById('holeWarningText');
+      const baseClass = 'p-2.5 rounded-xl border text-xs flex items-center gap-2 transition duration-200 ';
 
       if (state.preset === 'silhouette') {
         state.holeSafetyStatus = 'ok';
-        box.className = 'p-2.5 rounded-xl border text-xs flex items-center gap-2 transition duration-200 bg-slate-900/40 border-slate-700 text-slate-400';
+        box.className = baseClass + 'bg-slate-900/40 border-slate-700 text-slate-400';
         icon.className = 'fa-solid fa-info-circle text-base';
         text.innerText = currentLang === 'zh' ? '純剪影模式：請自由移動吊環至主體邊緣' : 'Pure Silhouette mode';
         return;
@@ -687,7 +700,7 @@
 
       if (state.holeMode === 'ring') {
         state.holeSafetyStatus = 'ok';
-        box.className = 'p-2.5 rounded-xl border text-xs flex items-center gap-2 transition duration-200 bg-emerald-950/40 border-emerald-500/40 text-emerald-300';
+        box.className = baseClass + 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300';
         icon.className = 'fa-solid fa-circle-check text-base';
         text.innerText = currentLang === 'zh' ? '外接耳環模式：請確保耳環與底板外緣相交' : 'External Ring: Ensure contact with plate.';
         return;
@@ -699,9 +712,8 @@
       const holeRadius = state.holeSize / 2;
       const minSafeMargin = 1.2;
 
-      const centerInside = isPointInsidePolygon(holeCenter, poly);
-      let allPointsInside = centerInside;
-      if (centerInside) {
+      let allPointsInside = isPointInsidePolygon(holeCenter, poly);
+      if (allPointsInside) {
         for (let a = 0; a < Math.PI * 2; a += Math.PI / 6) {
           const sx = holeCenter.x + Math.cos(a) * holeRadius;
           const sy = holeCenter.y + Math.sin(a) * holeRadius;
@@ -714,30 +726,29 @@
 
       if (!allPointsInside) {
         state.holeSafetyStatus = 'outside';
-        box.className = 'p-2.5 rounded-xl border text-xs flex items-center gap-2 transition duration-200 bg-rose-950/60 border-rose-500 text-rose-300 animate-pulse';
+        box.className = baseClass + 'bg-rose-950/60 border-rose-500 text-rose-300 animate-pulse';
         icon.className = 'fa-solid fa-triangle-exclamation text-base text-rose-400';
         text.innerText = translations[currentLang].holeStatusWarnOutside;
         return;
       }
 
-      const edgeDist = getMinDistanceToPolygon(holeCenter, poly);
-      const wallThickness = edgeDist - holeRadius;
+      const wallThickness = getMinDistanceToPolygon(holeCenter, poly) - holeRadius;
 
       if (wallThickness < minSafeMargin) {
         state.holeSafetyStatus = 'edge';
-        box.className = 'p-2.5 rounded-xl border text-xs flex items-center gap-2 transition duration-200 bg-amber-950/50 border-amber-500 text-amber-300';
+        box.className = baseClass + 'bg-amber-950/50 border-amber-500 text-amber-300';
         icon.className = 'fa-solid fa-circle-exclamation text-base text-amber-400';
         text.innerText = translations[currentLang].holeStatusWarnEdge;
       } else {
         state.holeSafetyStatus = 'ok';
-        box.className = 'p-2.5 rounded-xl border text-xs flex items-center gap-2 transition duration-200 bg-emerald-950/40 border-emerald-500/40 text-emerald-300';
+        box.className = baseClass + 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300';
         icon.className = 'fa-solid fa-circle-check text-base text-emerald-400';
         text.innerText = translations[currentLang].holeStatusOk;
       }
     }
 
     /* ==========================================================
-       圖片二值化多邊形萃取演算法
+       圖片輪廓萃取
        ========================================================== */
     function getPolygonArea(pts) {
       let area = 0;
@@ -747,14 +758,11 @@
       return area / 2;
     }
 
+    // 將輪廓依包含關係分成「外框 + 內孔」的 THREE.Shape
     function buildShapesWithHoles(polygons) {
       if (!polygons || polygons.length === 0) return [];
 
-      const polyObjects = polygons.map(pts => ({
-        pts,
-        area: Math.abs(getPolygonArea(pts))
-      }));
-
+      const polyObjects = polygons.map(pts => ({ pts, area: Math.abs(getPolygonArea(pts)) }));
       polyObjects.sort((a, b) => b.area - a.area);
       const shapes = [];
 
@@ -763,9 +771,8 @@
         let parentShape = null;
 
         for (let i = 0; i < shapes.length; i++) {
-          const s = shapes[i];
-          if (isPointInsidePolygon(pt0, s.outerPoly)) {
-            parentShape = s;
+          if (isPointInsidePolygon(pt0, shapes[i].outerPoly)) {
+            parentShape = shapes[i];
             break;
           }
         }
@@ -773,23 +780,15 @@
         if (parentShape) {
           const holePath = new THREE.Path();
           holePath.moveTo(polyObj.pts[0].x, polyObj.pts[0].y);
-          for (let k = 1; k < polyObj.pts.length; k++) {
-            holePath.lineTo(polyObj.pts[k].x, polyObj.pts[k].y);
-          }
+          for (let k = 1; k < polyObj.pts.length; k++) holePath.lineTo(polyObj.pts[k].x, polyObj.pts[k].y);
           holePath.closePath();
           parentShape.shape.holes.push(holePath);
         } else {
           const shape = new THREE.Shape();
           shape.moveTo(polyObj.pts[0].x, polyObj.pts[0].y);
-          for (let k = 1; k < polyObj.pts.length; k++) {
-            shape.lineTo(polyObj.pts[k].x, polyObj.pts[k].y);
-          }
+          for (let k = 1; k < polyObj.pts.length; k++) shape.lineTo(polyObj.pts[k].x, polyObj.pts[k].y);
           shape.closePath();
-
-          shapes.push({
-            shape,
-            outerPoly: polyObj.pts
-          });
+          shapes.push({ shape, outerPoly: polyObj.pts });
         }
       });
 
@@ -800,14 +799,14 @@
       const visited = new Uint8Array(w * h);
       const polygons = [];
       const dirs = [
-        {x: 0, y: -1}, {x: 1, y: -1}, {x: 1, y: 0}, {x: 1, y: 1},
-        {x: 0, y: 1}, {x: -1, y: 1}, {x: -1, y: 0}, {x: -1, y: -1}
+        { x: 0, y: -1 }, { x: 1, y: -1 }, { x: 1, y: 0 }, { x: 1, y: 1 },
+        { x: 0, y: 1 }, { x: -1, y: 1 }, { x: -1, y: 0 }, { x: -1, y: -1 }
       ];
 
       for (let y = 1; y < h - 1; y++) {
         for (let x = 1; x < w - 1; x++) {
           if (binary[y][x] === 1 && !visited[y * w + x]) {
-            if (binary[y-1][x] === 0 || binary[y+1][x] === 0 || binary[y][x-1] === 0 || binary[y][x+1] === 0) {
+            if (binary[y - 1][x] === 0 || binary[y + 1][x] === 0 || binary[y][x - 1] === 0 || binary[y][x + 1] === 0) {
               const points = [];
               let cx = x, cy = y;
               let dirIdx = 0, steps = 0;
@@ -822,10 +821,7 @@
                   const nx = cx + dirs[d].x;
                   const ny = cy + dirs[d].y;
                   if (nx >= 0 && nx < w && ny >= 0 && ny < h && binary[ny][nx] === 1) {
-                    cx = nx;
-                    cy = ny;
-                    dirIdx = d;
-                    foundNext = true;
+                    cx = nx; cy = ny; dirIdx = d; foundNext = true;
                     break;
                   }
                 }
@@ -867,55 +863,42 @@
       const previewCanvas = document.getElementById('previewCanvas');
       previewCanvas.width = w;
       previewCanvas.height = h;
-      const pCtx = previewCanvas.getContext('2d');
-      pCtx.drawImage(canvas, 0, 0);
+      previewCanvas.getContext('2d').drawImage(canvas, 0, 0);
 
       const binary = [];
       for (let y = 0; y < h; y++) {
         binary[y] = [];
         for (let x = 0; x < w; x++) {
           const idx = (y * w + x) * 4;
-          const r = imgData[idx];
-          const g = imgData[idx + 1];
-          const b = imgData[idx + 2];
-          const a = imgData[idx + 3];
-          const brightness = 0.299 * r + 0.587 * g + 0.114 * b;
-          let solid = (a > 60 && brightness < threshold);
+          const brightness = 0.299 * imgData[idx] + 0.587 * imgData[idx + 1] + 0.114 * imgData[idx + 2];
+          let solid = (imgData[idx + 3] > 60 && brightness < threshold);
           if (invert) solid = !solid;
           binary[y][x] = solid ? 1 : 0;
         }
       }
 
-      const polygons = traceAllContours(binary, w, h);
-      return { polygons, w, h };
+      return { polygons: traceAllContours(binary, w, h), w, h };
     }
 
     /* ==========================================================
-       真向量數學文字生成 (直接調用 opentype 貝茲曲線，零馬賽克)
+       真向量文字生成
        ========================================================== */
     function generateTrueVectorTextShapes(text, fontSize, rotRad, offsetX, offsetY) {
       if (!text || text.trim() === '' || !state.loadedFont) return [];
 
-      const font = state.loadedFont;
-      const openPath = font.getPath(text.trim(), 0, 0, fontSize);
+      const openPath = state.loadedFont.getPath(text.trim(), 0, 0, fontSize);
       const svgPathString = openPath.toPathData(3);
-
       if (!svgPathString) return [];
 
       const svgWrap = `<svg xmlns="http://www.w3.org/2000/svg"><path d="${svgPathString}" fill="#000" /></svg>`;
-      const loader = new THREE.SVGLoader();
-      const svgData = loader.parse(svgWrap);
+      const svgData = new THREE.SVGLoader().parse(svgWrap);
       const rawShapes = [];
-      svgData.paths.forEach(p => {
-        rawShapes.push(...THREE.SVGLoader.createShapes(p));
-      });
-
+      svgData.paths.forEach(p => rawShapes.push(...THREE.SVGLoader.createShapes(p)));
       if (rawShapes.length === 0) return [];
 
       let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
       rawShapes.forEach(shape => {
-        const pts = shape.getPoints();
-        pts.forEach(pt => {
+        shape.getPoints().forEach(pt => {
           if (pt.x < minX) minX = pt.x;
           if (pt.x > maxX) maxX = pt.x;
           if (pt.y < minY) minY = pt.y;
@@ -928,20 +911,15 @@
       const cosR = Math.cos(rotRad);
       const sinR = Math.sin(rotRad);
 
-      const transformedShapes = [];
+      const transform = (x, y) => {
+        const lx = x - centerX;
+        const ly = -(y - centerY);
+        return { x: lx * cosR - ly * sinR + offsetX, y: lx * sinR + ly * cosR + offsetY };
+      };
 
-      rawShapes.forEach(rawShape => {
+      return rawShapes.map(rawShape => {
         const shape = new THREE.Shape();
         const pts = rawShape.getPoints();
-
-        const transform = (x, y) => {
-          const lx = x - centerX;
-          const ly = -(y - centerY);
-          const rx = lx * cosR - ly * sinR + offsetX;
-          const ry = lx * sinR + ly * cosR + offsetY;
-          return { x: rx, y: ry };
-        };
-
         const p0 = transform(pts[0].x, pts[0].y);
         shape.moveTo(p0.x, p0.y);
         for (let i = 1; i < pts.length; i++) {
@@ -950,29 +928,169 @@
         }
         shape.closePath();
 
-        if (rawShape.holes && rawShape.holes.length > 0) {
-          rawShape.holes.forEach(rawHole => {
-            const hPts = rawHole.getPoints();
-            const holePath = new THREE.Path();
-            const hp0 = transform(hPts[0].x, hPts[0].y);
-            holePath.moveTo(hp0.x, hp0.y);
-            for (let k = 1; k < hPts.length; k++) {
-              const hp = transform(hPts[k].x, hPts[k].y);
-              holePath.lineTo(hp.x, hp.y);
-            }
-            holePath.closePath();
-            shape.holes.push(holePath);
-          });
-        }
+        (rawShape.holes || []).forEach(rawHole => {
+          const hPts = rawHole.getPoints();
+          const holePath = new THREE.Path();
+          const hp0 = transform(hPts[0].x, hPts[0].y);
+          holePath.moveTo(hp0.x, hp0.y);
+          for (let k = 1; k < hPts.length; k++) {
+            const hp = transform(hPts[k].x, hPts[k].y);
+            holePath.lineTo(hp.x, hp.y);
+          }
+          holePath.closePath();
+          shape.holes.push(holePath);
+        });
 
-        transformedShapes.push(shape);
+        return shape;
       });
-
-      return transformedShapes;
     }
 
     /* ==========================================================
-       重新建構 3D 模型
+       2D 聯集工具（polygon-clipping）
+       ========================================================== */
+    function ringFromPts(pts) {
+      const r = [];
+      pts.forEach(p => {
+        const last = r[r.length - 1];
+        if (!last || Math.hypot(last[0] - p.x, last[1] - p.y) > 1e-6) r.push([p.x, p.y]);
+      });
+      if (r.length > 1) {
+        const f = r[0], l = r[r.length - 1];
+        if (Math.hypot(f[0] - l[0], f[1] - l[1]) <= 1e-6) r.pop();
+      }
+      if (r.length < 3) return null;
+      r.push([r[0][0], r[0][1]]); // 封閉
+      return r;
+    }
+
+    // THREE.Shape → polygon-clipping 的 Polygon（外框 + 內孔）
+    function shapeToPoly(shape, div = 12) {
+      const ex = shape.extractPoints(div);
+      const outer = ringFromPts(ex.shape);
+      if (!outer) return null;
+      const poly = [outer];
+      ex.holes.forEach(h => {
+        const r = ringFromPts(h);
+        if (r) poly.push(r);
+      });
+      return poly;
+    }
+
+    function circleMP(cx, cy, r, seg = 48) {
+      const ring = [];
+      for (let i = 0; i < seg; i++) {
+        const a = (i / seg) * Math.PI * 2;
+        ring.push([cx + Math.cos(a) * r, cy + Math.sin(a) * r]);
+      }
+      ring.push([ring[0][0], ring[0][1]]);
+      return [[ring]];
+    }
+
+    function shapesToMP(shapes) {
+      const polys = shapes.map(s => shapeToPoly(s)).filter(Boolean);
+      if (polys.length === 0) return [];
+      return window.polygonClipping.union(polys);
+    }
+
+    function unionList(list) {
+      const items = list.filter(mp => mp && mp.length > 0);
+      if (items.length === 0) return [];
+      return window.polygonClipping.union(...items);
+    }
+
+    function differenceList(subject, clips) {
+      if (!subject || subject.length === 0) return [];
+      const cl = clips.filter(mp => mp && mp.length > 0);
+      if (cl.length === 0) return subject;
+      return window.polygonClipping.difference(subject, ...cl);
+    }
+
+    // 計算封閉環的面積（絕對值）
+    function ringArea(ring) {
+      let a = 0;
+      for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+        a += ring[j][0] * ring[i][1] - ring[i][0] * ring[j][1];
+      }
+      return Math.abs(a / 2);
+    }
+
+    // 座標對齊到 0.001 mm 格點，並移除因此重複的點
+    // 底板區與浮雕區使用同一個函式，交界牆面的座標完全一致，避免微小縫隙
+    function snapRing(ring, grid = 0.001) {
+      const out = [];
+      ring.slice(0, -1).forEach(p => {
+        const x = Math.round(p[0] / grid) * grid;
+        const y = Math.round(p[1] / grid) * grid;
+        const last = out[out.length - 1];
+        if (!last || last[0] !== x || last[1] !== y) out.push([x, y]);
+      });
+      if (out.length > 1) {
+        const f = out[0], l = out[out.length - 1];
+        if (f[0] === l[0] && f[1] === l[1]) out.pop();
+      }
+      if (out.length < 3) return null;
+      out.push([out[0][0], out[0][1]]);
+      return out;
+    }
+
+    // 對齊格點並清除面積過小的碎片與微小孔洞
+    function cleanMP(mp, minArea = 0.08) {
+      const out = [];
+      mp.forEach(poly => {
+        const outer = snapRing(poly[0]);
+        if (!outer || ringArea(outer) < minArea) return;
+        const cleaned = [outer];
+        for (let i = 1; i < poly.length; i++) {
+          const hole = snapRing(poly[i]);
+          if (hole && ringArea(hole) >= minArea) cleaned.push(hole);
+        }
+        out.push(cleaned);
+      });
+      return out;
+    }
+
+    // 合併後的 MultiPolygon → 擠出網格（無 bevel，高度精準）
+    function mpToMeshes(mp, depth, z0, material, group) {
+      mp.forEach(poly => {
+        const toV = ring => ring.slice(0, -1).map(p => new THREE.Vector2(p[0], p[1]));
+        const shape = new THREE.Shape(toV(poly[0]));
+        for (let i = 1; i < poly.length; i++) {
+          shape.holes.push(new THREE.Path(toV(poly[i])));
+        }
+        const geo = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false, curveSegments: 1 });
+        if (z0) geo.translate(0, 0, z0);
+        group.add(new THREE.Mesh(geo, material));
+      });
+    }
+
+    function extrudeShape(shape, depth, z0, material, group) {
+      const geo = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false });
+      if (z0) geo.translate(0, 0, z0);
+      group.add(new THREE.Mesh(geo, material));
+    }
+
+    /* ==========================================================
+       合併狀態標籤
+       ========================================================== */
+    function renderMergeBadge() {
+      const badge = document.getElementById('mergeBadge');
+      const t = translations[currentLang];
+      const h = state.modelHeight ? `｜${t.heightLabel} ${state.modelHeight.toFixed(2)} mm` : '';
+      if (state.mergeOk) {
+        badge.className = 'bg-slate-900/85 backdrop-blur border border-slate-700/80 px-3 py-1 rounded-full text-xs text-emerald-400 flex items-center gap-1.5 shadow';
+        badge.innerHTML = `<i class="fa-solid fa-circle-check"></i><span>${t.mergeOk}${h}</span>`;
+      } else {
+        badge.className = 'bg-slate-900/85 backdrop-blur border border-amber-500/60 px-3 py-1 rounded-full text-xs text-amber-400 flex items-center gap-1.5 shadow';
+        badge.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i><span>${t.mergeFallback}${h}</span>`;
+      }
+    }
+
+    /* ==========================================================
+       建構 3D 模型
+       做法：
+       1) 浮雕區（星星 + 文字 + 其餘圖形）：Z = 0 ~ 總厚度，從平台直接長起
+       2) 底板其餘區域：Z = 0 ~ 底板厚度（已扣掉浮雕區，避免重疊）
+       3) 兩區交界座標全部對齊 0.001 mm 格點，牆面完全重合
        ========================================================== */
     function update3DModel() {
       if (!state.image) return;
@@ -982,7 +1100,6 @@
       const hasBase = state.preset !== 'silhouette';
       const textSection = document.getElementById('textSection');
       const customTextInput = document.getElementById('customTextInput');
-
       if (!hasBase) {
         textSection.classList.add('opacity-40', 'pointer-events-none');
         customTextInput.disabled = true;
@@ -993,155 +1110,121 @@
 
       const { polygons, w, h } = extractSmoothContours(state.image, state.threshold, state.invert);
 
-      if (currentGroup) {
-        scene.remove(currentGroup);
-      }
-      currentGroup = new THREE.Group();
+      // 清除舊模型與警示環
+      if (currentGroup) { scene.remove(currentGroup); disposeObject(currentGroup); }
+      if (indicatorMesh) { scene.remove(indicatorMesh); indicatorMesh.geometry.dispose(); indicatorMesh = null; }
 
       const isTaiwan = state.preset === 'taiwan';
-      const baseTargetSize = isTaiwan ? 22 : 38; 
-      const targetSize = baseTargetSize * state.graphicScale;
-      const scale = targetSize / Math.max(w, h);
+      const baseTargetSize = isTaiwan ? 22 : 38;
+      const scale = (baseTargetSize * state.graphicScale) / Math.max(w, h);
+      const baseH = state.baseThickness;
+      const thickness = state.thickness;
 
-      const silMaterial = new THREE.MeshStandardMaterial({
-        color: 0x38bdf8,
-        roughness: 0.35,
-        metalness: 0.1,
-      });
+      const silMaterial = new THREE.MeshStandardMaterial({ color: 0x38bdf8, roughness: 0.35, metalness: 0.1 });
+      const baseMaterial = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.5 });
 
-      const textMaterial = new THREE.MeshStandardMaterial({
-        color: 0x38bdf8,
-        roughness: 0.3,
-        metalness: 0.15,
-      });
-
-      const baseMaterial = new THREE.MeshStandardMaterial({
-        color: 0x1e293b,
-        roughness: 0.5,
-      });
-
-      const baseH = state.baseThickness; // 1.6 mm
-
-      // 1. 底板建構
-      if (hasBase) {
-        const baseShape = createBaseShape(state.preset, 42);
-
-        if (state.holeMode === 'hole') {
-          const holePath = new THREE.Path();
-          holePath.absarc(state.ringX, state.ringY, state.holeSize / 2, 0, Math.PI * 2, true);
-          baseShape.holes.push(holePath);
-        }
-
-        const baseGeo = new THREE.ExtrudeGeometry(baseShape, {
-          depth: baseH,
-          bevelEnabled: true,
-          bevelThickness: 0.25,
-          bevelSize: 0.2,
-          bevelSegments: 2
-        });
-
-        const baseMesh = new THREE.Mesh(baseGeo, baseMaterial);
-        currentGroup.add(baseMesh);
-
-        // 3D 視覺孔洞警示環
-        if (state.holeMode === 'hole') {
-          const ringColor = state.holeSafetyStatus === 'outside' ? 0xef4444 : 
-                           (state.holeSafetyStatus === 'edge' ? 0xf59e0b : 0x10b981);
-          const indicatorGeo = new THREE.RingGeometry(state.holeSize / 2, state.holeSize / 2 + 0.6, 32);
-          const indicatorMat = new THREE.MeshBasicMaterial({ 
-            color: ringColor, 
-            side: THREE.DoubleSide,
-            transparent: true,
-            opacity: state.holeSafetyStatus === 'ok' ? 0.35 : 0.95
-          });
-          const indicatorMesh = new THREE.Mesh(indicatorGeo, indicatorMat);
-          indicatorMesh.position.set(state.ringX, state.ringY, baseH + 0.05);
-          currentGroup.add(indicatorMesh);
-        }
-      }
-
-      // 2. 剪影本體 (智慧接地技術，外凸不懸空)
+      // ---- 準備各部件的 2D 形狀 ----
+      let imageShapes = [];
       if (polygons.length > 0) {
-        const baseOffsetX = isTaiwan ? 1.5 : 0;
-        const baseOffsetY = isTaiwan ? -1.0 : 0;
-        const totalX = baseOffsetX + state.graphicX;
-        const totalY = baseOffsetY + state.graphicY;
-
-        const transformedPolys = polygons.map(pts => {
-          return pts.map(pt => ({
-            x: (pt.x - w / 2) * scale + totalX,
-            y: -(pt.y - h / 2) * scale + totalY
-          }));
-        });
-
-        const imageShapes = buildShapesWithHoles(transformedPolys);
-        imageShapes.forEach(shape => {
-          const extrudeSettings = {
-            depth: state.thickness,
-            bevelEnabled: true,
-            bevelThickness: 0.3,
-            bevelSize: 0.2,
-            bevelSegments: 2
-          };
-          const geom = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-          const mesh = new THREE.Mesh(geom, silMaterial);
-          currentGroup.add(mesh);
-        });
+        const totalX = (isTaiwan ? 1.5 : 0) + state.graphicX;
+        const totalY = (isTaiwan ? -1.0 : 0) + state.graphicY;
+        const transformed = polygons.map(pts => pts.map(pt => ({
+          x: (pt.x - w / 2) * scale + totalX,
+          y: -(pt.y - h / 2) * scale + totalY
+        })));
+        imageShapes = buildShapesWithHoles(transformed);
       }
 
-      // 3. 真向量中英文立體文字 (直線完全平滑，零鋸齒，孔洞清晰穿透)
+      let textShapes = [];
       if (hasBase && state.text && state.text.trim() !== '') {
-        const rotRad = (state.textRot * Math.PI) / 180;
-        const textShapes = generateTrueVectorTextShapes(
-          state.text,
-          state.textSize,
-          rotRad,
-          state.textX,
-          state.textY
+        textShapes = generateTrueVectorTextShapes(
+          state.text, state.textSize, (state.textRot * Math.PI) / 180, state.textX, state.textY
         );
-
-        textShapes.forEach(shape => {
-          const textGeo = new THREE.ExtrudeGeometry(shape, {
-            depth: state.thickness,
-            bevelEnabled: true,
-            bevelThickness: 0.2,
-            bevelSize: 0.15,
-            bevelSegments: 2
-          });
-          const textMesh = new THREE.Mesh(textGeo, textMaterial);
-          currentGroup.add(textMesh);
-        });
       }
 
-      // 4. 外接耳環 (齊平底板高度 1.6mm)
-      if (state.holeMode === 'ring' || !hasBase) {
-        const ringOuterR = (state.holeSize / 2) + 2.2;
-        const ringInnerR = state.holeSize / 2;
-        const ringThickness = hasBase ? baseH : state.thickness;
+      const needRing = state.holeMode === 'ring' || !hasBase;
+      const holeR = state.holeSize / 2;
 
-        const ringShape = new THREE.Shape();
-        ringShape.absarc(0, 0, ringOuterR, 0, Math.PI * 2, false);
-        const holePath = new THREE.Path();
-        holePath.absarc(0, 0, ringInnerR, 0, Math.PI * 2, true);
-        ringShape.holes.push(holePath);
+      let group = new THREE.Group();
+      let merged = true;
 
-        const ringGeo = new THREE.ExtrudeGeometry(ringShape, {
-          depth: ringThickness,
-          bevelEnabled: true,
-          bevelThickness: 0.2,
-          bevelSize: 0.15,
-          bevelSegments: 2
-        });
+      try {
+        if (typeof window.polygonClipping === 'undefined') throw new Error('polygon-clipping 未載入');
 
-        ringGeo.translate(state.ringX, state.ringY, 0);
-        const ringMesh = new THREE.Mesh(ringGeo, hasBase ? baseMaterial : silMaterial);
-        currentGroup.add(ringMesh);
+        // 星星 + 文字合併成同一個浮雕區（兩者完全相同的處理方式）
+        const reliefMP = shapesToMP([...imageShapes, ...textShapes]);
+        const ringMP = needRing ? circleMP(state.ringX, state.ringY, holeR + 2.2) : [];
+        const holeMP = circleMP(state.ringX, state.ringY, holeR);        // 鑰匙孔貫穿所有層
+
+        if (hasBase) {
+          const baseMP = shapesToMP([createBaseShape(state.preset, 42)]);
+          // 整體外輪廓 = 底板 ∪ 浮雕 ∪ 吊環（浮雕超出底板邊緣的部分也會被包含）
+          const fullMP = unionList([baseMP, reliefMP, ringMP]);
+
+          // 浮雕區：從平台 Z=0 長到總厚度
+          const reliefSolid = cleanMP(differenceList(reliefMP, [holeMP]));
+          // 底板其餘區域：從平台 Z=0 長到底板厚度（扣掉浮雕區與鑰匙孔）
+          const baseOnly = cleanMP(differenceList(differenceList(fullMP, [reliefMP]), [holeMP]));
+
+          mpToMeshes(baseOnly, baseH, 0, baseMaterial, group);
+          mpToMeshes(reliefSolid, thickness, 0, silMaterial, group);
+        } else {
+          // 純剪影：圖形 + 吊環合併為一體，全厚度
+          const fullMP = unionList([reliefMP, ringMP]);
+          const solid = cleanMP(differenceList(fullMP, [holeMP]));
+          mpToMeshes(solid, thickness, 0, silMaterial, group);
+        }
+      } catch (err) {
+        console.warn('2D 聯集失敗，退回重疊模式：', err);
+        merged = false;
+        disposeObject(group);
+        group = new THREE.Group();
+
+        if (hasBase) {
+          const baseShape = createBaseShape(state.preset, 42);
+          if (state.holeMode === 'hole') {
+            const hp = new THREE.Path();
+            hp.absarc(state.ringX, state.ringY, holeR, 0, Math.PI * 2, true);
+            baseShape.holes.push(hp);
+          }
+          extrudeShape(baseShape, baseH, 0, baseMaterial, group);
+        }
+        imageShapes.forEach(s => extrudeShape(s, thickness, 0, silMaterial, group));
+        textShapes.forEach(s => extrudeShape(s, thickness, 0, silMaterial, group));
+        if (needRing) {
+          const rs = new THREE.Shape();
+          rs.absarc(state.ringX, state.ringY, holeR + 2.2, 0, Math.PI * 2, false);
+          const hp = new THREE.Path();
+          hp.absarc(state.ringX, state.ringY, holeR, 0, Math.PI * 2, true);
+          rs.holes.push(hp);
+          extrudeShape(rs, hasBase ? baseH : thickness, 0, hasBase ? baseMaterial : silMaterial, group);
+        }
       }
 
+      currentGroup = group;
       scene.add(currentGroup);
+
+      // ---- 孔洞警示環（僅預覽，不屬於 currentGroup，不會匯出）----
+      if (hasBase && state.holeMode === 'hole') {
+        const ringColor = state.holeSafetyStatus === 'outside' ? 0xef4444 :
+          (state.holeSafetyStatus === 'edge' ? 0xf59e0b : 0x10b981);
+        const indGeo = new THREE.RingGeometry(holeR, holeR + 0.6, 32);
+        const indMat = new THREE.MeshBasicMaterial({
+          color: ringColor, side: THREE.DoubleSide, transparent: true,
+          opacity: state.holeSafetyStatus === 'ok' ? 0.35 : 0.95
+        });
+        indicatorMesh = new THREE.Mesh(indGeo, indMat);
+        indicatorMesh.position.set(state.ringX, state.ringY, baseH + 0.05);
+        scene.add(indicatorMesh);
+      }
+
+      // ---- 更新狀態標籤（顯示實際高度）----
+      const box = new THREE.Box3().setFromObject(currentGroup);
+      state.modelHeight = box.isEmpty() ? 0 : (box.max.z - box.min.z);
+      state.mergeOk = merged;
+      renderMergeBadge();
     }
 
-    // 動畫循環
     function animate() {
       requestAnimationFrame(animate);
       controls.update();
@@ -1162,28 +1245,20 @@
 
       ctx.fillStyle = '#000000';
       ctx.beginPath();
-      const cx = 80, cy = 80;
-      const outerR = 60, innerR = 25;
+      const cx = 80, cy = 80, outerR = 60, innerR = 25;
       for (let i = 0; i < 5; i++) {
-        const outerAngle = (i * 72 - 90) * Math.PI / 180;
-        const innerAngle = (i * 72 + 36 - 90) * Math.PI / 180;
-        const ox = cx + Math.cos(outerAngle) * outerR;
-        const oy = cy + Math.sin(outerAngle) * outerR;
-        if (i === 0) ctx.moveTo(ox, oy);
-        else ctx.lineTo(ox, oy);
-
-        const ix = cx + Math.cos(innerAngle) * innerR;
-        const iy = cy + Math.sin(innerAngle) * innerR;
-        ctx.lineTo(ix, iy);
+        const oa = (i * 72 - 90) * Math.PI / 180;
+        const ia = (i * 72 + 36 - 90) * Math.PI / 180;
+        const ox = cx + Math.cos(oa) * outerR;
+        const oy = cy + Math.sin(oa) * outerR;
+        if (i === 0) ctx.moveTo(ox, oy); else ctx.lineTo(ox, oy);
+        ctx.lineTo(cx + Math.cos(ia) * innerR, cy + Math.sin(ia) * innerR);
       }
       ctx.closePath();
       ctx.fill();
 
       const img = new Image();
-      img.onload = () => {
-        state.image = img;
-        update3DModel();
-      };
+      img.onload = () => { state.image = img; update3DModel(); };
       img.src = c.toDataURL();
     }
     loadDefaultStarImage();
@@ -1210,29 +1285,23 @@
       const reader = new FileReader();
       reader.onload = (e) => {
         const img = new Image();
-        img.onload = () => {
-          state.image = img;
-          update3DModel();
-        };
+        img.onload = () => { state.image = img; update3DModel(); };
         img.src = e.target.result;
       };
       reader.readAsDataURL(file);
     }
 
-    // 門檻
     document.getElementById('thresholdInput').addEventListener('input', (e) => {
       state.threshold = parseInt(e.target.value);
       document.getElementById('thresholdVal').innerText = state.threshold;
       update3DModel();
     });
 
-    // 反轉黑白
     document.getElementById('invertBtn').addEventListener('click', () => {
       state.invert = !state.invert;
       update3DModel();
     });
 
-    // 圖案位移與縮放
     document.getElementById('graphicScaleInput').addEventListener('input', (e) => {
       const pct = parseInt(e.target.value);
       state.graphicScale = pct / 100;
@@ -1265,9 +1334,8 @@
       update3DModel();
     });
 
-    // 立體刻字 UI 監聽
-    const customTextInput = document.getElementById('customTextInput');
-    customTextInput.addEventListener('input', (e) => {
+    // 立體文字
+    document.getElementById('customTextInput').addEventListener('input', (e) => {
       state.text = e.target.value;
       update3DModel();
     });
@@ -1318,7 +1386,6 @@
       update3DModel();
     });
 
-    // 吊環/孔洞 X/Y 軸微調
     document.getElementById('ringXInput').addEventListener('input', (e) => {
       state.ringX = parseFloat(e.target.value);
       document.getElementById('ringXVal').innerText = state.ringX.toFixed(1) + ' mm';
@@ -1331,7 +1398,6 @@
       update3DModel();
     });
 
-    // 吊孔重置
     document.getElementById('resetRingPos').addEventListener('click', () => {
       state.ringX = state.preset === 'taiwan' ? 10.0 : 0;
       state.ringY = state.preset === 'taiwan' ? 24.0 : (state.holeMode === 'hole' ? 20 : 27);
@@ -1342,14 +1408,12 @@
       update3DModel();
     });
 
-    // 厚度
     document.getElementById('thicknessInput').addEventListener('input', (e) => {
       state.thickness = parseFloat(e.target.value);
       document.getElementById('thicknessVal').innerText = state.thickness.toFixed(1) + ' mm';
       update3DModel();
     });
 
-    // 孔徑
     document.getElementById('holeSizeInput').addEventListener('input', (e) => {
       state.holeSize = parseFloat(e.target.value);
       document.getElementById('holeSizeVal').innerText = state.holeSize.toFixed(1) + ' mm';
@@ -1370,12 +1434,11 @@
         if (state.preset === 'taiwan') {
           state.ringX = 10.0;
           state.ringY = 24.0;
-          state.textY = -13.0;
         } else {
           state.ringX = 0;
           state.ringY = state.holeMode === 'hole' ? 20 : 27;
-          state.textY = -13.0;
         }
+        state.textY = -13.0;
         document.getElementById('ringXInput').value = state.ringX;
         document.getElementById('ringYInput').value = state.ringY;
         document.getElementById('ringXVal').innerText = state.ringX + ' mm';
@@ -1386,18 +1449,17 @@
     });
 
     /* ==========================================================
-       匯出 STL 檔案
+       匯出 STL（只匯出 currentGroup 的實體零件，不含警示環）
+       檔名帶版本號，方便日後追查是哪一版產生的
        ========================================================== */
     document.getElementById('exportStlBtn').addEventListener('click', () => {
       if (!currentGroup) return;
 
-      if (state.holeMode === 'hole' && state.holeSafetyStatus === 'outside') {
-        const confirmMsg = currentLang === 'zh' ? 
+      if (state.preset !== 'silhouette' && state.holeMode === 'hole' && state.holeSafetyStatus === 'outside') {
+        const confirmMsg = currentLang === 'zh' ?
           '【注意】孔洞目前位在底板外面，印出來可能無法穿鑰匙圈！\n建議將孔洞移入底板內再下載。\n\n確定仍要強制下載嗎？' :
           '[Warning] The hole is outside the plate! Continue?';
-        if (!confirm(confirmMsg)) {
-          return;
-        }
+        if (!confirm(confirmMsg)) return;
       }
 
       const exporter = new THREE.STLExporter();
@@ -1405,7 +1467,7 @@
       const blob = new Blob([result], { type: 'application/octet-stream' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
-      link.download = `keychain_${state.preset}_${Date.now()}.stl`;
+      link.download = `keychain_${state.preset}_v${APP_VERSION}_${Date.now()}.stl`;
       link.click();
       URL.revokeObjectURL(link.href);
     });
