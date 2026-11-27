@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>公仔黏土預設造型 | Clay Presets for SculptGL</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+/* ===== 基本色彩與版面(想換顏色改這裡) ===== */
+:root{--bg:#0f172a;--card:#1e293b;--accent:#38bdf8;--text:#f1f5f9;--muted:#94a3b8}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Noto Sans TC',sans-serif;background:var(--bg);color:var(--text);line-height:1.6}
+.wrap{max-width:1100px;margin:0 auto;padding:0 20px}
+
+/* ===== 導覽列 ===== */
+nav{position:sticky;top:0;z-index:10;background:rgba(15,23,42,.9);backdrop-filter:blur(8px);border-bottom:1px solid #1e293b}
+nav .wrap{display:flex;justify-content:space-between;align-items:center;height:60px}
+.logo{font-weight:700;font-size:1.1rem}.logo i{color:var(--accent);margin-right:8px}
+.langbtn{background:transparent;border:1px solid var(--accent);color:var(--accent);padding:6px 14px;border-radius:999px;cursor:pointer;font-family:inherit}
+.langbtn:hover{background:var(--accent);color:var(--bg)}
+
+/* ===== Hero ===== */
+.hero{text-align:center;padding:60px 0 30px}
+.hero h1{font-size:clamp(1.8rem,5vw,3rem);margin-bottom:12px}
+.hero h1 span{color:var(--accent)}
+.hero p{color:var(--muted);max-width:620px;margin:0 auto 22px}
+.btn{display:inline-block;background:var(--accent);color:#0f172a;border:none;padding:10px 20px;border-radius:12px;font-weight:700;cursor:pointer;font-family:inherit;text-decoration:none;font-size:.95rem}
+.btn:hover{filter:brightness(1.1);transform:translateY(-1px)}
+
+/* ===== 使用步驟 ===== */
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin:30px 0}
+.step{background:var(--card);border-radius:16px;padding:18px;border:1px solid #334155}
+.step b{color:var(--accent);font-size:1.4rem;display:block}
+
+/* ===== 工具列 ===== */
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center;margin:30px 0 16px}
+.tags{display:flex;flex-wrap:wrap;gap:8px}
+.tag{background:var(--card);color:var(--text);border:1px solid #334155;padding:6px 16px;border-radius:999px;cursor:pointer;font-family:inherit}
+.tag.active,.tag:hover{background:var(--accent);color:#0f172a;border-color:var(--accent)}
+.opts{display:flex;flex-wrap:wrap;gap:14px}
+select{background:var(--card);color:var(--text);border:1px solid #334155;border-radius:8px;padding:6px 10px;font-family:inherit}
+
+/* ===== 卡片 ===== */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:18px;padding-bottom:40px}
+.card{background:var(--card);border-radius:18px;overflow:hidden;box-shadow:0 4px 14px rgba(0,0,0,.35);transition:.25s;border:1px solid #334155}
+.card:hover{transform:translateY(-5px);box-shadow:0 10px 26px rgba(56,189,248,.18)}
+.card canvas{width:100%;aspect-ratio:1;display:block;background:radial-gradient(circle at 50% 40%,#334155,#1e293b);cursor:grab}
+.card .info{padding:14px}
+.card h3{font-size:1.05rem}
+.card p{color:var(--muted);font-size:.85rem;margin:4px 0 12px;min-height:40px}
+.card .btn{width:100%;text-align:center}
+
+footer{text-align:center;color:var(--muted);padding:30px 0;border-top:1px solid #1e293b;font-size:.85rem}
+</style>
+</head>
+<body>
+
+<!-- ① 導覽列 -->
+<nav><div class="wrap">
+  <div class="logo"><i class="fa-solid fa-cubes"></i><span data-i18n="logo"></span></div>
+  <button class="langbtn" id="langBtn">EN</button>
+</div></nav>
+
+<!-- ② Hero -->
+<header class="hero wrap">
+  <h1><span data-i18n="h1a"></span><span style="color:#fff" data-i18n="h1b"></span></h1>
+  <p data-i18n="sub"></p>
+  <a class="btn" href="https://stephaneginier.com/sculptgl/" target="_blank" rel="noopener"><i class="fa-solid fa-arrow-up-right-from-square"></i> <span data-i18n="open"></span></a>
+</header>
+
+<main class="wrap">
+  <!-- 使用步驟 -->
+  <section class="steps">
+    <div class="step"><b>1</b><span data-i18n="s1"></span></div>
+    <div class="step"><b>2</b><span data-i18n="s2"></span></div>
+    <div class="step"><b>3</b><span data-i18n="s3"></span></div>
+  </section>
+
+  <!-- ③ 篩選 + 選項 -->
+  <div class="toolbar">
+    <div class="tags" id="tags"></div>
+    <div class="opts">
+      <label><span data-i18n="size"></span>
+        <select id="size">
+          <option value="0.6" data-i18n="z1"></option>
+          <option value="1" data-i18n="z2" selected></option>
+          <option value="1.5" data-i18n="z3"></option>
+        </select>
+      </label>
+      <!-- 細緻度:value 是「每個面切成幾格」,總面數約 = 6 × 格數 × 格數 -->
+      <label><span data-i18n="detail"></span>
+        <select id="detail">
+          <option value="40" data-i18n="d1"></option>
+          <option value="80" data-i18n="d2"></option>
+          <option value="115" data-i18n="d3" selected></option>
+        </select>
+      </label>
+    </div>
+  </div>
+
+  <!-- ④ 造型卡片 -->
+  <section class="grid" id="grid"></section>
+</main>
+
+<!-- ⑥ 頁尾 -->
+<footer><span data-i18n="foot"></span></footer>
+
+<script>
+/* ==================================================
+   大小基準(已確認 30 最合適)
+================================================== */
+const BASE_SCALE = 30;
+
+/* ==================================================
+   文字集中管理(中英雙語):要改文字請改這裡
+================================================== */
+const I18N = {
+  zh:{
+    logo:"公仔黏土預設造型",h1a:"先拿一塊黏土,",h1b:"再開始捏公仔!",
+    sub:"下載基本造型檔(.obj),匯入 SculptGL 就能直接開始雕刻。角色只提供身體與頭,五官、耳朵、手腳、尾巴由你自己捏!",
+    open:"開啟 SculptGL",
+    s1:"點下方卡片的「下載」,得到 .obj 檔",
+    s2:"打開 SculptGL,點選單 Files(檔案)→ Import(匯入)",
+    s3:"選擇剛下載的檔案,黏土就出現了,開始捏吧!",
+    size:"黏土大小:",z1:"小",z2:"標準",z3:"大",
+    detail:"黏土細緻度:",d1:"粗(約 1 萬面,電腦較慢時用)",d2:"中(約 4 萬面)",d3:"細(約 8 萬面,推薦)",
+    all:"全部",cat_basic:"基本形狀",cat_body:"身體部位",cat_char:"角色",cat_special:"特殊造型",
+    dl:"下載 .obj",
+    foot:"© 2026 公仔黏土預設造型 · 檔案可自由使用於教學",
+    n:{sphere:"圓球",cube:"方塊(圓角)",cylinder:"圓柱",cone:"圓錐",pyramid:"金字塔",disc:"圓餅",
+       egg:"蛋形",capsule:"膠囊(水平・動物身體)",limb:"細長條(手腳)",drop:"水滴",torus:"甜甜圈",
+       duckB:"黃色小鴨・身體",duckH:"黃色小鴨・頭",
+       pikaB:"皮卡丘・身體",pikaH:"皮卡丘・頭",
+       kittyB:"Hello Kitty・身體",kittyH:"Hello Kitty・頭",
+       bearB:"小熊・身體",bearH:"小熊・頭",
+       slime:"史萊姆・圓潤款",slimeTip:"史萊姆・尖頂款",
+       cornerB:"角落生物・身體",cornerH:"角落生物・頭"},
+    d:{sphere:"最萬用!頭、眼睛、鼻子、手掌",cube:"方頭、積木、機器人身體",cylinder:"帽子、腳、脖子、桶子",cone:"角、帽子、胡蘿蔔鼻",
+       pyramid:"屋頂、尖帽、怪獸牙齒",disc:"底座、帽簷、耳朵、盤子",egg:"身體、頭、動物的肚子",
+       capsule:"橫放的長條身體,適合貓、狗、小豬等四隻腳動物",
+       limb:"手臂、腿、尾巴、觸手",drop:"耳朵、眼淚、葉子、尾巴",torus:"圈圈、手環、甜甜圈、耳環",
+       duckB:"圓胖身體,尾巴微翹、底部平平(朝右)",duckH:"圓圓的鴨頭,下巴略平",
+       pikaB:"上窄下寬的洋梨形,肚子圓圓的",pikaH:"左右寬的橫橢圓頭,下方臉頰略寬",
+       kittyB:"小小的鐘形身體,上窄下寬",kittyH:"又寬又扁的大頭,臉頰圓圓",
+       bearB:"圓滾滾的胖胖熊身體,底部平整",bearH:"圓圓的熊頭,稍微寬一點",
+       slime:"半圓饅頭形,底部平平,軟軟的",slimeTip:"經典水滴造型,頂端微尖",
+       cornerB:"軟綿綿的麻糬身體,底部平平可靠牆",cornerH:"寬扁的圓頭,可愛懶洋洋"}
+  },
+  en:{
+    logo:"Clay Presets for Figurines",h1a:"Grab some clay, ",h1b:"then sculpt your figure!",
+    sub:"Download base shapes (.obj) and import them into SculptGL. Characters come with body and head only — add faces, ears, limbs and tails yourself!",
+    open:"Open SculptGL",
+    s1:"Click “Download” on any card to get an .obj file",
+    s2:"Open SculptGL, then Files → Import",
+    s3:"Pick the downloaded file. Your clay appears — start sculpting!",
+    size:"Clay size: ",z1:"Small",z2:"Standard",z3:"Large",
+    detail:"Clay detail: ",d1:"Low (~10k faces, for slower computers)",d2:"Medium (~40k faces)",d3:"High (~80k faces, recommended)",
+    all:"All",cat_basic:"Basic",cat_body:"Body parts",cat_char:"Characters",cat_special:"Special",
+    dl:"Download .obj",
+    foot:"© 2026 Clay Presets for Figurines · Free to use for teaching",
+    n:{sphere:"Sphere",cube:"Rounded Cube",cylinder:"Cylinder",cone:"Cone",pyramid:"Pyramid",disc:"Disc",
+       egg:"Egg",capsule:"Horizontal Capsule (Animal Body)",limb:"Slim Limb",drop:"Teardrop",torus:"Donut",
+       duckB:"Rubber Duck · Body",duckH:"Rubber Duck · Head",
+       pikaB:"Pikachu · Body",pikaH:"Pikachu · Head",
+       kittyB:"Hello Kitty · Body",kittyH:"Hello Kitty · Head",
+       bearB:"Bear · Body",bearH:"Bear · Head",
+       slime:"Slime · Round",slimeTip:"Slime · Pointy Top",
+       cornerB:"Sumikko Gurashi · Body",cornerH:"Sumikko Gurashi · Head"},
+    d:{sphere:"Most versatile! Heads, eyes, noses, hands",cube:"Square heads, blocks, robot bodies",cylinder:"Hats, feet, necks, buckets",cone:"Horns, hats, carrot noses",
+       pyramid:"Roofs, pointy hats, monster teeth",disc:"Bases, hat brims, ears, plates",egg:"Bodies, heads, animal bellies",
+       capsule:"Lying-down body for cats, dogs, piglets and other four-legged animals",
+       limb:"Arms, legs, tails, tentacles",drop:"Ears, tears, leaves, tails",torus:"Rings, bracelets, donuts, earrings",
+       duckB:"Plump body with a lifted tail and flat bottom (faces right)",duckH:"Round duck head with a slightly flat chin",
+       pikaB:"Pear-shaped body, narrow top and round belly",pikaH:"Wide oval head with fuller cheeks",
+       kittyB:"Small bell-shaped body, narrow top",kittyH:"Wide, flat, round-cheeked big head",
+       bearB:"Chubby round body with a flat bottom",bearH:"Round bear head, slightly wide",
+       slime:"Soft dome shape with a flat bottom",slimeTip:"Classic droplet shape with a gentle tip",
+       cornerB:"Soft mochi-like body, flat bottom for leaning in a corner",cornerH:"Wide, flat, relaxed round head"}
+  }
+};
+let lang='zh', cat='all';
+
+/* ==================================================
+   形狀產生器:全部從「細分立方體」變形而來
+   warp=true 時會把格子重新分配,讓圓形造型的格子大小更平均
+================================================== */
+const FACES=[[[1,0,0],[0,1,0],[0,0,1]],[[-1,0,0],[0,0,1],[0,1,0]],
+             [[0,1,0],[0,0,1],[1,0,0]],[[0,-1,0],[1,0,0],[0,0,1]],
+             [[0,0,1],[1,0,0],[0,1,0]],[[0,0,-1],[0,1,0],[1,0,0]]];
+function cubeMesh(N,warp){
+  const map=new Map(),P=[],F=[];
+  // 先用整數座標合併重複的頂點,最後才做格子重新分配,避免接縫出現縫隙
+  const id=(p)=>{const k=p.map(x=>Math.round(x*N)).join(',');
+    if(!map.has(k)){map.set(k,P.length);P.push(p)}return map.get(k)};
+  for(const [n,u,v] of FACES){
+    const g=[];
+    for(let i=0;i<=N;i++){g[i]=[];for(let j=0;j<=N;j++){
+      const a=i/N*2-1,b=j/N*2-1;
+      g[i][j]=id([0,1,2].map(k=>n[k]+a*u[k]+b*v[k]));}}
+    for(let i=0;i<N;i++)for(let j=0;j<N;j++)F.push([g[i][j],g[i+1][j],g[i+1][j+1],g[i][j+1]]);
+  }
+  const w=x=>Math.max(-1,Math.min(1,Math.tan(x*Math.PI/4)));
+  return {P:warp?P.map(p=>p.map(w)):P,F};
+}
+const norm=p=>{const l=Math.hypot(...p)||1;return p.map(x=>x/l)};
+const disk=(x,z)=>[x*Math.sqrt(1-z*z/2),z*Math.sqrt(1-x*x/2)];
+// 平順的「拉長」:取代原本的硬切,讓中段的格子平均分布(膠囊、細長條用)
+const ext=(v,len)=>Math.sign(v)*len*Math.min(1,Math.abs(v)/.3);
+
+/* 各造型的變形函式(想調整造型比例改這裡)
+   s = 球面上的點,s[0]=左右、s[1]=上下、s[2]=前後 */
+const SHAPES={
+  sphere:p=>norm(p),
+  cube:p=>{const s=norm(p);return p.map((x,i)=>x*.68+s[i]*.32)},
+  cylinder:p=>{const [x,z]=disk(p[0],p[2]);return [x*.8,p[1],z*.8]},
+  cone:p=>{const [x,z]=disk(p[0],p[2]);const r=Math.max((1-p[1])/2,.03)*.95;return [x*r,p[1],z*r]},
+  pyramid:p=>{const r=Math.max((1-p[1])/2,.03)*.95;return [p[0]*r,p[1],p[2]*r]},
+  disc:p=>{const [x,z]=disk(p[0],p[2]);return [x*1.3,p[1]*.22,z*1.3]},
+  egg:p=>{const s=norm(p);const k=.9*(1-.15*s[1]);return [s[0]*k,s[1]*1.2,s[2]*k]},
+  capsule:p=>{const s=norm(p);return [s[0]*.65+ext(s[0],.55),s[1]*.65,s[2]*.65]},
+  limb:p=>{const s=norm(p);return [s[0]*.32,s[1]*.32+ext(s[1],.95),s[2]*.32]},
+  drop:p=>{const s=norm(p);const f=s[1]>0?Math.max(.1,1-s[1]):1;return [s[0]*f*.85,s[1]>0?s[1]*1.7:s[1]*.85,s[2]*f*.85]},
+
+  // 黃色小鴨:身體(朝 +X,尾巴上翹)/ 頭(圓頭,下巴略平)
+  duckB:p=>{const s=norm(p);
+    const back=Math.max(0,-s[0]);
+    let x=s[0]*1.15, y=s[1]*.8, z=s[2]*.85*(1-.3*back);
+    if(s[1]<0) y*=.8;
+    y+=.45*back*back;
+    return [x,y-.05,z];},
+  duckH:p=>{const s=norm(p);
+    let y=s[1]*.95;
+    if(s[1]<0) y*=.88;
+    return [s[0]*1.02,y,s[2]*.98];},
+
+  // 皮卡丘:身體(洋梨形)/ 頭(橫橢圓)
+  pikaB:p=>{const s=norm(p);
+    const w=.82-.22*s[1];
+    let y=s[1]*1.05, z=s[2]*w;
+    if(s[2]>0&&s[1]<.3) z*=1.1;
+    if(s[1]<0) y*=.85;
+    return [s[0]*w,y,z];},
+  pikaH:p=>{const s=norm(p);
+    const w=1+.08*(-s[1]);
+    return [s[0]*1.2*w,s[1]*.88,s[2]*.98];},
+
+  // Hello Kitty:小鐘形身體 / 又寬又扁的大頭
+  kittyB:p=>{const s=norm(p);
+    const w=.75-.2*s[1];
+    let y=s[1]*.85;
+    if(s[1]<0) y*=.8;
+    return [s[0]*w,y,s[2]*w*.9];},
+  kittyH:p=>{const s=norm(p);
+    let y=s[1]*.9;
+    if(s[1]<0) y*=.85;
+    return [s[0]*1.3,y,s[2]*.95];},
+
+  // 小熊:胖胖身體 / 圓頭
+  bearB:p=>{const s=norm(p);
+    const w=.9-.15*s[1];
+    let y=s[1];
+    if(s[1]<0) y*=.85;
+    return [s[0]*w,y,s[2]*w];},
+  bearH:p=>{const s=norm(p);
+    return [s[0]*1.05,s[1]*.95,s[2]];},
+
+  // 史萊姆:圓潤半圓款 / 水滴尖頂款
+  slime:p=>{const s=norm(p);
+    const y=s[1]>0?s[1]*.85:s[1]*.45;
+    return [s[0]*1.2,y,s[2]*1.2];},
+  slimeTip:p=>{const s=norm(p);
+    const f=s[1]>0?1-.8*Math.pow(s[1],1.5):1;
+    const y=s[1]>0?s[1]*1.2:s[1]*.6;
+    return [s[0]*1.15*f,y,s[2]*1.15*f];},
+
+  // 角落生物:麻糬身體 / 寬扁圓頭
+  cornerB:p=>{const s=norm(p);
+    const w=1-.12*s[1];
+    let y=s[1]*.95;
+    if(s[1]<0) y*=.7;
+    return [s[0]*w,y,s[2]*w*.9];},
+  cornerH:p=>{const s=norm(p);
+    let y=s[1]*.8;
+    if(s[1]<0) y*=.85;
+    return [s[0]*1.25,y,s[2]*.95];}
+};
+// 這些造型不做格子重新分配(因為它們有平整的側面,維持均勻即可)
+const NO_WARP=new Set(['cube','cylinder','cone','pyramid','disc']);
+
+function makeShape(key,N){
+  if(key==='torus'){const nv=Math.max(8,Math.round(N*1.59));return torus(Math.round(nv*2.4),nv);}
+  const m=cubeMesh(N,!NO_WARP.has(key));
+  return {P:m.P.map(SHAPES[key]),F:m.F};
+}
+// 甜甜圈:環向格數 nu、管向格數 nv(比例 2.4:1,讓每個格子接近正方形)
+function torus(nu,nv){
+  const R=1,r=.42,P=[],F=[];
+  for(let i=0;i<nu;i++)for(let j=0;j<nv;j++){
+    const u=i/nu*Math.PI*2,v=j/nv*Math.PI*2,c=R+r*Math.cos(v);
+    P.push([c*Math.cos(u),r*Math.sin(v),-c*Math.sin(u)]);}
+  const at=(i,j)=>(i%nu)*nv+(j%nv);
+  for(let i=0;i<nu;i++)for(let j=0;j<nv;j++)F.push([at(i,j),at(i+1,j),at(i+1,j+1),at(i,j+1)]);
+  return {P,F};
+}
+
+/* ==================================================
+   預覽繪圖(簡易 3D 旋轉,不需外部套件)
+================================================== */
+function draw(cv,mesh,rx,ry,color){
+  const W=cv.width,ctx=cv.getContext('2d');ctx.clearRect(0,0,W,W);
+  const cx=Math.cos(rx),sx=Math.sin(rx),cy=Math.cos(ry),sy=Math.sin(ry);
+  const T=mesh.P.map(([x,y,z])=>{let X=x*cy+z*sy,Z=-x*sy+z*cy;let Y=y*cx-Z*sx;Z=y*sx+Z*cx;return [X,Y,Z]});
+  let m=0;T.forEach(p=>m=Math.max(m,Math.abs(p[0]),Math.abs(p[1])));
+  const sc=W*.42/m,L=norm([-.4,.7,.6]);
+  const polys=mesh.F.map(f=>{
+    const a=T[f[0]],b=T[f[1]],c=T[f[2]];
+    const u=[b[0]-a[0],b[1]-a[1],b[2]-a[2]],v=[c[0]-a[0],c[1]-a[1],c[2]-a[2]];
+    const n=norm([u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]]);
+    return {f,n,z:f.reduce((s,i)=>s+T[i][2],0)/f.length};
+  }).filter(q=>q.n[2]>-0.0).sort((a,b)=>a.z-b.z);
+  for(const q of polys){
+    const l=.35+.65*Math.max(0,q.n[0]*L[0]+q.n[1]*L[1]+q.n[2]*L[2]);
+    ctx.fillStyle=`rgb(${color.map(c=>Math.round(c*l)).join(',')})`;ctx.strokeStyle=ctx.fillStyle;
+    ctx.beginPath();q.f.forEach((i,k)=>{const x=W/2+T[i][0]*sc,y=W/2-T[i][1]*sc;k?ctx.lineTo(x,y):ctx.moveTo(x,y)});
+    ctx.closePath();ctx.fill();ctx.stroke();
+  }
+}
+
+// 匯出 OBJ 並下載(座標會乘上 BASE_SCALE 與使用者選的大小)
+function download(key){
+  const N=+document.getElementById('detail').value;
+  const k=BASE_SCALE*(+document.getElementById('size').value);
+  const m=makeShape(key,N);
+  const out=[`# ${key} - Clay preset for SculptGL`,`o ${key}`];
+  m.P.forEach(p=>out.push('v '+p.map(x=>(x*k).toFixed(3)).join(' ')));
+  m.F.forEach(f=>out.push('f '+f.map(i=>i+1).join(' ')));
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([out.join('\n')],{type:'text/plain'}));
+  a.download=`clay_${key}.obj`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+}
+
+/* ==================================================
+   卡片資料(代號、分類、預覽顏色)
+   分類只有:basic / body / char(角色)/ special
+================================================== */
+const ITEMS=[
+ ['sphere','basic',[251,191,36]],['cube','basic',[248,113,113]],['cylinder','basic',[52,211,153]],
+ ['cone','basic',[251,146,60]],['pyramid','basic',[167,139,250]],['disc','basic',[244,114,182]],
+ ['egg','body',[253,224,71]],['capsule','body',[96,165,250]],['limb','body',[74,222,128]],
+ ['duckB','char',[255,214,10]],['duckH','char',[255,214,10]],
+ ['pikaB','char',[252,196,25]],['pikaH','char',[252,196,25]],
+ ['kittyB','char',[245,245,250]],['kittyH','char',[245,245,250]],
+ ['bearB','char',[180,120,70]],['bearH','char',[180,120,70]],
+ ['slime','char',[80,200,120]],['slimeTip','char',[80,200,120]],
+ ['cornerB','char',[230,210,190]],['cornerH','char',[230,210,190]],
+ ['drop','special',[56,189,248]],['torus','special',[251,113,133]]
+];
+const CATS=['all','basic','body','char','special'];
+const views={};
+function build(){
+  const grid=document.getElementById('grid');grid.innerHTML='';
+  ITEMS.filter(i=>cat==='all'||i[1]===cat).forEach(([key,c,col])=>{
+    const t=I18N[lang];
+    const el=document.createElement('div');el.className='card';
+    el.innerHTML=`<canvas width="400" height="400"></canvas><div class="info"><h3>${t.n[key]}</h3><p>${t.d[key]}</p>
+      <button class="btn"><i class="fa-solid fa-download"></i> ${t.dl}</button></div>`;
+    grid.appendChild(el);
+    // 預覽只用低面數,網頁才不會卡;下載時才會產生高面數
+    const cv=el.querySelector('canvas'),mesh=makeShape(key,12);
+    const v=views[key]=views[key]||{x:.45,y:.6};
+    const r=()=>draw(cv,mesh,v.x,v.y,col);r();
+    // 滑鼠/手指拖曳旋轉預覽
+    let down=false,lx,ly;
+    cv.onpointerdown=e=>{down=true;lx=e.clientX;ly=e.clientY;cv.setPointerCapture(e.pointerId)};
+    cv.onpointerup=()=>down=false;
+    cv.onpointermove=e=>{if(!down)return;v.y+=(e.clientX-lx)*.012;v.x+=(e.clientY-ly)*.012;lx=e.clientX;ly=e.clientY;r()};
+    el.querySelector('.btn').onclick=()=>download(key);
+  });
+}
+function buildTags(){
+  const t=I18N[lang],box=document.getElementById('tags');box.innerHTML='';
+  CATS.forEach(k=>{
+    const b=document.createElement('button');b.className='tag'+(cat===k?' active':'');
+    b.textContent=k==='all'?t.all:t['cat_'+k];
+    b.onclick=()=>{cat=k;buildTags();build()};box.appendChild(b);});
+}
+// 套用語言(切換時保留下拉選單目前的選擇)
+function applyLang(){
+  const t=I18N[lang];document.documentElement.lang=lang==='zh'?'zh-Hant':'en';
+  document.querySelectorAll('[data-i18n]').forEach(e=>e.textContent=t[e.dataset.i18n]);
+  document.getElementById('langBtn').textContent=lang==='zh'?'EN':'中文';
+  buildTags();build();
+}
+document.getElementById('langBtn').onclick=()=>{lang=lang==='zh'?'en':'zh';applyLang()};
+applyLang();
+</script>
+</body>
+</html>
