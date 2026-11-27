@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#f2b705">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="挖土機">
+<title>挖土機模擬器</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+html,body{margin:0;height:100%;overflow:hidden;background:#1b2330;font-family:system-ui,-apple-system,"Noto Sans TC","PingFang TC",sans-serif;touch-action:none;overscroll-behavior:none;color:#fff}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+:root{--sa-t:env(safe-area-inset-top,0px);--sa-b:env(safe-area-inset-bottom,0px);--sa-l:env(safe-area-inset-left,0px);--sa-r:env(safe-area-inset-right,0px);--s:clamp(104px,27vmin,150px)}
+#loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#1b2330;font-size:18px;z-index:50;text-align:center;padding:20px}
+#hud{position:fixed;top:calc(var(--sa-t) + 8px);left:calc(var(--sa-l) + 8px);right:calc(var(--sa-r) + 8px);display:flex;justify-content:space-between;align-items:flex-start;pointer-events:none}
+.card{background:rgba(20,28,40,.62);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-radius:16px;padding:8px 12px;min-width:150px;box-shadow:0 4px 14px rgba(0,0,0,.25);font-size:12px}
+.bar{height:8px;border-radius:5px;background:rgba(255,255,255,.2);overflow:hidden;margin:3px 0 7px}
+.bar>div{height:100%;width:0;background:linear-gradient(90deg,#f2b705,#ff8a00);transition:width .15s}
+#truckBar{background:linear-gradient(90deg,#4cd964,#2fb344)}
+#btns{display:flex;flex-direction:column;gap:8px;pointer-events:auto}
+#btns button,#install{border:0;border-radius:14px;background:rgba(20,28,40,.7);color:#fff;font-size:13px;padding:9px 12px;box-shadow:0 4px 12px rgba(0,0,0,.3);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+#btns button:active{transform:scale(.94);background:#f2b705;color:#222}
+#install{display:none;position:fixed;top:calc(var(--sa-t) + 8px);left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#f2b705,#ff8a00);color:#222;font-weight:700;z-index:20;pointer-events:auto}
+#toast{position:fixed;top:30%;left:50%;transform:translate(-50%,-10px);background:rgba(0,0,0,.7);padding:10px 18px;border-radius:20px;font-size:15px;opacity:0;transition:.3s;pointer-events:none;white-space:nowrap}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+#warn{position:fixed;inset:0;pointer-events:none;box-shadow:inset 0 0 60px 14px rgba(255,60,40,0);transition:box-shadow .25s}
+#warn.on{box-shadow:inset 0 0 60px 14px rgba(255,60,40,.6)}
+#help{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.55);z-index:30;padding:20px}
+#help .box{background:#243044;border-radius:20px;padding:18px 20px;max-width:440px;max-height:90vh;overflow:auto;font-size:14px;line-height:1.65;touch-action:pan-y}
+#help h3{margin:0 0 6px}
+#help button{margin-top:10px;width:100%;border:0;border-radius:12px;padding:10px;background:#f2b705;font-weight:700;font-size:15px}
+.stick{position:fixed;bottom:calc(var(--sa-b) + 18px);width:var(--s);height:var(--s);border-radius:50%;background:rgba(255,255,255,.14);border:2px solid rgba(255,255,255,.35);touch-action:none;display:none}
+.stick i{position:absolute;left:50%;top:50%;width:42%;height:42%;margin:-21% 0 0 -21%;border-radius:50%;background:rgba(242,183,5,.9);box-shadow:0 3px 10px rgba(0,0,0,.4)}
+.stick b{position:absolute;width:100%;text-align:center;font-weight:400;font-size:11px;opacity:.8;top:-18px}
+#stickL{left:calc(var(--sa-l) + 18px)}#stickR{right:calc(var(--sa-r) + 18px)}
+.pad{position:fixed;display:none;gap:6px}
+.pad button{border:0;border-radius:14px;background:rgba(255,255,255,.2);color:#fff;font-size:13px;font-weight:600;padding:0;min-width:54px;height:46px;box-shadow:0 3px 8px rgba(0,0,0,.3);touch-action:none;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+.pad button.on{background:#f2b705;color:#222;transform:scale(.94)}
+#padDrive{grid-template-columns:repeat(3,54px);grid-template-rows:repeat(2,50px);bottom:calc(var(--sa-b) + 18px)}
+#padDrive button{height:100%}
+#padDrive .u{grid-column:2;grid-row:1}#padDrive .l{grid-column:1;grid-row:2}#padDrive .d{grid-column:2;grid-row:2}#padDrive .r{grid-column:3;grid-row:2}
+body[data-mode="1"] #padDrive{left:50%;transform:translateX(-50%)}
+body[data-mode="2"] #padDrive{left:calc(var(--sa-l) + 18px)}
+#padTool0{right:calc(var(--sa-r) + 18px);bottom:calc(var(--sa-b) + var(--s) + 34px);grid-template-columns:repeat(2,70px)}
+#padTool2{right:calc(var(--sa-r) + 14px);bottom:calc(var(--sa-b) + 18px);grid-template-columns:repeat(2,78px)}
+#padTool2 button{height:44px}
+</style>
+</head>
+<body data-mode="0">
+<canvas id="c"></canvas>
+<div id="loading">⛏️ 載入 3D 引擎中…<br>(首次需要連網，之後可離線使用)</div>
+
+<div id="hud">
+  <div class="card">
+    <div>🪣 鏟斗 <span id="tBucket">0%</span></div><div class="bar"><div id="bucketBar"></div></div>
+    <div>🚚 卡車 <span id="tTruck">0%</span></div><div class="bar"><div id="truckBar"></div></div>
+    <div>已運送：<b id="tDeliv">0</b> 車 ／ <b id="tTotal">0</b> m³</div>
+  </div>
+  <div id="btns">
+    <button id="bCam">📷 第三人稱</button>
+    <button id="bMode">🎮 搖桿模式</button>
+    <button id="bSound">🔊 音效開</button>
+    <button id="bReset">♻️ 重置地形</button>
+    <button id="bHelp">❓ 說明</button>
+  </div>
+</div>
+<button id="install">📲 安裝為手機 App</button>
+<div id="toast"></div>
+<div id="warn"></div>
+
+<div class="stick" id="stickL"><b>左</b><i></i></div>
+<div class="stick" id="stickR"><b>右</b><i></i></div>
+
+<div class="pad" id="padDrive">
+  <button class="u" data-ch="drive" data-v="1">▲</button>
+  <button class="l" data-ch="turn" data-v="-1">◀</button>
+  <button class="d" data-ch="drive" data-v="-1">▼</button>
+  <button class="r" data-ch="turn" data-v="1">▶</button>
+</div>
+<div class="pad" id="padTool0">
+  <button data-ch="arm" data-v="1">小臂伸</button><button data-ch="bucket" data-v="-1">鏟斗放</button>
+  <button data-ch="arm" data-v="-1">小臂收</button><button data-ch="bucket" data-v="1">鏟斗收</button>
+</div>
+<div class="pad" id="padTool2">
+  <button data-ch="swing" data-v="1">↺ 轉台左</button><button data-ch="swing" data-v="-1">轉台右 ↻</button>
+  <button data-ch="boom" data-v="1">大臂 ↑</button><button data-ch="boom" data-v="-1">大臂 ↓</button>
+  <button data-ch="arm" data-v="1">小臂 伸</button><button data-ch="arm" data-v="-1">小臂 收</button>
+  <button data-ch="bucket" data-v="1">鏟斗 收</button><button data-ch="bucket" data-v="-1">鏟斗 放</button>
+</div>
+
+<div id="help"><div class="box">
+  <h3>🏗️ 玩法</h3>
+  1. 用<b>行走</b>開到土堆旁。<br>
+  2. 放下大臂、伸出小臂，讓鏟斗尖端<b>插入土中</b>，再「小臂收」並「鏟斗收」就會挖土（鏟斗開口朝上時才裝土）。<br>
+  3. 抬起大臂、轉動轉台，把鏟斗移到卡車車斗上方。<br>
+  4. 「鏟斗放」讓開口朝下，土就會倒出。大約<b>4 個滿鏟斗</b>就會裝滿卡車，自動出發並換新卡車。<br>
+  <h3>🚨 警示</h3>
+  鏟斗頂到土堆或撞到卡車：低音「嗶嗶」＋螢幕邊緣閃紅。<br>
+  關節動到極限：短促高音「嘀」。<br>
+  <h3>🎮 操作模式（右上角切換）</h3>
+  <b>搖桿模式</b>：左搖桿＝行走/轉彎；右搖桿＝轉台(左右)/大臂(上下)；按鈕＝小臂、鏟斗。<br>
+  <b>ISO 標準</b>：左搖桿＝轉台/小臂；右搖桿＝大臂(前推=降)/鏟斗；十字鍵＝行走。<br>
+  <b>按鈕模式</b>：所有動作都是按住的按鈕。<br>
+  <h3>📷 視角</h3>
+  可切換第一人稱/第三人稱。拖曳畫面可環視，雙指或滾輪縮放（第三人稱）。<br>
+  <h3>🔊 音效</h3>
+  有引擎聲、履帶聲、液壓臂聲、挖土與倒土聲。手機需先點一下畫面才會發聲，可在右上角開關。<br>
+  <h3>⌨️ 鍵盤</h3>
+  W/S/A/D 行走；Q/E 轉台；R/F 大臂；T/G 小臂；<b>Y 鏟斗放／H 鏟斗收</b>；C 視角；M 模式；N 音效。
+  <button id="helpClose">開始工作！</button>
+</div></div>
+
+<script>
+/* ================= PWA 設定 ================= */
+(function(){
+  const svg=`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='110' fill='#1b2330'/><text x='256' y='350' font-size='300' text-anchor='middle'>🏗️</text></svg>`;
+  const svgUrl='data:image/svg+xml,'+encodeURIComponent(svg);
+  try{
+    const cv=document.createElement('canvas');cv.width=cv.height=180;const x=cv.getContext('2d');
+    x.fillStyle='#1b2330';x.fillRect(0,0,180,180);x.font='110px serif';x.textAlign='center';x.textBaseline='middle';x.fillText('🏗️',90,98);
+    const l=document.createElement('link');l.rel='apple-touch-icon';l.href=cv.toDataURL('image/png');document.head.appendChild(l);
+  }catch(e){}
+  const manifest={name:'挖土機模擬器',short_name:'挖土機',description:'3D 挖土機模擬器',start_url:location.href.split('#')[0],scope:location.href.split('#')[0].replace(/[^/]*$/,''),display:'standalone',orientation:'any',background_color:'#1b2330',theme_color:'#f2b705',icons:[{src:svgUrl,sizes:'any',type:'image/svg+xml',purpose:'any'}]};
+  const ml=document.createElement('link');ml.rel='manifest';
+  ml.href='data:application/manifest+json;charset=utf-8,'+encodeURIComponent(JSON.stringify(manifest));
+  document.head.appendChild(ml);
+
+  const swCode=`const C='exc-sim-v10';
+self.addEventListener('install',e=>{self.skipWaiting()});
+self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==C).map(x=>caches.delete(x)))).then(()=>self.clients.claim()))});
+self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;
+e.respondWith(fetch(e.request).then(res=>{const cp=res.clone();caches.open(C).then(c=>c.put(e.request,cp)).catch(()=>{});return res}).catch(()=>caches.match(e.request).then(r=>r||caches.match(self.registration.scope))))});`;
+  if('serviceWorker' in navigator){
+    window.addEventListener('load',()=>{
+      let url;try{url=URL.createObjectURL(new Blob([swCode],{type:'text/javascript'}))}catch(e){}
+      const tryFile=()=>navigator.serviceWorker.register('./sw.js').catch(()=>{});
+      if(url) navigator.serviceWorker.register(url).catch(tryFile); else tryFile();
+    });
+  }
+  let dp=null;const ib=document.getElementById('install');
+  window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();dp=e;ib.style.display='block'});
+  ib.addEventListener('click',async()=>{if(!dp)return;dp.prompt();await dp.userChoice;dp=null;ib.style.display='none'});
+  window.addEventListener('appinstalled',()=>{ib.style.display='none'});
+})();
+
+/* ================= 載入 Three.js（localStorage 快取，可離線） ================= */
+async function loadThree(){
+  if(window.THREE)return;
+  const KEY='three_r128_src',URL_='https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
+  let src=null;try{src=localStorage.getItem(KEY)}catch(e){}
+  if(!src){const r=await fetch(URL_);src=await r.text();try{localStorage.setItem(KEY,src)}catch(e){}}
+  const s=document.createElement('script');s.textContent=src;document.head.appendChild(s);
+}
+loadThree().then(main).catch(e=>{document.getElementById('loading').innerHTML='⚠️ 無法載入 3D 引擎<br>請連上網路後重新開啟'});
+
+/* ================= 主程式 ================= */
+function main(){
+const T=THREE,$=s=>document.querySelector(s);
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+$('#loading').style.display='none';
+
+/* ---- 存檔 ---- */
+let S={};try{S=JSON.parse(localStorage.getItem('exc_save')||'{}')}catch(e){}
+const state={mode:S.mode||0,cam:S.cam||0,delivered:S.delivered||0,total:S.total||0,sound:S.sound===0?0:1};
+const save=()=>{try{localStorage.setItem('exc_save',JSON.stringify(state))}catch(e){}};
+
+/* ================= 音效（Web Audio 即時合成） ================= */
+const SFX=(()=>{
+  let ctx=null,master,w,br,A={},lastThud=0;
+  function mkNoise(type){
+    const len=ctx.sampleRate*2,buf=ctx.createBuffer(1,len,ctx.sampleRate),d=buf.getChannelData(0);
+    if(type==='white'){for(let i=0;i<len;i++)d[i]=Math.random()*2-1}
+    else{let l=0;for(let i=0;i<len;i++){l=(l+0.02*(Math.random()*2-1))/1.02;d[i]=l*3.5}}
+    return buf;
+  }
+  function src(buf){const s=ctx.createBufferSource();s.buffer=buf;s.loop=true;s.start();return s}
+  function filt(type,f,q){const n=ctx.createBiquadFilter();n.type=type;n.frequency.value=f;n.Q.value=q||1;return n}
+  function gain(v){const g=ctx.createGain();g.gain.value=v;return g}
+  function init(){
+    if(ctx){if(ctx.state!=='running')ctx.resume();return}
+    const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
+    try{ctx=new AC()}catch(e){return}
+    master=gain(state.sound?0.8:0);
+    const comp=ctx.createDynamicsCompressor();master.connect(comp);comp.connect(ctx.destination);
+    w=mkNoise('white');br=mkNoise('brown');
+    const o1=ctx.createOscillator(),o2=ctx.createOscillator();o1.type='sawtooth';o2.type='square';o1.frequency.value=48;o2.frequency.value=24;
+    const ef=filt('lowpass',380,1.2),eg=gain(.3),lfo=ctx.createOscillator(),lg=gain(.16),ev=gain(.0);
+    lfo.type='sine';lfo.frequency.value=9;lfo.connect(lg);lg.connect(eg.gain);
+    o1.connect(ef);o2.connect(ef);ef.connect(eg);eg.connect(ev);ev.connect(master);
+    const eb=src(br),ebg=gain(.9),ebf=filt('lowpass',250,.7);eb.connect(ebf);ebf.connect(ebg);ebg.connect(ev);
+    o1.start();o2.start();lfo.start();
+    A.o1=o1;A.o2=o2;A.ef=ef;A.lfo=lfo;A.ev=ev;
+    const tn=src(w),tf=filt('bandpass',420,1.1),tm=gain(.5),tl=ctx.createOscillator(),tlg=gain(.5),tv=gain(0);
+    tl.type='square';tl.frequency.value=8;tl.connect(tlg);tlg.connect(tm.gain);tl.start();
+    tn.connect(tf);tf.connect(tm);tm.connect(tv);tv.connect(master);
+    const tr=src(br),trf=filt('lowpass',160,.8),trg=gain(1.4);tr.connect(trf);trf.connect(trg);trg.connect(tv);
+    A.tl=tl;A.tv=tv;
+    const hn=src(w),hf=filt('bandpass',1300,2.5),hv=gain(0);hn.connect(hf);hf.connect(hv);hv.connect(master);
+    const wo=ctx.createOscillator();wo.type='sine';wo.frequency.value=300;const wo2=ctx.createOscillator();wo2.type='triangle';wo2.frequency.value=150;
+    const wv=gain(0);wo.connect(wv);wo2.connect(wv);wv.connect(master);wo.start();wo2.start();
+    A.hv=hv;A.wo=wo;A.wo2=wo2;A.wv=wv;
+    const dn=src(w),df=filt('lowpass',900,.9),dm=gain(.6),dl=ctx.createOscillator(),dlg=gain(.4),dv=gain(0);
+    dl.type='sawtooth';dl.frequency.value=14;dl.connect(dlg);dlg.connect(dm.gain);dl.start();
+    dn.connect(df);df.connect(dm);dm.connect(dv);dv.connect(master);
+    A.dv=dv;
+    const gn=src(w),gf=filt('bandpass',1700,.7),gm=gain(.7),gl=ctx.createOscillator(),glg=gain(.3),gv=gain(0);
+    gl.type='triangle';gl.frequency.value=23;gl.connect(glg);glg.connect(gm.gain);gl.start();
+    gn.connect(gf);gf.connect(gm);gm.connect(gv);gv.connect(master);
+    const gb=src(br),gbf=filt('lowpass',420,.8);gb.connect(gbf);gbf.connect(gv);
+    A.gv=gv;
+    document.addEventListener('visibilitychange',()=>{if(!ctx)return;document.hidden?ctx.suspend():ctx.resume()});
+  }
+  const set=(p,v,t)=>p.setTargetAtTime(v,ctx.currentTime,t||.08);
+  return{
+    init,
+    setOn(on){if(ctx){set(master.gain,on?.8:0,.05);if(on)ctx.resume()}},
+    update(p){
+      if(!ctx||ctx.state!=='running')return;
+      const load=clamp(p.move*.65+p.hyd*.45+(p.dig?.15:0),0,1);
+      set(A.o1.frequency,46+load*38,.15);set(A.o2.frequency,23+load*19,.15);
+      set(A.ef.frequency,330+load*420,.2);set(A.lfo.frequency,8+load*11,.2);
+      set(A.ev.gain,.3+load*.22,.15);
+      set(A.tv.gain,p.move*.7,.08);set(A.tl.frequency,5+p.move*13,.1);
+      set(A.hv.gain,p.hyd*.22,.06);
+      set(A.wv.gain,p.hyd*.05,.06);
+      set(A.wo.frequency,220+p.hyd*380,.1);set(A.wo2.frequency,110+p.hyd*190,.1);
+      set(A.dv.gain,p.dig?.4:0,.06);
+      set(A.gv.gain,p.dump?.5:0,.06);
+    },
+    thud(inTruck,vol){
+      if(!ctx||ctx.state!=='running'||!state.sound)return;
+      const t=ctx.currentTime;if(t-lastThud<.045)return;lastThud=t;
+      const s=ctx.createBufferSource();s.buffer=w;s.loop=true;
+      const f=filt('lowpass',inTruck?1100:520,.9),g=gain(0);
+      g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime((inTruck?.5:.32)*clamp(vol*8,.5,1),t+.005);g.gain.exponentialRampToValueAtTime(.001,t+(inTruck?.16:.12));
+      s.connect(f);f.connect(g);g.connect(master);s.start(t,Math.random()*1.5);s.stop(t+.2);
+    },
+    warn(kind){
+      if(!ctx||ctx.state!=='running'||!state.sound)return;
+      const t0=ctx.currentTime,n=kind==='stall'?2:1;
+      for(let i=0;i<n;i++){
+        const o=ctx.createOscillator(),g=gain(0),lp=filt('lowpass',900,.7),t=t0+i*.16;
+        o.type='square';o.frequency.value=kind==='stall'?170:520;
+        g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.2,t+.01);
+        g.gain.setValueAtTime(.2,t+.09);g.gain.linearRampToValueAtTime(0,t+.12);
+        o.connect(lp);lp.connect(g);g.connect(master);o.start(t);o.stop(t+.14);
+      }
+    },
+    beep(seq){
+      if(!ctx||ctx.state!=='running'||!state.sound)return;
+      const t0=ctx.currentTime;
+      seq.forEach((fr,i)=>{
+        const o=ctx.createOscillator(),g=gain(0),t=t0+i*.26;o.type='square';o.frequency.value=fr;
+        const lp=filt('lowpass',1500,.7);
+        g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.16,t+.02);g.gain.setValueAtTime(.16,t+.2);g.gain.linearRampToValueAtTime(0,t+.24);
+        o.connect(lp);lp.connect(g);g.connect(master);o.start(t);o.stop(t+.26);
+      });
+    }
+  };
+})();
+['pointerdown','touchend','keydown','click'].forEach(ev=>addEventListener(ev,()=>SFX.init(),{passive:true}));
+
+/* ---- 渲染器 ---- */
+const canvas=$('#c');
+const renderer=new T.WebGLRenderer({canvas,antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.shadowMap.enabled=true;
+const scene=new T.Scene();
+scene.background=new T.Color(0x9fd3f5);scene.fog=new T.Fog(0x9fd3f5,70,170);
+const camera=new T.PerspectiveCamera(60,1,0.1,300);
+function resize(){renderer.setSize(innerWidth,innerHeight,false);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix()}
+addEventListener('resize',resize);resize();
+
+scene.add(new T.HemisphereLight(0xffffff,0x8a7a66,0.85));
+const sun=new T.DirectionalLight(0xffffff,0.8);sun.castShadow=true;
+sun.shadow.mapSize.set(1024,1024);
+const sc=sun.shadow.camera;sc.left=-28;sc.right=28;sc.top=28;sc.bottom=-28;sc.near=1;sc.far=120;
+scene.add(sun,sun.target);
+
+/* ---- 地形 ---- */
+const N=120,SIZE=90,CELL=SIZE/N,NV=N+1;
+const H=new Float32Array(NV*NV),nz=new Float32Array(NV*NV);
+const tgeo=new T.PlaneGeometry(SIZE,SIZE,N,N);tgeo.rotateX(-Math.PI/2);
+const tpos=tgeo.attributes.position;
+const colArr=new Float32Array(NV*NV*3);
+tgeo.setAttribute('color',new T.BufferAttribute(colArr,3));
+const terrain=new T.Mesh(tgeo,new T.MeshLambertMaterial({vertexColors:true}));
+terrain.receiveShadow=true;scene.add(terrain);
+for(let k=0;k<nz.length;k++)nz[k]=(Math.random()-.5)*0.07;
+const piles=[[9,10,6.5,3.4],[14,-6,5,2.4],[-14,-14,5,2.2],[-16,14,4.5,1.8]];
+function initTerrain(){
+  for(let i=0;i<NV;i++)for(let j=0;j<NV;j++){
+    const x=-SIZE/2+j*CELL,z=-SIZE/2+i*CELL;let h=0;
+    for(const p of piles){const d2=(x-p[0])**2+(z-p[1])**2;const sg=p[2]/2.2;h+=p[3]*Math.exp(-d2/(2*sg*sg))}
+    h+=Math.sin(x*.3)*Math.cos(z*.27)*0.05;
+    const e=Math.min(i,j,N-i,N-j)*CELL;h*=Math.min(1,e/8);
+    H[i*NV+j]=h;
+  }
+  dirty=true;
+}
+let dirty=true;
+function paint(){
+  for(let k=0;k<H.length;k++){
+    const h=H[k];let r=.6,g=.47,b=.31;
+    if(h<-0.15){const t=Math.min(1,(-h-.15)/1.2);r+=(.36-r)*t;g+=(.26-g)*t;b+=(.17-b)*t}
+    else if(h>0.3){const t=Math.min(1,(h-.3)/2);r+=(.7-r)*t;g+=(.56-g)*t;b+=(.38-b)*t}
+    const n=nz[k];colArr[k*3]=r+n;colArr[k*3+1]=g+n;colArr[k*3+2]=b+n;
+    tpos.array[k*3+1]=h;
+  }
+  tpos.needsUpdate=true;tgeo.attributes.color.needsUpdate=true;tgeo.computeVertexNormals();
+}
+function hAt(x,z){
+  let gx=(x+SIZE/2)/CELL,gz=(z+SIZE/2)/CELL;
+  if(gx<0||gz<0||gx>=N||gz>=N)return 0;
+  const i=Math.floor(gz),j=Math.floor(gx),fx=gx-j,fz=gz-i;
+  const a=H[i*NV+j],b=H[i*NV+j+1],c=H[(i+1)*NV+j],d=H[(i+1)*NV+j+1];
+  return (a*(1-fx)+b*fx)*(1-fz)+(c*(1-fx)+d*fx)*fz;
+}
+function modify(x,z,r,dv){
+  const j0=Math.max(1,Math.floor((x-r+SIZE/2)/CELL)),j1=Math.min(N-1,Math.ceil((x+r+SIZE/2)/CELL));
+  const i0=Math.max(1,Math.floor((z-r+SIZE/2)/CELL)),i1=Math.min(N-1,Math.ceil((z+r+SIZE/2)/CELL));
+  const list=[];let W=0;
+  for(let i=i0;i<=i1;i++)for(let j=j0;j<=j1;j++){
+    const d=Math.hypot(-SIZE/2+j*CELL-x,-SIZE/2+i*CELL-z);if(d>=r)continue;
+    const w=(1-d/r)**2;list.push(i*NV+j,w);W+=w;
+  }
+  if(!W)return;
+  for(let q=0;q<list.length;q+=2){const k=list[q];H[k]=clamp(H[k]+dv*list[q+1]/(W*CELL*CELL),-4,9)}
+  dirty=true;
+}
+const gm=new T.MeshLambertMaterial({color:0x9a7b53});
+[[600,300,0,SIZE/2+150],[600,300,0,-SIZE/2-150],[300,SIZE,SIZE/2+150,0],[300,SIZE,-SIZE/2-150,0]].forEach(a=>{
+  const m=new T.Mesh(new T.PlaneGeometry(a[0],a[1]).rotateX(-Math.PI/2),gm);m.position.set(a[2],0,a[3]);m.receiveShadow=true;scene.add(m);
+});
+const coneM=new T.MeshLambertMaterial({color:0xff6a00});
+for(let i=0;i<8;i++){const c=new T.Mesh(new T.ConeGeometry(.3,.8,10),coneM);const a=i/8*Math.PI*2;c.position.set(Math.cos(a)*30+(Math.random()-.5)*4,.4,Math.sin(a)*30+(Math.random()-.5)*4);c.position.y=hAt(c.position.x,c.position.z)+.4;c.castShadow=true;scene.add(c)}
+
+/* ---- 材質 / 建模工具 ---- */
+const YEL=new T.MeshLambertMaterial({color:0xf2b705}),DYEL=new T.MeshLambertMaterial({color:0xc99000}),
+GRY=new T.MeshLambertMaterial({color:0x3b3f46}),LGRY=new T.MeshLambertMaterial({color:0x777d87}),
+GLS=new T.MeshLambertMaterial({color:0x7fc4ee,transparent:true,opacity:.55}),SOIL=new T.MeshLambertMaterial({color:0x6b4a2b});
+const BSTEEL=new T.MeshLambertMaterial({color:0x4a505a}),BDARK=new T.MeshLambertMaterial({color:0x2a2e35}),
+BTOOTH=new T.MeshLambertMaterial({color:0x16181c}),BWEAR=new T.MeshLambertMaterial({color:0x5b616b});
+const BLK=new T.MeshLambertMaterial({color:0x14161a}),DGR=new T.MeshLambertMaterial({color:0x2b2f36}),
+CHR=new T.MeshLambertMaterial({color:0xc4cad2}),
+GLD=new T.MeshLambertMaterial({color:0x1c2b3a,transparent:true,opacity:.5,depthWrite:false}),
+ORG=new T.MeshBasicMaterial({color:0xff9a1a}),LAMP=new T.MeshBasicMaterial({color:0xfff2c0});
+function box(w,h,d,mat,x,y,z,parent){const m=new T.Mesh(new T.BoxGeometry(w,h,d),mat);m.position.set(x,y,z);m.castShadow=true;if(parent)parent.add(m);return m}
+function cyl(r,len,mat,x,y,z,parent,axis){const g=new T.CylinderGeometry(r,r,len,16);if(axis==='x')g.rotateZ(Math.PI/2);const m=new T.Mesh(g,mat);m.position.set(x,y,z);m.castShadow=true;parent.add(m);return m}
+function plate(pts,w,mat,parent,x){
+  const s=new T.Shape();pts.forEach((p,i)=>i?s.lineTo(p[0],p[1]):s.moveTo(p[0],p[1]));s.closePath();
+  const g=new T.ExtrudeGeometry(s,{depth:w,bevelEnabled:false});g.translate(0,0,-w/2);g.rotateY(-Math.PI/2);
+  const m=new T.Mesh(g,mat);m.position.x=x||0;m.castShadow=true;parent.add(m);return m;
+}
+function rrPlan(x0,x1,z0,z1,r,h,mat,y,parent){
+  const ya=-z1,yb=-z0,s=new T.Shape();
+  s.moveTo(x0,ya);s.lineTo(x1,ya);s.lineTo(x1,yb-r);s.quadraticCurveTo(x1,yb,x1-r,yb);
+  s.lineTo(x0+r,yb);s.quadraticCurveTo(x0,yb,x0,yb-r);s.lineTo(x0,ya);
+  const g=new T.ExtrudeGeometry(s,{depth:h,bevelEnabled:false,curveSegments:10});g.rotateX(-Math.PI/2);
+  const m=new T.Mesh(g,mat);m.position.y=y;m.castShadow=true;parent.add(m);return m;
+}
+
+/* ---- 挖土機 ---- */
+const exc=new T.Group();exc.rotation.order='YXZ';scene.add(exc);exc.position.set(0,0,0);
+
+/* 履帶：會隨行走轉動的履帶板 */
+const TKR=.5,TKL=1.4,TKCY=.535,TKPB=2*TKL,TKPA=Math.PI*TKR,TKP=2*TKPB+2*TKPA,TKN=44;
+const TRK=[],pt={y:0,z:0,ty:0,tz:1},dmy=new T.Object3D();
+function pathAt(s){
+  if(s<TKPB){pt.z=-TKL+s;pt.y=TKCY-TKR;pt.ty=0;pt.tz=1}
+  else if(s<TKPB+TKPA){const f=(s-TKPB)/TKR;pt.z=TKL+TKR*Math.sin(f);pt.y=TKCY-TKR*Math.cos(f);pt.ty=Math.sin(f);pt.tz=Math.cos(f)}
+  else if(s<2*TKPB+TKPA){const u=s-TKPB-TKPA;pt.z=TKL-u;pt.y=TKCY+TKR;pt.ty=0;pt.tz=-1}
+  else{const f=(s-2*TKPB-TKPA)/TKR;pt.z=-TKL-TKR*Math.sin(f);pt.y=TKCY+TKR*Math.cos(f);pt.ty=-Math.sin(f);pt.tz=-Math.cos(f)}
+}
+function layoutTrack(t){
+  for(let i=0;i<TKN;i++){
+    let s=(i*TKP/TKN-t.off)%TKP;if(s<0)s+=TKP;
+    pathAt(s);dmy.rotation.set(-Math.atan2(pt.ty,pt.tz),0,0);
+    dmy.position.set(t.sx,pt.y,pt.z);dmy.updateMatrix();t.a.setMatrixAt(i,dmy.matrix);
+    dmy.position.set(t.sx,pt.y-pt.tz*.055,pt.z+pt.ty*.055);dmy.updateMatrix();t.b.setMatrixAt(i,dmy.matrix);
+  }
+  t.a.instanceMatrix.needsUpdate=true;t.b.instanceMatrix.needsUpdate=true;
+}
+{
+  const g1=new T.BoxGeometry(.86,.07,.21),g2=new T.BoxGeometry(.86,.05,.07);
+  const m1=new T.MeshLambertMaterial({color:0x24272d}),m2=new T.MeshLambertMaterial({color:0x3a3e46});
+  for(const sx of[-1.35,1.35]){
+    const a=new T.InstancedMesh(g1,m1,TKN),b=new T.InstancedMesh(g2,m2,TKN);
+    [a,b].forEach(m=>{m.frustumCulled=false;m.castShadow=true;m.instanceMatrix.setUsage(T.DynamicDrawUsage);exc.add(m)});
+    const t={sx,off:0,a,b};TRK.push(t);layoutTrack(t);
+    box(.5,.4,2.9,DGR,sx,.55,0,exc);
+    for(const z of[-TKL,TKL]){cyl(.42,.58,DGR,sx,TKCY,z,exc,'x');cyl(.2,.66,LGRY,sx,TKCY,z,exc,'x')}
+    for(let k=-2;k<=2;k++)cyl(.19,.6,DGR,sx,.29,k*.55,exc,'x');
+    cyl(.09,.6,DGR,sx,.87,0,exc,'x');
+    box(.06,.18,2.4,YEL,sx+(sx>0?.3:-.3),.95,0,exc);
+  }
+}
+box(1.9,.5,2.6,DGR,0,.72,0,exc);
+
+/* 上部車體 */
+const upper=new T.Group();upper.position.y=1.0;exc.add(upper);
+cyl(1.1,.2,LGRY,0,-.05,0,upper);
+box(2.8,.4,3.6,YEL,0,.18,-.2,upper);
+rrPlan(-1.4,1.4,-2.35,-1.1,.6,1.5,YEL,-.02,upper);
+box(2.8,.9,.8,YEL,0,.83,-.7,upper);
+box(2.5,.04,.6,DGR,0,1.3,-.7,upper);
+box(1.2,.03,.35,BLK,-.5,1.32,-.7,upper);
+box(.95,.75,1.5,YEL,-.925,.755,.45,upper);
+box(.9,.03,1.45,DGR,-.925,1.14,.45,upper);
+box(.04,.45,.7,BLK,-1.41,.75,.45,upper);
+cyl(.07,.6,BLK,-1.0,1.6,-.9,upper);
+box(.56,.9,.5,YEL,0,.83,1.1,upper);
+
+/* 駕駛艙（左側） */
+const CX=.98,CZ=.45;
+box(.3,.35,.3,BLK,CX,.55,.25,upper);
+box(.52,.12,.5,DGR,CX,.78,.22,upper);
+box(.52,.75,.1,DGR,CX,1.2,-.05,upper);
+box(.46,.3,.08,DGR,CX,1.7,-.07,upper);
+for(const dx of[-.4,.4]){box(.14,.45,.5,BLK,CX+dx,.62,.4,upper);cyl(.025,.3,BLK,CX+dx,.98,.4,upper)}
+box(.9,.3,.2,BLK,CX,.65,1.1,upper);
+const cabShell=new T.Group();upper.add(cabShell);
+box(1.0,.3,1.5,DGR,CX,.53,CZ,cabShell);
+box(.96,1.2,1.46,GLD,CX,1.28,CZ,cabShell).castShadow=false;
+box(1.1,.1,1.66,DGR,CX,1.93,CZ,cabShell);
+box(1.0,.05,.3,BLK,CX,1.9,CZ+.9,cabShell);
+for(const sx of[-.5,.5])for(const sz of[-.74,.74])box(.07,1.2,.07,BLK,CX+sx,1.28,CZ+sz,cabShell);
+box(.06,1.2,.06,BLK,CX+.5,1.28,CZ-.1,cabShell);
+box(.06,1.2,.06,BLK,CX-.5,1.28,CZ-.1,cabShell);
+box(.96,.05,.05,BLK,CX,1.28,CZ+.74,cabShell);
+box(.3,.08,.1,LAMP,CX,1.97,CZ+.85,cabShell);
+const beacon=cyl(.09,.12,ORG,CX-.3,2.09,CZ-.6,upper);beacon.castShadow=false;
+
+/* 大臂（彎臂） */
+const boomP=new T.Group();boomP.position.set(0,1.0,1.1);upper.add(boomP);
+{
+  const c=[[0,0],[.9,.55],[1.9,.95],[2.9,.95],[3.8,.5],[4.5,0]],t=[.62,.64,.62,.52,.44,.4];
+  const top=c.map((p,i)=>[p[0],p[1]+t[i]/2]),bot=c.map((p,i)=>[p[0],p[1]-t[i]/2]).reverse();
+  plate(top.concat(bot),.5,YEL,boomP,0);
+}
+cyl(.3,.5,DGR,0,0,0,boomP,'x');
+/* 小臂缸缸座：大臂背部 */
+box(.34,.16,.5,DGR,0,1.26,2.7,boomP);
+for(const sx of[-1,1])box(.07,.36,.3,DGR,sx*.15,1.45,2.7,boomP);
+cyl(.05,.4,CHR,0,1.5,2.7,boomP,'x');
+for(const sx of[-1,1]){box(.2,.2,.3,DGR,sx*.34,.4,1.5,boomP)}
+
+/* 小臂 */
+const armP=new T.Group();armP.position.set(0,0,4.5);boomP.add(armP);
+{
+  const top=[[-.3,.1],[-.2,.45],[.7,.5],[1.8,.36],[2.8,.22],[3.3,.14]];
+  const bot=[[3.3,-.18],[2.8,-.22],[1.8,-.3],[.9,-.42],[.1,-.38],[-.25,-.15]];
+  plate(top.concat(bot),.32,YEL,armP,0);
+}
+cyl(.22,.4,DGR,0,0,0,armP,'x');
+for(const sx of[-1,1])box(.07,.42,.4,DGR,sx*.15,.5,-.3,armP);
+cyl(.05,.4,CHR,0,.6,-.4,armP,'x');
+const LK={ps:2.7,pys:.2,A0z:.8,A0y:.66,kyb:.48,kzb:.12};
+box(.16,.24,.3,DGR,0,.58,LK.A0z,armP);
+cyl(.06,.24,CHR,0,LK.A0y,LK.A0z,armP,'x');
+for(const sx of[-1,1])box(.08,.3,.36,DGR,sx*.2,.12,LK.ps,armP);
+cyl(.06,.66,CHR,0,LK.pys,LK.ps,armP,'x');
+
+/* 鏟斗 */
+const bucP=new T.Group();bucP.position.set(0,0,3.2);armP.add(bucP);
+cyl(.2,.46,DGR,0,0,0,bucP,'x');
+cyl(.06,.74,CHR,0,LK.kyb,LK.kzb,bucP,'x');
+
+/* ---- 重型岩石鏟斗（殼體翻面：θ=0 時斗口朝下，耳座在殼體背面） ---- */
+const shellG=new T.Group();shellG.scale.y=-1;bucP.add(shellG);
+{
+  const BW=1.5;
+  const shell=[[1.55,.18],[1.1,-.1],[.6,-.34],[.3,-.45],[.12,-.4],[.02,-.22],[0,.1],[.03,.52]];
+  const side=shell.concat([[.6,.52],[1.2,.38]]);
+  const shp=new T.Shape();side.forEach((p,i)=>i?shp.lineTo(p[0],p[1]):shp.moveTo(p[0],p[1]));shp.closePath();
+  const sideG=new T.ExtrudeGeometry(shp,{depth:.09,bevelEnabled:false});
+  sideG.translate(0,0,-.045);sideG.rotateY(-Math.PI/2);
+  const cz=.7,cy=.1;
+  const outN=(a,b)=>{
+    const dz=b[0]-a[0],dy=b[1]-a[1],l=Math.hypot(dz,dy);let nz=-dy/l,ny=dz/l;
+    const mz=(a[0]+b[0])/2-cz,my=(a[1]+b[1])/2-cy;
+    if(nz*mz+ny*my<0){nz=-nz;ny=-ny}
+    return[nz,ny];
+  };
+  for(const sx of[-1,1]){
+    const m=new T.Mesh(sideG,BSTEEL);m.position.x=sx*(BW/2);m.castShadow=true;shellG.add(m);
+    for(let k=1;k<=4;k++){
+      const a=shell[k],b=shell[k+1],ang=Math.atan2(b[1]-a[1],b[0]-a[0]);
+      const wb=box(.07,.14,.22,BWEAR,sx*(BW/2+.07),(a[1]+b[1])/2,(a[0]+b[0])/2,shellG);wb.rotation.x=-ang;
+    }
+    box(.12,.16,.3,BTOOTH,sx*(BW/2+.01),.2,1.44,shellG);
+  }
+  for(let i=0;i<shell.length-1;i++){
+    const a=shell[i],b=shell[i+1],len=Math.hypot(b[0]-a[0],b[1]-a[1]),ang=Math.atan2(b[1]-a[1],b[0]-a[0]);
+    const s=box(BW-.02,.08,len+.03,BDARK,0,(a[1]+b[1])/2,(a[0]+b[0])/2,shellG);s.rotation.x=-ang;
+  }
+  for(const x of[-.45,0,.45])for(let k=1;k<=6;k++){
+    const a=shell[k],b=shell[k+1],len=Math.hypot(b[0]-a[0],b[1]-a[1]),ang=Math.atan2(b[1]-a[1],b[0]-a[0]);
+    const n=outN(a,b);
+    const rib=box(.06,.07,len,BSTEEL,x,(a[1]+b[1])/2+n[1]*.07,(a[0]+b[0])/2+n[0]*.07,shellG);rib.rotation.x=-ang;
+  }
+  {
+    const a=shell[1],b=shell[2],ang=Math.atan2(b[1]-a[1],b[0]-a[0]),n=outN(a,b);
+    const wp=box(BW-.1,.06,.7,BWEAR,0,(a[1]+b[1])/2+n[1]*.07,(a[0]+b[0])/2+n[0]*.07,shellG);wp.rotation.x=-ang;
+  }
+  box(BW,.09,.3,BWEAR,0,.18,1.45,shellG).rotation.x=-.1;
+  for(let i=0;i<5;i++){
+    const x=(i-2)*.32;
+    box(.2,.12,.26,BTOOTH,x,.2,1.43,shellG);
+    const g=new T.ConeGeometry(.095,.42,8);g.rotateX(Math.PI/2);
+    const t=new T.Mesh(g,BTOOTH);t.position.set(x,.17,1.62);t.rotation.x=.12;t.castShadow=true;shellG.add(t);
+  }
+  // 耳座與樞軸：不翻面，留在殼體背面
+  for(const x of[-.22,.22]){
+    box(.1,.65,.34,BSTEEL,x,.3,.1,bucP);
+    cyl(.17,.1,BSTEEL,x,0,0,bucP,'x');
+  }
+}
+const soilB=box(1.3,.6,1.0,SOIL,0,-.2,.8,shellG);soilB.visible=false;soilB.castShadow=false;
+const tip=new T.Object3D();tip.position.set(0,-.16,1.8);bucP.add(tip);
+
+/* ---- 鏟斗四連桿 ---- */
+const LI=Math.hypot(.3,.75),LB=Math.hypot(.32,.47);
+const linkP1={y:.95,z:3.0};
+const idlerM=[],buckLM=[];
+for(const sx of[-1,1]){
+  const a=box(.08,.13,1,BSTEEL,sx*.31,0,0,armP),b=box(.08,.13,1,BSTEEL,sx*.31,0,0,armP);
+  idlerM.push(a);buckLM.push(b);
+}
+const pinP1=cyl(.065,.74,CHR,0,0,0,armP,'x');
+function placeLink(ms,z1,y1,z2,y2){
+  const dz=z2-z1,dy=y2-y1,L=Math.hypot(dz,dy)||.001;
+  for(const m of ms){m.position.y=(y1+y2)/2;m.position.z=(z1+z2)/2;m.scale.z=L+.1;m.rotation.x=-Math.atan2(dy,dz)}
+}
+function updLinkage(){
+  const c=J.c,sn=Math.sin(c),cs=Math.cos(c);
+  const kz=3.2+LK.kyb*sn+LK.kzb*cs,ky=LK.kyb*cs-LK.kzb*sn;
+  const dz=kz-LK.ps,dy=ky-LK.pys,d=Math.hypot(dz,dy)||.001;
+  const a=(LI*LI-LB*LB+d*d)/(2*d),h=Math.sqrt(Math.max(0,LI*LI-a*a));
+  const uz=dz/d,uy=dy/d;
+  const pz=LK.ps+a*uz-h*uy,py=LK.pys+a*uy+h*uz;
+  linkP1.z=pz;linkP1.y=py;
+  placeLink(idlerM,LK.ps,LK.pys,pz,py);
+  placeLink(buckLM,pz,py,kz,ky);
+  pinP1.position.set(0,py,pz);
+}
+
+/* ---- 油壓缸（缸身固定長度，只有活塞桿伸縮） ---- */
+const RAMS=[],_ra=new T.Vector3(),_rd=new T.Vector3(),_rz=new T.Vector3(0,0,1);
+const ramGeo=new T.CylinderGeometry(1,1,1,12);ramGeo.rotateX(Math.PI/2);ramGeo.translate(0,0,.5);
+function makeRam(parent,frameB,A,B,rb,rr,bl,dyn){
+  const g=new T.Group();parent.add(g);
+  const barrel=new T.Mesh(ramGeo,DGR),rod=new T.Mesh(ramGeo,CHR);
+  barrel.scale.set(rb,rb,1);rod.scale.set(rr,rr,1);barrel.castShadow=true;rod.castShadow=true;
+  g.add(barrel,rod);
+  RAMS.push({g,barrel,rod,parent,frameB,bl,dyn:!!dyn,A:new T.Vector3(A[0],A[1],A[2]),B:B?new T.Vector3(B[0],B[1],B[2]):null});
+}
+function updRams(){
+  for(const r of RAMS){
+    if(r.dyn)_ra.set(0,linkP1.y,linkP1.z);
+    else{_ra.copy(r.B);r.frameB.localToWorld(_ra);r.parent.worldToLocal(_ra)}
+    _rd.subVectors(_ra,r.A);const L=_rd.length()||.001;
+    r.g.position.copy(r.A);r.g.quaternion.setFromUnitVectors(_rz,_rd.multiplyScalar(1/L));
+    const bl=Math.min(r.bl,L);
+    r.barrel.scale.z=bl;r.rod.scale.z=bl;r.rod.position.z=L-bl;
+  }
+}
+for(const sx of[-1,1]){
+  box(.14,.24,.3,DGR,sx*.38,.36,1.4,upper);
+  makeRam(upper,boomP,[sx*.38,.42,1.4],[sx*.38,.4,1.5],.085,.05,1.15);
+}
+makeRam(boomP,armP,[0,1.5,2.7],[0,.6,-.4],.11,.065,1.6);
+makeRam(armP,null,[0,LK.A0y,LK.A0z],null,.09,.055,1.4,true);
+
+/* 關節 */
+const J={swing:0,b:.55,a:1.35,c:-.3};
+const BUCKET_MIN=-0.65,BUCKET_MAX=1.95;
+const ARM_MIN=.15,ARM_MAX=2.3;
+function applyJ(){upper.rotation.y=J.swing;boomP.rotation.x=-J.b;armP.rotation.x=J.a;bucP.rotation.x=J.c}
+applyJ();exc.updateMatrixWorld(true);updLinkage();updRams();
+
+/* ---- 卡車 ---- */
+const TCAP=4,TX=-7.5,TZ=2;
+const truck={g:new T.Group(),load:0,state:'parked',speed:0};
+{
+  const g=truck.g,BL=new T.MeshLambertMaterial({color:0x2f6fb5}),BED=new T.MeshLambertMaterial({color:0x5a6270});
+  box(2.2,.4,7.4,GRY,0,.8,.6,g);
+  for(const z of[-1.8,-.6,3.6])for(const sx of[-1.2,1.2])cyl(.55,.4,new T.MeshLambertMaterial({color:0x111111}),sx,.55,z,g,'x');
+  box(2.4,.15,4.4,BED,0,1.1,0,g);
+  for(const sx of[-1.2,1.2])box(.12,.9,4.4,BED,sx,1.55,0,g);
+  box(2.4,.9,.12,BED,0,1.55,-2.2,g);box(2.4,1.2,.12,BED,0,1.7,2.2,g);
+  box(2.3,1.8,1.7,BL,0,1.9,3.5,g);box(2.0,.6,.1,GLS,0,2.3,4.36,g);box(2.3,.9,1.0,BL,0,1.45,4.7,g);
+  g.position.set(TX,0,TZ);scene.add(g);
+}
+const tFill=new T.Mesh(new T.BoxGeometry(2.2,1,4.1),SOIL);tFill.visible=false;truck.g.add(tFill);
+function updTruckFill(){const f=clamp(truck.load/TCAP,0,1);tFill.visible=f>.01;tFill.scale.y=Math.max(.01,f*.85);tFill.position.y=1.18+f*.85/2}
+
+/* ---- 粒子（掉落的土） ---- */
+const parts=[],pool=[],pg=new T.BoxGeometry(.26,.26,.26);
+function spawn(p,vol){
+  let q=pool.pop();
+  if(!q){if(parts.length>250){modify(p.x,p.z,1.2,vol);return}q={m:new T.Mesh(pg,SOIL)};scene.add(q.m)}
+  q.m.visible=true;q.m.position.set(p.x+(Math.random()-.5)*.8,p.y,p.z+(Math.random()-.5)*.8);
+  q.m.rotation.set(Math.random()*3,Math.random()*3,0);
+  q.vx=(Math.random()-.5)*.8;q.vy=-1;q.vz=(Math.random()-.5)*.8;q.vol=vol;parts.push(q);
+}
+function updParts(dt){
+  for(let i=parts.length-1;i>=0;i--){
+    const q=parts[i],m=q.m.position;q.vy-=14*dt;m.x+=q.vx*dt;m.y+=q.vy*dt;m.z+=q.vz*dt;
+    let done=false,inT=false;const tg=truck.g.position;
+    if(truck.state==='parked'){
+      const f=clamp(truck.load/TCAP,0,1);
+      if(Math.abs(m.x-tg.x)<1.5&&Math.abs(m.z-tg.z)<2.5&&m.y<tg.y+1.2+f*.85+.1&&m.y>tg.y+.9){truck.load+=q.vol;done=true;inT=true}
+    }
+    if(!done&&m.y<=hAt(m.x,m.z)+.05){modify(m.x,m.z,1.2,q.vol);done=true}
+    if(done){SFX.thud(inT,q.vol);q.m.visible=false;pool.push(q);parts[i]=parts[parts.length-1];parts.pop()}
+  }
+}
+
+/* ---- 輸入 ---- */
+const L={x:0,y:0},R={x:0,y:0};
+function makeStick(el,o){
+  const knob=el.querySelector('i');let id=null;
+  const mv=e=>{const r=el.getBoundingClientRect(),rad=r.width/2;
+    let dx=(e.clientX-r.left-rad)/rad,dy=(e.clientY-r.top-rad)/rad;const l=Math.hypot(dx,dy);if(l>1){dx/=l;dy/=l}
+    knob.style.transform=`translate(${dx*rad*.55}px,${dy*rad*.55}px)`;
+    const dz=v=>Math.abs(v)<.12?0:Math.sign(v)*(Math.abs(v)-.12)/.88;o.x=dz(dx);o.y=dz(-dy)};
+  el.addEventListener('pointerdown',e=>{e.preventDefault();id=e.pointerId;el.setPointerCapture(id);mv(e)});
+  el.addEventListener('pointermove',e=>{if(e.pointerId===id)mv(e)});
+  const up=e=>{if(e.pointerId!==id)return;id=null;o.x=o.y=0;knob.style.transform=''};
+  el.addEventListener('pointerup',up);el.addEventListener('pointercancel',up);
+}
+makeStick($('#stickL'),L);makeStick($('#stickR'),R);
+const held=new Map();
+document.querySelectorAll('[data-ch]').forEach(b=>{
+  b.addEventListener('pointerdown',e=>{e.preventDefault();b.setPointerCapture(e.pointerId);held.set(e.pointerId,b);b.classList.add('on')});
+  ['pointerup','pointercancel','lostpointercapture'].forEach(ev=>b.addEventListener(ev,e=>{held.delete(e.pointerId);b.classList.remove('on')}));
+});
+const keys={};
+addEventListener('keydown',e=>{keys[e.code]=1;if(e.code==='KeyC')toggleCam();if(e.code==='KeyM')cycleMode();if(e.code==='KeyN')toggleSound()});
+addEventListener('keyup',e=>{keys[e.code]=0});
+const sm={drive:0,turn:0,swing:0,boom:0,arm:0,bucket:0};
+function readInput(){
+  const t={drive:0,turn:0,swing:0,boom:0,arm:0,bucket:0},m=state.mode;
+  if(m===0){t.drive=L.y;t.turn=L.x;t.swing=-R.x;t.boom=R.y}
+  else if(m===1){t.swing=-L.x;t.arm=L.y;t.boom=-R.y;t.bucket=-R.x}
+  held.forEach(b=>{t[b.dataset.ch]+=+b.dataset.v});
+  const k=(a,b)=>(keys[a]?1:0)-(keys[b]?1:0);
+  t.drive+=k('KeyW','KeyS')+k('ArrowUp','ArrowDown');t.turn+=k('KeyD','KeyA')+k('ArrowRight','ArrowLeft');
+  // 鏟斗：H = 收（正），Y = 放（負）
+  t.swing+=k('KeyQ','KeyE');t.boom+=k('KeyR','KeyF');t.arm+=k('KeyT','KeyG');t.bucket+=k('KeyH','KeyY');
+  for(const n in t)t[n]=clamp(t[n],-1,1);return t;
+}
+
+/* ---- 相機控制 ---- */
+const cam={yaw:0,pitch:.5,dist:14,fyaw:0,fpitch:-.25,ang:0};
+const ptrs=new Map();let pinch=0;
+canvas.addEventListener('pointerdown',e=>{canvas.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});if(ptrs.size===2){const a=[...ptrs.values()];pinch=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y)}});
+canvas.addEventListener('pointermove',e=>{
+  const p=ptrs.get(e.pointerId);if(!p)return;const dx=e.clientX-p.x,dy=e.clientY-p.y;p.x=e.clientX;p.y=e.clientY;
+  if(ptrs.size===1){
+    if(state.cam===0){cam.yaw-=dx*.006;cam.pitch=clamp(cam.pitch+dy*.005,.05,1.4)}
+    else{cam.fyaw=clamp(cam.fyaw-dx*.005,-2,2);cam.fpitch=clamp(cam.fpitch-dy*.004,-1.1,.6)}
+  }else if(ptrs.size===2){const a=[...ptrs.values()],d=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y);cam.dist=clamp(cam.dist*pinch/d,5,32);pinch=d}
+});
+['pointerup','pointercancel'].forEach(ev=>canvas.addEventListener(ev,e=>{ptrs.delete(e.pointerId)}));
+canvas.addEventListener('wheel',e=>{cam.dist=clamp(cam.dist*(1+e.deltaY*.001),5,32)},{passive:true});
+
+/* ---- UI ---- */
+const MODES=['搖桿模式','ISO 標準','按鈕模式'];
+const VIS={stickL:[1,1,0],stickR:[1,1,0],padDrive:[0,1,1],padTool0:[1,0,0],padTool2:[0,0,1]};
+function applyUI(){
+  document.body.dataset.mode=state.mode;
+  for(const id in VIS)$('#'+id).style.display=VIS[id][state.mode]?(id.startsWith('pad')?'grid':'block'):'none';
+  $('#bMode').textContent='🎮 '+MODES[state.mode];
+  $('#bCam').textContent=state.cam?'📷 第一人稱':'📷 第三人稱';
+  $('#bSound').textContent=state.sound?'🔊 音效開':'🔇 音效關';
+  cabShell.visible=state.cam===0;
+  camera.fov=state.cam?72:60;camera.updateProjectionMatrix();
+  L.x=L.y=R.x=R.y=0;held.clear();document.querySelectorAll('.on').forEach(b=>b.classList.remove('on'));
+  save();
+}
+function toggleCam(){state.cam^=1;applyUI()}
+function cycleMode(){state.mode=(state.mode+1)%3;applyUI();toast('操作模式：'+MODES[state.mode])}
+function toggleSound(){state.sound^=1;SFX.init();SFX.setOn(!!state.sound);applyUI();toast(state.sound?'🔊 音效已開啟':'🔇 音效已關閉')}
+$('#bCam').onclick=toggleCam;$('#bMode').onclick=cycleMode;$('#bSound').onclick=toggleSound;
+$('#bHelp').onclick=()=>$('#help').style.display='flex';
+$('#helpClose').onclick=()=>{$('#help').style.display='none';try{localStorage.setItem('exc_help','1')}catch(e){}};
+$('#bReset').onclick=()=>{if(confirm('要重置地形與卡車嗎？')){initTerrain();J.swing=0;truck.load=0;J.b=.55;J.a=1.35;J.c=-.3;bucketLoad=0;updTruckFill();toast('地形已重置')}};
+let tt;function toast(s){const t=$('#toast');t.textContent=s;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),1800)}
+let seen=false;try{seen=localStorage.getItem('exc_help')}catch(e){}
+if(!seen)$('#help').style.display='flex';
+
+/* ---- 遊戲邏輯 ---- */
+let bucketLoad=0;const BCAP=1.0;
+let warnT=0,msgT=0,bump=false;
+const tp=new T.Vector3(),tmpV=new T.Vector3(),q1=new T.Quaternion(),q2=new T.Quaternion();
+let dumpAcc=0,hudT=0,frameN=0,camPos=new T.Vector3(),camInit=false,tClock=0;
+
+function groundAlign(dt){
+  const h=exc.rotation.y,s=Math.sin(h),c=Math.cos(h),p=exc.position;
+  const P=(lx,lz)=>hAt(p.x+lx*c+lz*s,p.z-lx*s+lz*c);
+  const hf=P(0,1.9),hb=P(0,-1.9),hl=P(1.4,0),hr=P(-1.4,0);
+  const k=1-Math.exp(-8*dt);
+  p.y+=((hf+hb+hl+hr)/4-p.y)*k;
+  exc.rotation.x+=(Math.atan2(hb-hf,3.8)-exc.rotation.x)*k;
+  exc.rotation.z+=(Math.atan2(hl-hr,2.8)-exc.rotation.z)*k;
+}
+function collide(){
+  const g=truck.g.position,p=exc.position;
+  const x0=g.x-1.2-2.3,x1=g.x+1.2+2.3,z0=g.z-2.5-2.3,z1=g.z+5.2+2.3;
+  if(p.x>x0&&p.x<x1&&p.z>z0&&p.z<z1){
+    const d=[p.x-x0,x1-p.x,p.z-z0,z1-p.z],m=Math.min(...d);
+    if(m===d[0])p.x=x0;else if(m===d[1])p.x=x1;else if(m===d[2])p.z=z0;else p.z=z1;
+  }
+}
+function updTruck(dt){
+  const g=truck.g.position;
+  if(truck.state==='leaving'){
+    truck.speed=Math.min(14,truck.speed+4*dt);g.z+=truck.speed*dt;
+    if(g.z>75){truck.state='arriving';g.z=-75;truck.load=0;truck.speed=10;updTruckFill()}
+  }else if(truck.state==='arriving'){
+    truck.speed=clamp((TZ-g.z)*.8,1.5,12);g.z+=truck.speed*dt;
+    if(g.z>=TZ-.03){g.z=TZ;truck.state='parked';truck.speed=0;toast('🚚 新的卡車到了');SFX.beep([392,392])}
+  }else if(truck.load>=TCAP){
+    truck.state='leaving';truck.load=TCAP;state.delivered++;state.total+=TCAP;save();toast('🚚 卡車滿載出發！+'+TCAP+' m³');SFX.beep([523,659,784])
+  }
+  g.y+=(hAt(g.x,g.z)-g.y)*.2;updTruckFill();
+}
+
+function update(dt){
+  const inp=readInput(),k=Math.min(1,dt*8);
+  for(const n in sm)sm[n]+=(inp[n]-sm[n])*k;
+  exc.rotation.y-=sm.turn*1.1*dt;
+  const h=exc.rotation.y;
+  exc.position.x+=Math.sin(h)*sm.drive*3.2*dt;exc.position.z+=Math.cos(h)*sm.drive*3.2*dt;
+  const rr=Math.hypot(exc.position.x,exc.position.z);if(rr>40){exc.position.x*=40/rr;exc.position.z*=40/rr}
+  {const ax=exc.position.x,az=exc.position.z;collide();
+   if(Math.abs(sm.drive)>.3&&Math.hypot(exc.position.x-ax,exc.position.z-az)>.005)bump=true;}
+  groundAlign(dt);
+  {
+    const wv=sm.turn*1.1*1.35,vR=sm.drive*3.2-wv,vL=sm.drive*3.2+wv;
+    if(Math.abs(vR)>.002){TRK[0].off+=vR*dt;layoutTrack(TRK[0])}
+    if(Math.abs(vL)>.002){TRK[1].off+=vL*dt;layoutTrack(TRK[1])}
+    tClock+=dt;ORG.color.setHex(((tClock*2.5)|0)%2?0xff9a1a:0x5a3000);
+  }
+  const prev={...J};
+  exc.updateMatrixWorld(true);tip.getWorldPosition(tp);
+  const prevDepth=hAt(tp.x,tp.z)-tp.y;
+  J.swing+=sm.swing*.9*dt;
+  const nb=J.b+sm.boom*.55*dt,na=J.a-sm.arm*.8*dt,nc=J.c+sm.bucket*1.1*dt;
+  J.b=clamp(nb,-.45,1.2);J.a=clamp(na,ARM_MIN,ARM_MAX);J.c=clamp(nc,BUCKET_MIN,BUCKET_MAX);
+  const hitLimit=(Math.abs(inp.boom)>.3&&nb!==J.b)||(Math.abs(inp.arm)>.3&&na!==J.a)||(Math.abs(inp.bucket)>.3&&nc!==J.c);
+  applyJ();exc.updateMatrixWorld(true);tip.getWorldPosition(tp);
+  let gh=hAt(tp.x,tp.z),depth=gh-tp.y;
+  let blocked=false;
+  if(depth>.6&&depth>prevDepth){J.b=prev.b;J.a=prev.a;J.c=prev.c;applyJ();exc.updateMatrixWorld(true);tip.getWorldPosition(tp);gh=hAt(tp.x,tp.z);depth=gh-tp.y;
+    if(Math.abs(sm.boom)+Math.abs(sm.arm)+Math.abs(sm.bucket)+Math.abs(sm.swing)>.1)blocked=true}
+  updLinkage();updRams();
+  warnT-=dt;msgT-=dt;
+  if(warnT<=0&&(blocked||bump||hitLimit)){
+    warnT=.7;
+    const stall=blocked||bump;
+    SFX.warn(stall?'stall':'limit');
+    if(stall){const w=$('#warn');w.classList.add('on');setTimeout(()=>w.classList.remove('on'),250)}
+    if(msgT<=0){msgT=2;toast(blocked?'⚠️ 鏟斗頂到土堆，換個角度或先抬大臂':bump?'🚧 前方被卡車擋住':'⚙️ 已到關節極限')}
+  }
+  bump=false;
+  const th=J.a-J.b+J.c,faceY=-Math.cos(th);
+  const act=Math.abs(sm.arm)+Math.abs(sm.bucket)+Math.abs(sm.boom)+Math.abs(sm.swing);
+  let digging=false,dumping=false;
+  if(depth>-.05&&faceY>-.1&&bucketLoad<BCAP&&act>.1&&gh>-3.5){
+    const a=Math.min(BCAP-bucketLoad,1.3*dt*Math.min(1,act));bucketLoad+=a;modify(tp.x,tp.z,1.4,-a);digging=a>0.0005;
+  }
+  if(bucketLoad>0&&faceY<-.45){
+    dumping=true;
+    const o=Math.min(bucketLoad,2.0*dt);bucketLoad-=o;dumpAcc+=o;
+    while(dumpAcc>=.1){dumpAcc-=.1;spawn(tp,.1)}
+    if(bucketLoad<.02){dumpAcc+=bucketLoad;bucketLoad=0}
+  }
+  const f=bucketLoad/BCAP;soilB.visible=f>.02;soilB.scale.y=Math.max(.01,f);soilB.position.y=-.2+.3*f;
+  updParts(dt);updTruck(dt);
+  SFX.update({
+    move:clamp(Math.max(Math.abs(sm.drive),Math.abs(sm.turn)*.8),0,1),
+    hyd:clamp(Math.max(Math.abs(sm.boom),Math.abs(sm.arm),Math.abs(sm.bucket),Math.abs(sm.swing)*.8),0,1),
+    dig:digging&&Math.abs(sm.arm)+Math.abs(sm.bucket)+Math.abs(sm.boom)>.15,
+    dump:dumping
+  });
+  if(dirty&&(++frameN%2===0)){paint();dirty=false}
+  updateCamera(dt);
+  sun.position.set(exc.position.x+22,45,exc.position.z+14);sun.target.position.copy(exc.position);
+  hudT+=dt;if(hudT>.1){hudT=0;
+    $('#bucketBar').style.width=(f*100)+'%';$('#tBucket').textContent=Math.round(f*100)+'%';
+    const tf=clamp(truck.load/TCAP,0,1);$('#truckBar').style.width=(tf*100)+'%';$('#tTruck').textContent=Math.round(tf*100)+'%';
+    $('#tDeliv').textContent=state.delivered;$('#tTotal').textContent=state.total;
+  }
+}
+function updateCamera(dt){
+  if(state.cam===1){
+    tmpV.set(CX,1.75,.55);upper.localToWorld(tmpV);camera.position.copy(tmpV);
+    upper.getWorldQuaternion(q1);q2.setFromEuler(new T.Euler(cam.fpitch,cam.fyaw+Math.PI,0,'YXZ'));
+    camera.quaternion.copy(q1).multiply(q2);camInit=false;return;
+  }
+  const want=exc.rotation.y+J.swing;
+  let d=want-cam.ang;d=Math.atan2(Math.sin(d),Math.cos(d));cam.ang+=d*(1-Math.exp(-3*dt));
+  const a=cam.ang+Math.PI+cam.yaw,p=cam.pitch,tg=exc.position;
+  const ty=tg.y+2.2;
+  const dest=new T.Vector3(tg.x+Math.sin(a)*Math.cos(p)*cam.dist,ty+Math.sin(p)*cam.dist,tg.z+Math.cos(a)*Math.cos(p)*cam.dist);
+  dest.y=Math.max(dest.y,hAt(dest.x,dest.z)+.8);
+  if(!camInit){camPos.copy(dest);camInit=true}else camPos.lerp(dest,1-Math.exp(-8*dt));
+  camera.position.copy(camPos);camera.lookAt(tg.x,ty,tg.z);
+}
+
+/* ---- 啟動 ---- */
+initTerrain();paint();dirty=false;applyUI();updTruckFill();
+let last=performance.now();
+function frame(now){
+  const dt=Math.min(.05,(now-last)/1000);last=now;
+  update(dt);renderer.render(scene,camera);requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+}
+</script>
+</body>
+</html>
