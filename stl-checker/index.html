@@ -208,6 +208,8 @@ footer{text-align:center;color:var(--sub);font-size:.85rem;padding:30px 0}
             <span class="vsep"></span>
             <!-- 問題標示方式：面／點 -->
             <button class="vb" id="modeBtn"></button>
+            <!-- 標示閃爍開關 -->
+            <button class="vb" id="blinkBtn"></button>
             <!-- 正交／透視切換（預設正交）-->
             <button class="vb" id="projBtn"></button>
             <button class="vb" id="fsBtn"><i class="fa-solid fa-expand"></i> <span data-i18n="fs"></span><kbd>F</kbd></button>
@@ -258,10 +260,11 @@ const I18N = {
   stWait:'等待中', stRun:'檢查中', stErr:'解析失敗', stBad:'有縫隙', stMulti:'多個實體', stWarn:'有過薄', stOk:'正常',
   batchSum:'共 {n} 個檔案：{ok} 個完全正常；{gap} 個有縫隙、{multi} 個非單一實體、{thin} 個有過薄{err}',
   batchErr:'、{n} 個失敗',
-  view:'3D 檢視（左鍵旋轉、右鍵平移、滾輪縮放）', lgGap:'縫隙（面）', lgWall:'過薄（面）', lgBody:'模型顏色：多實體時每個實體不同色',
+  view:'3D 檢視（左鍵旋轉、右鍵平移、滾輪縮放）', lgGap:'縫隙（閃爍的面）', lgWall:'過薄（閃爍的面）', lgBody:'模型顏色：多實體時每個實體不同色',
   vIso:'等角', vFront:'前視', vBack:'後視', vLeft:'左視', vRight:'右視', vTop:'上視', vBottom:'下視', fs:'全螢幕', fsExit:'退出全螢幕',
   ortho:'正交', persp:'透視', projTip:'點擊切換 正交／透視',
   modeFace:'標示：面', modePoint:'標示：點', modeTip:'點擊切換 面／點 顯示',
+  blinkOn:'閃爍：開', blinkOff:'閃爍：關', blinkTip:'點擊開關標示閃爍',
   issues:'問題清單（點擊可定位）', shells:'獨立實體（點擊可定位）',
   tipTitle:'小提醒',
   tip1:'Tinkercad 中若兩個物件只是「靠很近」而不是重疊，匯出後就會留下縫隙。解法：讓它們互相重疊一點點，再「群組」。',
@@ -269,8 +272,8 @@ const I18N = {
   tip3:'XY 方向的極細線段若小於噴嘴寬度，切片軟體常會直接忽略。',
   tip4:'本工具假設 STL 法線朝外（Tinkercad 匯出通常正確），結果僅供參考，仍建議用切片軟體預覽逐層確認。',
   tip5:'「單一實體」判斷標準：所有表面必須透過共用的邊真正連成一體。只有點、線或面「剛好碰到」不算接合，請讓它們重疊後再群組。',
-  tip6:'3D 畫面快捷鍵：0 等角、1 前、2 後、3 左、4 右、5 上、6 下、P 正交／透視、V 面／點、F 全螢幕。點問題清單會自動飛到該位置。',
-  tip7:'找縫隙建議用「正交」搭配前視／右視，並用「面」標示：縫隙兩側的表面會被塗成紅色，一眼就能看出範圍。',
+  tip6:'3D 畫面快捷鍵：0 等角、1 前、2 後、3 左、4 右、5 上、6 下、P 正交／透視、V 面／點、B 閃爍、F 全螢幕。點問題清單會自動飛到該位置。',
+  tip7:'找縫隙建議用「正交」搭配前視／右視，並用「面」標示：縫隙兩側的表面會閃爍紅色，與實體面一眼就能區分。',
   foot:'© 2026 STL 縫隙檢查器 ・ 純前端運作，檔案不會離開你的電腦',
   reading:'讀取檔案…', parsing:'解析三角形…', welding:'合併頂點與分析結構…', bvh:'建立加速結構…', ray:'偵測縫隙與薄壁…', done:'全部完成',
   errFile:'無法解析此 STL 檔案',
@@ -302,10 +305,11 @@ const I18N = {
   stWait:'Waiting', stRun:'Checking', stErr:'Parse failed', stBad:'Gaps', stMulti:'Multi-body', stWarn:'Too thin', stOk:'OK',
   batchSum:'{n} files: {ok} fully OK; {gap} with gaps, {multi} not a single body, {thin} too thin{err}',
   batchErr:', {n} failed',
-  view:'3D view (left: rotate, right: pan, wheel: zoom)', lgGap:'Gap (faces)', lgWall:'Too thin (faces)', lgBody:'Model colour: each body has its own colour when multiple',
+  view:'3D view (left: rotate, right: pan, wheel: zoom)', lgGap:'Gap (blinking faces)', lgWall:'Too thin (blinking faces)', lgBody:'Model colour: each body has its own colour when multiple',
   vIso:'Isometric', vFront:'Front', vBack:'Back', vLeft:'Left', vRight:'Right', vTop:'Top', vBottom:'Bottom', fs:'Fullscreen', fsExit:'Exit fullscreen',
   ortho:'Orthographic', persp:'Perspective', projTip:'Click to switch Orthographic / Perspective',
   modeFace:'Mark: Faces', modePoint:'Mark: Points', modeTip:'Click to switch Faces / Points',
+  blinkOn:'Blink: On', blinkOff:'Blink: Off', blinkTip:'Click to toggle blinking',
   issues:'Issues (click to locate)', shells:'Separate bodies (click to locate)',
   tipTitle:'Tips',
   tip1:'In Tinkercad, two objects that are merely close (not overlapping) leave a gap after export. Fix: overlap them slightly, then Group.',
@@ -313,8 +317,8 @@ const I18N = {
   tip3:'XY features thinner than the nozzle width are often ignored by slicers.',
   tip4:'This tool assumes outward-facing normals (usually true for Tinkercad). Results are a guide; still preview layers in your slicer.',
   tip5:'"Single body" means all surfaces are truly joined through shared edges. Parts that merely touch at a point, line or face do not count – overlap them, then Group.',
-  tip6:'3D shortcuts: 0 isometric, 1 front, 2 back, 3 left, 4 right, 5 top, 6 bottom, P ortho/perspective, V faces/points, F fullscreen. Clicking an issue flies the camera to it.',
-  tip7:'To hunt for gaps, use Orthographic with Front / Right view and Faces marking: the surfaces on both sides of a gap are painted red so the extent is obvious.',
+  tip6:'3D shortcuts: 0 isometric, 1 front, 2 back, 3 left, 4 right, 5 top, 6 bottom, P ortho/perspective, V faces/points, B blink, F fullscreen. Clicking an issue flies the camera to it.',
+  tip7:'To hunt for gaps, use Orthographic with Front / Right view and Faces marking: the surfaces on both sides of a gap blink red, so they are easy to tell apart from the solid faces.',
   foot:'© 2026 STL Gap Checker ・ Runs 100% in your browser',
   reading:'Reading file…', parsing:'Parsing triangles…', welding:'Welding vertices & analysing…', bvh:'Building acceleration structure…', ray:'Detecting gaps & thin walls…', done:'All done',
   errFile:'Unable to parse this STL file',
@@ -338,7 +342,7 @@ function applyLang(){
   document.documentElement.lang = lang==='zh'?'zh-Hant':'en';
   document.querySelectorAll('[data-i18n]').forEach(e=>e.textContent=t(e.dataset.i18n));
   document.getElementById('langBtn').textContent = lang==='zh'?'EN':'中文';
-  updateFsBtn(); updateViewLabel(); updateProjBtn(); updateModeBtn();
+  updateFsBtn(); updateViewLabel(); updateProjBtn(); updateModeBtn(); updateBlinkBtn();
   renderQueue(); if(cur&&cur.result) renderResults(cur);
 }
 document.getElementById('langBtn').onclick=()=>{lang=lang==='zh'?'en':'zh';applyLang();};
@@ -656,6 +660,9 @@ function renderResults(it){
 let scene,persp,ortho,camera,renderer,controls,meshObj,markers,overlay,inited=false;
 let isOrtho=true;                       // 預設為正交視圖（想改預設透視，把 true 改 false）
 let markMode='face';                    // 問題標示方式：'face' 面（預設）／'point' 點
+let blink=true;                         // 標示是否閃爍（預設開）
+const BLINK_PERIOD=900;                 // 閃爍一個週期的毫秒數（越小越快）
+const blinkMats=[];                     // 需要閃爍的材質清單：{m:材質, base:基礎透明度}
 let viewInfo={c:null,radius:50};        // 目前模型的中心與半徑
 let curView='iso', tween=null;
 
@@ -679,6 +686,16 @@ function resizeCams(){
   const hh=orthoHalf(); ortho.left=-hh*asp; ortho.right=hh*asp; ortho.top=hh; ortho.bottom=-hh; ortho.updateProjectionMatrix();
 }
 
+// 每一幀更新閃爍：用正弦波讓透明度在亮與暗之間來回變化
+function stepBlink(now){
+  if(!blinkMats.length)return;
+  const s=blink?(0.5+0.5*Math.sin(now/BLINK_PERIOD*Math.PI*2)):1;   // 0~1
+  blinkMats.forEach(b=>{
+    if(b.isLine){b.m.opacity=blink?(0.15+0.85*s):1;}
+    else{b.m.opacity=blink?(0.08+0.82*s):0.6;}
+  });
+}
+
 function init3D(){
   const el=document.getElementById('viewer');
   scene=new THREE.Scene(); scene.background=new THREE.Color(0x0b1222);
@@ -693,9 +710,9 @@ function init3D(){
   scene.add(new THREE.AmbientLight(0xffffff,.6));
   const dl=new THREE.DirectionalLight(0xffffff,.8); dl.position.set(1,-1,2); scene.add(dl);
   const dl2=new THREE.DirectionalLight(0xffffff,.4); dl2.position.set(-1,1,-1); scene.add(dl2);
-  (function loop(){
+  (function loop(now){
     requestAnimationFrame(loop);
-    stepTween();
+    stepTween(); stepBlink(now||performance.now());
     controls.update();renderer.render(scene,camera);
   })();
   new ResizeObserver(resizeCams).observe(el);
@@ -770,6 +787,15 @@ function updateModeBtn(){
 function toggleMode(){markMode=markMode==='face'?'point':'face'; applyMarkMode(); updateModeBtn();}
 document.getElementById('modeBtn').onclick=toggleMode;
 
+// 閃爍開關
+function updateBlinkBtn(){
+  const b=document.getElementById('blinkBtn');
+  b.innerHTML=`<i class="fa-solid fa-bolt"></i> ${t(blink?'blinkOn':'blinkOff')}<kbd>B</kbd>`;
+  b.title=t('blinkTip'); b.classList.toggle('active',blink);
+}
+function toggleBlink(){blink=!blink; updateBlinkBtn();}
+document.getElementById('blinkBtn').onclick=toggleBlink;
+
 // 全螢幕
 function updateFsBtn(){
   const on=!!document.fullscreenElement;
@@ -791,9 +817,10 @@ document.addEventListener('keydown',e=>{
   else if(e.key==='f'||e.key==='F'){toggleFs();}
   else if(e.key==='p'||e.key==='P'){setProjection(!isOrtho);}
   else if(e.key==='v'||e.key==='V'){toggleMode();}
+  else if(e.key==='b'||e.key==='B'){toggleBlink();}
 });
 
-// 建立「面」標示：把有問題的三角形塗成半透明色，並畫出外框線（從側面看時薄縫也看得到）
+// 建立「面」標示：把有問題的三角形塗成半透明色，並畫出外框線（材質會登記到閃爍清單）
 function makeFaceOverlay(triSet,pos,colorHex){
   const grp=new THREE.Group(); if(!triSet.size)return grp;
   const arr=new Float32Array(triSet.size*9); let k=0;
@@ -808,13 +835,14 @@ function makeFaceOverlay(triSet,pos,colorHex){
     }
   });
   const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(arr,3));
-  const fill=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:colorHex,transparent:true,opacity:.6,side:THREE.DoubleSide,depthTest:false}));
-  fill.renderOrder=8; grp.add(fill);
+  const fm=new THREE.MeshBasicMaterial({color:colorHex,transparent:true,opacity:.6,side:THREE.DoubleSide,depthTest:false});
+  const fill=new THREE.Mesh(g,fm); fill.renderOrder=8; grp.add(fill); blinkMats.push({m:fm,isLine:false});
   const ln=[]; edgeCnt.forEach(e=>{if(e.n===1)ln.push(pos[e.a],pos[e.a+1],pos[e.a+2],pos[e.b],pos[e.b+1],pos[e.b+2]);});
   if(ln.length){
     const lg=new THREE.BufferGeometry(); lg.setAttribute('position',new THREE.BufferAttribute(new Float32Array(ln),3));
-    const lines=new THREE.LineSegments(lg,new THREE.LineBasicMaterial({color:colorHex,depthTest:false}));
-    lines.renderOrder=9; grp.add(lines);
+    const lm=new THREE.LineBasicMaterial({color:colorHex,transparent:true,depthTest:false});
+    const lines=new THREE.LineSegments(lg,lm);
+    lines.renderOrder=9; grp.add(lines); blinkMats.push({m:lm,isLine:true});
   }
   return grp;
 }
@@ -824,6 +852,7 @@ function build3D(it){
   if(meshObj){scene.remove(meshObj);meshObj.geometry.dispose();}
   if(markers){scene.remove(markers);markers.geometry.dispose();}
   if(overlay){scene.remove(overlay);overlay.traverse(o=>{if(o.geometry)o.geometry.dispose();});}
+  blinkMats.length=0;   // 清空舊的閃爍材質
   const N=it.prep.N, nb=it.topo.shells.length;
   const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(it.prep.pos,3)); g.computeVertexNormals();
   // 依實體上色（多實體時每個實體不同色）
@@ -838,14 +867,16 @@ function build3D(it){
   const iss=it.result.issues, pa=new Float32Array(iss.length*3), ca=new Float32Array(iss.length*3);
   iss.forEach((x,i)=>{pa.set(x.pos,i*3); ca.set(x.type==='gap'?[.97,.44,.44]:[.98,.75,.14],i*3);});
   const mg=new THREE.BufferGeometry(); mg.setAttribute('position',new THREE.BufferAttribute(pa,3)); mg.setAttribute('color',new THREE.BufferAttribute(ca,3));
-  markers=new THREE.Points(mg,new THREE.PointsMaterial({size:12,sizeAttenuation:false,vertexColors:true,depthTest:false}));
+  const pm=new THREE.PointsMaterial({size:12,sizeAttenuation:false,vertexColors:true,depthTest:false,transparent:true});
+  markers=new THREE.Points(mg,pm);
   markers.renderOrder=10; scene.add(markers);
+  blinkMats.push({m:pm,isLine:true});   // 點也一起閃爍
   // 「面」標示：縫隙＝紅、過薄＝黃
   overlay=new THREE.Group();
   overlay.add(makeFaceOverlay(it.result.wallTri,it.prep.pos,0xfbbf24));
   overlay.add(makeFaceOverlay(it.result.gapTri,it.prep.pos,0xf87171));
   scene.add(overlay);
-  applyMarkMode(); updateModeBtn();
+  applyMarkMode(); updateModeBtn(); updateBlinkBtn();
   // 平台格線
   if(window._grid)scene.remove(window._grid);
   const gr=new THREE.GridHelper(Math.max(size*1.5,50),20,0x38bdf8,0x334155); gr.rotation.x=Math.PI/2; gr.position.set(c.x,c.y,bb.min.z); scene.add(gr); window._grid=gr;
