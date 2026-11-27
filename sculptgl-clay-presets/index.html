@@ -27,11 +27,30 @@ nav .wrap{display:flex;justify-content:space-between;align-items:center;height:6
 .hero p{color:var(--muted);max-width:620px;margin:0 auto 22px}
 .btn{display:inline-block;background:var(--accent);color:#0f172a;border:none;padding:10px 20px;border-radius:12px;font-weight:700;cursor:pointer;font-family:inherit;text-decoration:none;font-size:.95rem}
 .btn:hover{filter:brightness(1.1);transform:translateY(-1px)}
+.btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+.btn.ghost:hover{background:var(--accent);color:#0f172a}
 
 /* ===== 使用步驟 ===== */
 .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin:30px 0}
 .step{background:var(--card);border-radius:16px;padding:18px;border:1px solid #334155}
 .step b{color:var(--accent);font-size:1.4rem;display:block}
+
+/* ===== 3D 預覽區 ===== */
+.viewer{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:22px;background:var(--card);border:1px solid #334155;border-radius:20px;padding:18px;margin:10px 0;scroll-margin-top:72px;box-shadow:0 6px 20px rgba(0,0,0,.35)}
+.viewer canvas{width:100%;aspect-ratio:1;display:block;border-radius:14px;background:radial-gradient(circle at 50% 40%,#3b4a63,#1a2335);cursor:grab;touch-action:none}
+.viewer canvas:active{cursor:grabbing}
+.vinfo{display:flex;flex-direction:column;gap:12px;justify-content:center}
+.vtag{color:var(--accent);font-size:.85rem;font-weight:700;letter-spacing:.05em}
+.vinfo h2{font-size:1.6rem}
+.vinfo .desc{color:var(--muted)}
+.vhint{color:var(--muted);font-size:.85rem}
+.vhint i{color:var(--accent);margin-right:6px}
+.vfaces{background:#0f172a;border-radius:10px;padding:8px 12px;font-size:.88rem;color:var(--muted)}
+.vfaces b{color:var(--accent)}
+.vbtns{display:flex;flex-wrap:wrap;gap:8px}
+.vbtns .btn{padding:8px 14px;font-size:.88rem}
+.vbtns .btn.on{background:var(--accent);color:#0f172a}
+@media(max-width:760px){.viewer{grid-template-columns:1fr}}
 
 /* ===== 工具列 ===== */
 .toolbar{display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center;margin:30px 0 16px}
@@ -45,11 +64,13 @@ select{background:var(--card);color:var(--text);border:1px solid #334155;border-
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:18px;padding-bottom:40px}
 .card{background:var(--card);border-radius:18px;overflow:hidden;box-shadow:0 4px 14px rgba(0,0,0,.35);transition:.25s;border:1px solid #334155}
 .card:hover{transform:translateY(-5px);box-shadow:0 10px 26px rgba(56,189,248,.18)}
+.card.sel{border-color:var(--accent)}
 .card canvas{width:100%;aspect-ratio:1;display:block;background:radial-gradient(circle at 50% 40%,#334155,#1e293b);cursor:grab}
 .card .info{padding:14px}
 .card h3{font-size:1.05rem}
 .card p{color:var(--muted);font-size:.85rem;margin:4px 0 12px;min-height:40px}
-.card .btn{width:100%;text-align:center}
+.card .row{display:flex;gap:8px}
+.card .row .btn{flex:1;text-align:center;padding:10px 8px}
 
 footer{text-align:center;color:var(--muted);padding:30px 0;border-top:1px solid #1e293b;font-size:.85rem}
 </style>
@@ -75,6 +96,24 @@ footer{text-align:center;color:var(--muted);padding:30px 0;border-top:1px solid 
     <div class="step"><b>1</b><span data-i18n="s1"></span></div>
     <div class="step"><b>2</b><span data-i18n="s2"></span></div>
     <div class="step"><b>3</b><span data-i18n="s3"></span></div>
+  </section>
+
+  <!-- ★ 3D 預覽區:按卡片上的「預覽」會顯示在這裡 -->
+  <section class="viewer" id="viewer">
+    <canvas id="vcv" width="800" height="800"></canvas>
+    <div class="vinfo">
+      <div class="vtag"><i class="fa-solid fa-cube"></i> <span data-i18n="vtitle"></span></div>
+      <h2 id="vname"></h2>
+      <p class="desc" id="vdesc"></p>
+      <div class="vfaces" id="vfaces"></div>
+      <div class="vbtns">
+        <button class="btn ghost" id="bAuto"><i class="fa-solid fa-rotate"></i> <span data-i18n="auto"></span></button>
+        <button class="btn ghost" id="bWire"><i class="fa-solid fa-border-all"></i> <span data-i18n="wire"></span></button>
+        <button class="btn ghost" id="bReset"><i class="fa-solid fa-arrows-to-dot"></i> <span data-i18n="reset"></span></button>
+      </div>
+      <div class="vhint"><i class="fa-solid fa-hand-pointer"></i><span data-i18n="vhint"></span></div>
+      <button class="btn" id="vDl"><i class="fa-solid fa-download"></i> <span data-i18n="dl"></span></button>
+    </div>
   </section>
 
   <!-- ③ 篩選 + 選項 -->
@@ -118,11 +157,15 @@ const BASE_SCALE = 30;
 const I18N = {
   zh:{
     logo:"公仔黏土預設造型",h1a:"先拿一塊黏土,",h1b:"再開始捏公仔!",
-    sub:"下載基本造型檔(.obj),匯入 SculptGL 就能直接開始雕刻。角色只提供身體與頭,五官、耳朵、手腳、尾巴由你自己捏!",
+    sub:"下載基本造型檔(.obj),匯入 SculptGL 就能直接開始雕刻。角色與動物只提供身體與頭,五官、耳朵、手腳、尾巴由你自己捏!",
     open:"開啟 SculptGL",
     s1:"點下方卡片的「下載」,得到 .obj 檔",
     s2:"打開 SculptGL,點選單 Files(檔案)→ Import(匯入)",
     s3:"選擇剛下載的檔案,黏土就出現了,開始捏吧!",
+    vtitle:"3D 預覽",auto:"自動旋轉",wire:"網格線",reset:"重置視角",
+    vhint:"拖曳旋轉,滾輪或雙指縮放",
+    vfaces1:"依目前設定,下載後約 ",vfaces2:" 面",
+    prev:"預覽",
     size:"黏土大小:",z1:"小",z2:"標準",z3:"大",
     detail:"黏土細緻度:",d1:"粗(約 1 萬面,電腦較慢時用)",d2:"中(約 4 萬面)",d3:"細(約 8 萬面,推薦)",
     all:"全部",cat_basic:"基本形狀",cat_body:"身體部位",cat_char:"角色",cat_special:"特殊造型",
@@ -130,6 +173,9 @@ const I18N = {
     foot:"© 2026 公仔黏土預設造型 · 檔案可自由使用於教學",
     n:{sphere:"圓球",cube:"方塊(圓角)",cylinder:"圓柱",cone:"圓錐",pyramid:"金字塔",disc:"圓餅",
        egg:"蛋形",capsule:"膠囊(水平・動物身體)",limb:"細長條(手腳)",drop:"水滴",torus:"甜甜圈",
+       bust:"半身胸像・人",
+       headCat:"動物頭・貓",headDog:"動物頭・狗",headRabbit:"動物頭・兔子",
+       headPig:"動物頭・小豬",headBear:"動物頭・小熊",headFrog:"動物頭・青蛙",
        duckB:"黃色小鴨・身體",duckH:"黃色小鴨・頭",
        pikaB:"皮卡丘・身體",pikaH:"皮卡丘・頭",
        kittyB:"Hello Kitty・身體",kittyH:"Hello Kitty・頭",
@@ -140,6 +186,13 @@ const I18N = {
        pyramid:"屋頂、尖帽、怪獸牙齒",disc:"底座、帽簷、耳朵、盤子",egg:"身體、頭、動物的肚子",
        capsule:"橫放的長條身體,適合貓、狗、小豬等四隻腳動物",
        limb:"手臂、腿、尾巴、觸手",drop:"耳朵、眼淚、葉子、尾巴",torus:"圈圈、手環、甜甜圈、耳環",
+       bust:"頭、脖子、肩膀一體成形,底部平平,可雕人像",
+       headCat:"寬扁的臉,口鼻很短。耳朵、鬍鬚自己捏",
+       headDog:"口鼻往前突出。耳朵、鼻子自己捏",
+       headRabbit:"高高的橢圓頭。長耳朵自己捏",
+       headPig:"圓臉,前方有一塊寬扁的豬鼻區",
+       headBear:"圓圓的臉,口鼻微凸。圓耳朵自己捏",
+       headFrog:"又寬又扁的大嘴臉。眼睛凸起自己捏",
        duckB:"圓胖身體,尾巴微翹、底部平平(朝右)",duckH:"圓圓的鴨頭,下巴略平",
        pikaB:"上窄下寬的洋梨形,肚子圓圓的",pikaH:"左右寬的橫橢圓頭,下方臉頰略寬",
        kittyB:"小小的鐘形身體,上窄下寬",kittyH:"又寬又扁的大頭,臉頰圓圓",
@@ -149,11 +202,15 @@ const I18N = {
   },
   en:{
     logo:"Clay Presets for Figurines",h1a:"Grab some clay, ",h1b:"then sculpt your figure!",
-    sub:"Download base shapes (.obj) and import them into SculptGL. Characters come with body and head only — add faces, ears, limbs and tails yourself!",
+    sub:"Download base shapes (.obj) and import them into SculptGL. Characters and animals come with body and head only — add faces, ears, limbs and tails yourself!",
     open:"Open SculptGL",
     s1:"Click “Download” on any card to get an .obj file",
     s2:"Open SculptGL, then Files → Import",
     s3:"Pick the downloaded file. Your clay appears — start sculpting!",
+    vtitle:"3D Preview",auto:"Auto-rotate",wire:"Wireframe",reset:"Reset view",
+    vhint:"Drag to rotate, scroll or pinch to zoom",
+    vfaces1:"With current settings, about ",vfaces2:" faces",
+    prev:"Preview",
     size:"Clay size: ",z1:"Small",z2:"Standard",z3:"Large",
     detail:"Clay detail: ",d1:"Low (~10k faces, for slower computers)",d2:"Medium (~40k faces)",d3:"High (~80k faces, recommended)",
     all:"All",cat_basic:"Basic",cat_body:"Body parts",cat_char:"Characters",cat_special:"Special",
@@ -161,6 +218,9 @@ const I18N = {
     foot:"© 2026 Clay Presets for Figurines · Free to use for teaching",
     n:{sphere:"Sphere",cube:"Rounded Cube",cylinder:"Cylinder",cone:"Cone",pyramid:"Pyramid",disc:"Disc",
        egg:"Egg",capsule:"Horizontal Capsule (Animal Body)",limb:"Slim Limb",drop:"Teardrop",torus:"Donut",
+       bust:"Bust · Human",
+       headCat:"Animal Head · Cat",headDog:"Animal Head · Dog",headRabbit:"Animal Head · Rabbit",
+       headPig:"Animal Head · Pig",headBear:"Animal Head · Bear",headFrog:"Animal Head · Frog",
        duckB:"Rubber Duck · Body",duckH:"Rubber Duck · Head",
        pikaB:"Pikachu · Body",pikaH:"Pikachu · Head",
        kittyB:"Hello Kitty · Body",kittyH:"Hello Kitty · Head",
@@ -171,6 +231,13 @@ const I18N = {
        pyramid:"Roofs, pointy hats, monster teeth",disc:"Bases, hat brims, ears, plates",egg:"Bodies, heads, animal bellies",
        capsule:"Lying-down body for cats, dogs, piglets and other four-legged animals",
        limb:"Arms, legs, tails, tentacles",drop:"Ears, tears, leaves, tails",torus:"Rings, bracelets, donuts, earrings",
+       bust:"Head, neck and shoulders in one piece with a flat base — for portraits",
+       headCat:"Wide, flat face with a short muzzle. Add ears and whiskers",
+       headDog:"Muzzle sticks out front. Add ears and nose",
+       headRabbit:"Tall oval head. Add long ears",
+       headPig:"Round face with a wide, flat snout area",
+       headBear:"Round face with a slight muzzle. Add round ears",
+       headFrog:"Very wide, flat face. Add bulging eyes",
        duckB:"Plump body with a lifted tail and flat bottom (faces right)",duckH:"Round duck head with a slightly flat chin",
        pikaB:"Pear-shaped body, narrow top and round belly",pikaH:"Wide oval head with fuller cheeks",
        kittyB:"Small bell-shaped body, narrow top",kittyH:"Wide, flat, round-cheeked big head",
@@ -183,14 +250,12 @@ let lang='zh', cat='all';
 
 /* ==================================================
    形狀產生器:全部從「細分立方體」變形而來
-   warp=true 時會把格子重新分配,讓圓形造型的格子大小更平均
 ================================================== */
 const FACES=[[[1,0,0],[0,1,0],[0,0,1]],[[-1,0,0],[0,0,1],[0,1,0]],
              [[0,1,0],[0,0,1],[1,0,0]],[[0,-1,0],[1,0,0],[0,0,1]],
              [[0,0,1],[1,0,0],[0,1,0]],[[0,0,-1],[0,1,0],[1,0,0]]];
 function cubeMesh(N,warp){
   const map=new Map(),P=[],F=[];
-  // 先用整數座標合併重複的頂點,最後才做格子重新分配,避免接縫出現縫隙
   const id=(p)=>{const k=p.map(x=>Math.round(x*N)).join(',');
     if(!map.has(k)){map.set(k,P.length);P.push(p)}return map.get(k)};
   for(const [n,u,v] of FACES){
@@ -205,8 +270,60 @@ function cubeMesh(N,warp){
 }
 const norm=p=>{const l=Math.hypot(...p)||1;return p.map(x=>x/l)};
 const disk=(x,z)=>[x*Math.sqrt(1-z*z/2),z*Math.sqrt(1-x*x/2)];
-// 平順的「拉長」:取代原本的硬切,讓中段的格子平均分布(膠囊、細長條用)
 const ext=(v,len)=>Math.sign(v)*len*Math.min(1,Math.abs(v)/.3);
+// 平滑取較大值(胸像用:讓頭、脖子、肩膀的交界圓順)
+const smax=(a,b,k=.12)=>{const h=Math.max(k-Math.abs(a-b),0);return Math.max(a,b)+h*h/(4*k)};
+
+/* ==================================================
+   人像胸像(頭 + 脖子 + 肩膀,底部平整)
+================================================== */
+const BUST={hc:1.35,hh:.60,hx:.55,hz:.58}, TB=-.6;
+function bustProfile(y,c){
+  const hd=(y-c.hc)/c.hh, head=Math.sqrt(Math.max(0,1-hd*hd));
+  const sd=(y-.12)/.62, sh=Math.sqrt(Math.max(0,1-sd*sd));
+  const neck=y<c.hc-.2?.3:0;
+  return [smax(smax(c.hx*head,neck),1.0*sh), smax(smax(c.hz*head,neck),.55*sh)];
+}
+function bustShape(p){
+  const c=BUST, YMAX=c.hc+c.hh, OFF=YMAX/2;
+  const s=norm(p),t=s[1],m=Math.hypot(s[0],s[2]);
+  const d0=m>1e-6?s[0]/m:0, d2=m>1e-6?s[2]/m:0;
+  if(t>=TB){
+    const y=(t-TB)/(1-TB)*YMAX;
+    const [rx,rz]=bustProfile(y,c);
+    return [d0*rx,y-OFF,d2*rz];
+  }
+  const f=m/Math.sqrt(1-TB*TB);
+  const [rx,rz]=bustProfile(0,c);
+  return [d0*rx*f,-OFF,d2*rz*f];
+}
+
+/* ==================================================
+   動物頭型(只有頭,沒有脖子和肩膀)
+   hx=左右寬、hy=上下高、hz=前後深
+   sn=口鼻凸起:y=位置高低、h=上下範圍、w=左右範圍、len=往前突出多少
+================================================== */
+const HEADS={
+  headCat:   {hx:1.25,hy:.95,hz:1.0, sn:{y:-.25,h:.3, w:.35,len:.08}},
+  headDog:   {hx:.95, hy:1.0,hz:1.05,sn:{y:-.3, h:.4, w:.4, len:.5}},
+  headRabbit:{hx:.9,  hy:1.25,hz:.95,sn:{y:-.3, h:.3, w:.3, len:.08}},
+  headPig:   {hx:1.15,hy:1.0,hz:1.05,sn:{y:-.2, h:.35,w:.5, len:.3}},
+  headBear:  {hx:1.05,hy:1.0,hz:1.05,sn:{y:-.3, h:.35,w:.4, len:.2}},
+  headFrog:  {hx:1.45,hy:.8, hz:1.05}
+};
+function headShape(c){
+  return p=>{
+    const s=norm(p);
+    let x=s[0]*c.hx, y=s[1]*c.hy, z=s[2]*c.hz;
+    if(s[1]<0) y*=.9;
+    if(c.sn){
+      const q=c.sn;
+      const e=Math.exp(-Math.pow((s[1]-q.y)/q.h,2))*Math.exp(-Math.pow(s[0]/q.w,2));
+      z+=q.len*e*Math.max(0,s[2]);
+    }
+    return [x,y,z];
+  };
+}
 
 /* 各造型的變形函式(想調整造型比例改這裡)
    s = 球面上的點,s[0]=左右、s[1]=上下、s[2]=前後 */
@@ -220,9 +337,10 @@ const SHAPES={
   egg:p=>{const s=norm(p);const k=.9*(1-.15*s[1]);return [s[0]*k,s[1]*1.2,s[2]*k]},
   capsule:p=>{const s=norm(p);return [s[0]*.65+ext(s[0],.55),s[1]*.65,s[2]*.65]},
   limb:p=>{const s=norm(p);return [s[0]*.32,s[1]*.32+ext(s[1],.95),s[2]*.32]},
+  bust:bustShape,
   drop:p=>{const s=norm(p);const f=s[1]>0?Math.max(.1,1-s[1]):1;return [s[0]*f*.85,s[1]>0?s[1]*1.7:s[1]*.85,s[2]*f*.85]},
 
-  // 黃色小鴨:身體(朝 +X,尾巴上翹)/ 頭(圓頭,下巴略平)
+  // 黃色小鴨
   duckB:p=>{const s=norm(p);
     const back=Math.max(0,-s[0]);
     let x=s[0]*1.15, y=s[1]*.8, z=s[2]*.85*(1-.3*back);
@@ -234,7 +352,7 @@ const SHAPES={
     if(s[1]<0) y*=.88;
     return [s[0]*1.02,y,s[2]*.98];},
 
-  // 皮卡丘:身體(洋梨形)/ 頭(橫橢圓)
+  // 皮卡丘
   pikaB:p=>{const s=norm(p);
     const w=.82-.22*s[1];
     let y=s[1]*1.05, z=s[2]*w;
@@ -245,7 +363,7 @@ const SHAPES={
     const w=1+.08*(-s[1]);
     return [s[0]*1.2*w,s[1]*.88,s[2]*.98];},
 
-  // Hello Kitty:小鐘形身體 / 又寬又扁的大頭
+  // Hello Kitty
   kittyB:p=>{const s=norm(p);
     const w=.75-.2*s[1];
     let y=s[1]*.85;
@@ -256,7 +374,7 @@ const SHAPES={
     if(s[1]<0) y*=.85;
     return [s[0]*1.3,y,s[2]*.95];},
 
-  // 小熊:胖胖身體 / 圓頭
+  // 小熊
   bearB:p=>{const s=norm(p);
     const w=.9-.15*s[1];
     let y=s[1];
@@ -265,7 +383,7 @@ const SHAPES={
   bearH:p=>{const s=norm(p);
     return [s[0]*1.05,s[1]*.95,s[2]];},
 
-  // 史萊姆:圓潤半圓款 / 水滴尖頂款
+  // 史萊姆
   slime:p=>{const s=norm(p);
     const y=s[1]>0?s[1]*.85:s[1]*.45;
     return [s[0]*1.2,y,s[2]*1.2];},
@@ -274,7 +392,7 @@ const SHAPES={
     const y=s[1]>0?s[1]*1.2:s[1]*.6;
     return [s[0]*1.15*f,y,s[2]*1.15*f];},
 
-  // 角落生物:麻糬身體 / 寬扁圓頭
+  // 角落生物
   cornerB:p=>{const s=norm(p);
     const w=1-.12*s[1];
     let y=s[1]*.95;
@@ -285,15 +403,16 @@ const SHAPES={
     if(s[1]<0) y*=.85;
     return [s[0]*1.25,y,s[2]*.95];}
 };
-// 這些造型不做格子重新分配(因為它們有平整的側面,維持均勻即可)
+Object.keys(HEADS).forEach(k=>SHAPES[k]=headShape(HEADS[k]));
 const NO_WARP=new Set(['cube','cylinder','cone','pyramid','disc']);
 
 function makeShape(key,N){
-  if(key==='torus'){const nv=Math.max(8,Math.round(N*1.59));return torus(Math.round(nv*2.4),nv);}
-  const m=cubeMesh(N,!NO_WARP.has(key));
-  return {P:m.P.map(SHAPES[key]),F:m.F};
+  let m;
+  if(key==='torus'){const nv=Math.max(8,Math.round(N*1.59));m=torus(Math.round(nv*2.4),nv);}
+  else{const c=cubeMesh(N,!NO_WARP.has(key));m={P:c.P.map(SHAPES[key]),F:c.F};}
+  m.R=Math.max(...m.P.map(p=>Math.hypot(...p)))||1;   // 造型最大半徑:預覽縮放時畫面才不會忽大忽小
+  return m;
 }
-// 甜甜圈:環向格數 nu、管向格數 nv(比例 2.4:1,讓每個格子接近正方形)
 function torus(nu,nv){
   const R=1,r=.42,P=[],F=[];
   for(let i=0;i<nu;i++)for(let j=0;j<nv;j++){
@@ -303,31 +422,38 @@ function torus(nu,nv){
   for(let i=0;i<nu;i++)for(let j=0;j<nv;j++)F.push([at(i,j),at(i+1,j),at(i+1,j+1),at(i,j+1)]);
   return {P,F};
 }
+// 下載時大約會有幾個面(顯示在預覽區)
+function faceCount(key,N){
+  if(key==='torus'){const nv=Math.max(8,Math.round(N*1.59));return Math.round(nv*2.4)*nv;}
+  return 6*N*N;
+}
 
 /* ==================================================
    預覽繪圖(簡易 3D 旋轉,不需外部套件)
+   zoom=縮放倍率、wire=true 時顯示網格線
 ================================================== */
-function draw(cv,mesh,rx,ry,color){
+function draw(cv,mesh,rx,ry,color,zoom=1,wire=false){
   const W=cv.width,ctx=cv.getContext('2d');ctx.clearRect(0,0,W,W);
   const cx=Math.cos(rx),sx=Math.sin(rx),cy=Math.cos(ry),sy=Math.sin(ry);
   const T=mesh.P.map(([x,y,z])=>{let X=x*cy+z*sy,Z=-x*sy+z*cy;let Y=y*cx-Z*sx;Z=y*sx+Z*cx;return [X,Y,Z]});
-  let m=0;T.forEach(p=>m=Math.max(m,Math.abs(p[0]),Math.abs(p[1])));
-  const sc=W*.42/m,L=norm([-.4,.7,.6]);
+  const sc=W*.4/mesh.R*zoom,L=norm([-.4,.7,.6]);
   const polys=mesh.F.map(f=>{
     const a=T[f[0]],b=T[f[1]],c=T[f[2]];
     const u=[b[0]-a[0],b[1]-a[1],b[2]-a[2]],v=[c[0]-a[0],c[1]-a[1],c[2]-a[2]];
     const n=norm([u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]]);
     return {f,n,z:f.reduce((s,i)=>s+T[i][2],0)/f.length};
   }).filter(q=>q.n[2]>-0.0).sort((a,b)=>a.z-b.z);
+  ctx.lineWidth=wire?Math.max(1,W/700):1;
   for(const q of polys){
     const l=.35+.65*Math.max(0,q.n[0]*L[0]+q.n[1]*L[1]+q.n[2]*L[2]);
-    ctx.fillStyle=`rgb(${color.map(c=>Math.round(c*l)).join(',')})`;ctx.strokeStyle=ctx.fillStyle;
+    ctx.fillStyle=`rgb(${color.map(c=>Math.round(c*l)).join(',')})`;
+    ctx.strokeStyle=wire?'rgba(15,23,42,.55)':ctx.fillStyle;
     ctx.beginPath();q.f.forEach((i,k)=>{const x=W/2+T[i][0]*sc,y=W/2-T[i][1]*sc;k?ctx.lineTo(x,y):ctx.moveTo(x,y)});
     ctx.closePath();ctx.fill();ctx.stroke();
   }
 }
 
-// 匯出 OBJ 並下載(座標會乘上 BASE_SCALE 與使用者選的大小)
+// 匯出 OBJ 並下載
 function download(key){
   const N=+document.getElementById('detail').value;
   const k=BASE_SCALE*(+document.getElementById('size').value);
@@ -342,12 +468,14 @@ function download(key){
 
 /* ==================================================
    卡片資料(代號、分類、預覽顏色)
-   分類只有:basic / body / char(角色)/ special
 ================================================== */
 const ITEMS=[
  ['sphere','basic',[251,191,36]],['cube','basic',[248,113,113]],['cylinder','basic',[52,211,153]],
  ['cone','basic',[251,146,60]],['pyramid','basic',[167,139,250]],['disc','basic',[244,114,182]],
  ['egg','body',[253,224,71]],['capsule','body',[96,165,250]],['limb','body',[74,222,128]],
+ ['bust','body',[203,213,225]],
+ ['headCat','body',[250,190,120]],['headDog','body',[210,160,110]],['headRabbit','body',[235,235,245]],
+ ['headPig','body',[250,170,190]],['headBear','body',[180,120,70]],['headFrog','body',[110,210,120]],
  ['duckB','char',[255,214,10]],['duckH','char',[255,214,10]],
  ['pikaB','char',[252,196,25]],['pikaH','char',[252,196,25]],
  ['kittyB','char',[245,245,250]],['kittyH','char',[245,245,250]],
@@ -358,24 +486,82 @@ const ITEMS=[
 ];
 const CATS=['all','basic','body','char','special'];
 const views={};
+
+/* ==================================================
+   ★ 3D 預覽區邏輯
+   想改預覽的細緻度:改 VIEW_N(數字越大越平滑,但電腦越慢)
+================================================== */
+const VIEW_N=32;
+const V={key:'bust',mesh:null,col:[203,213,225],x:.2,y:.6,zoom:1,auto:true,wire:false,drag:false};
+const vcv=document.getElementById('vcv');
+function vDraw(){draw(vcv,V.mesh,V.x,V.y,V.col,V.zoom,V.wire)}
+function vSelect(key,scroll){
+  const it=ITEMS.find(i=>i[0]===key);
+  V.key=key;V.col=it[2];V.mesh=makeShape(key,VIEW_N);
+  V.x=key==='bust'?.2:.45;V.y=.6;V.zoom=1;
+  vText();vDraw();
+  document.querySelectorAll('.card').forEach(c=>c.classList.toggle('sel',c.dataset.key===key));
+  if(scroll)document.getElementById('viewer').scrollIntoView({behavior:'smooth',block:'start'});
+}
+// 更新預覽區的文字(切換語言、切換造型、改細緻度時都會呼叫)
+function vText(){
+  const t=I18N[lang],N=+document.getElementById('detail').value;
+  document.getElementById('vname').textContent=t.n[V.key];
+  document.getElementById('vdesc').textContent=t.d[V.key];
+  document.getElementById('vfaces').innerHTML=`${t.vfaces1}<b>${faceCount(V.key,N).toLocaleString()}</b>${t.vfaces2}`;
+  document.getElementById('bAuto').classList.toggle('on',V.auto);
+  document.getElementById('bWire').classList.toggle('on',V.wire);
+}
+// 自動旋轉迴圈
+(function loop(){
+  if(V.auto&&!V.drag&&V.mesh){V.y+=.008;vDraw();}
+  requestAnimationFrame(loop);
+})();
+// 拖曳旋轉 + 雙指縮放
+const ptrs=new Map();let pd=0;
+vcv.addEventListener('pointerdown',e=>{vcv.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,[e.clientX,e.clientY]);V.drag=true;
+  if(ptrs.size===2){const [a,b]=[...ptrs.values()];pd=Math.hypot(a[0]-b[0],a[1]-b[1]);}});
+vcv.addEventListener('pointermove',e=>{
+  if(!ptrs.has(e.pointerId))return;
+  const o=ptrs.get(e.pointerId);
+  if(ptrs.size===1){V.y+=(e.clientX-o[0])*.01;V.x+=(e.clientY-o[1])*.01;
+    V.x=Math.max(-1.5,Math.min(1.5,V.x));}
+  ptrs.set(e.pointerId,[e.clientX,e.clientY]);
+  if(ptrs.size===2){const [a,b]=[...ptrs.values()];const d=Math.hypot(a[0]-b[0],a[1]-b[1]);
+    if(pd)V.zoom=Math.max(.4,Math.min(3,V.zoom*d/pd));pd=d;}
+  vDraw();});
+const endP=e=>{ptrs.delete(e.pointerId);pd=0;if(!ptrs.size)V.drag=false};
+vcv.addEventListener('pointerup',endP);vcv.addEventListener('pointercancel',endP);
+vcv.addEventListener('wheel',e=>{e.preventDefault();V.zoom=Math.max(.4,Math.min(3,V.zoom*(e.deltaY<0?1.1:.9)));vDraw();},{passive:false});
+// 按鈕
+document.getElementById('bAuto').onclick=()=>{V.auto=!V.auto;vText()};
+document.getElementById('bWire').onclick=()=>{V.wire=!V.wire;vText();vDraw()};
+document.getElementById('bReset').onclick=()=>{V.x=V.key==='bust'?.2:.45;V.y=.6;V.zoom=1;vDraw()};
+document.getElementById('vDl').onclick=()=>download(V.key);
+document.getElementById('detail').addEventListener('change',vText);
+
+/* ==================================================
+   卡片與標籤
+================================================== */
 function build(){
   const grid=document.getElementById('grid');grid.innerHTML='';
   ITEMS.filter(i=>cat==='all'||i[1]===cat).forEach(([key,c,col])=>{
     const t=I18N[lang];
-    const el=document.createElement('div');el.className='card';
+    const el=document.createElement('div');el.className='card'+(V.key===key?' sel':'');el.dataset.key=key;
     el.innerHTML=`<canvas width="400" height="400"></canvas><div class="info"><h3>${t.n[key]}</h3><p>${t.d[key]}</p>
-      <button class="btn"><i class="fa-solid fa-download"></i> ${t.dl}</button></div>`;
+      <div class="row"><button class="btn ghost bp"><i class="fa-solid fa-cube"></i> ${t.prev}</button>
+      <button class="btn bd"><i class="fa-solid fa-download"></i> ${t.dl}</button></div></div>`;
     grid.appendChild(el);
-    // 預覽只用低面數,網頁才不會卡;下載時才會產生高面數
-    const cv=el.querySelector('canvas'),mesh=makeShape(key,12);
-    const v=views[key]=views[key]||{x:.45,y:.6};
+    // 卡片小預覽只用低面數,網頁才不會卡
+    const cv=el.querySelector('canvas'),mesh=makeShape(key,key==='bust'?20:12);
+    const v=views[key]=views[key]||{x:key==='bust'?.2:.45,y:.6};
     const r=()=>draw(cv,mesh,v.x,v.y,col);r();
-    // 滑鼠/手指拖曳旋轉預覽
     let down=false,lx,ly;
     cv.onpointerdown=e=>{down=true;lx=e.clientX;ly=e.clientY;cv.setPointerCapture(e.pointerId)};
     cv.onpointerup=()=>down=false;
     cv.onpointermove=e=>{if(!down)return;v.y+=(e.clientX-lx)*.012;v.x+=(e.clientY-ly)*.012;lx=e.clientX;ly=e.clientY;r()};
-    el.querySelector('.btn').onclick=()=>download(key);
+    el.querySelector('.bp').onclick=()=>vSelect(key,true);
+    el.querySelector('.bd').onclick=()=>download(key);
   });
 }
 function buildTags(){
@@ -385,15 +571,16 @@ function buildTags(){
     b.textContent=k==='all'?t.all:t['cat_'+k];
     b.onclick=()=>{cat=k;buildTags();build()};box.appendChild(b);});
 }
-// 套用語言(切換時保留下拉選單目前的選擇)
+// 套用語言
 function applyLang(){
   const t=I18N[lang];document.documentElement.lang=lang==='zh'?'zh-Hant':'en';
   document.querySelectorAll('[data-i18n]').forEach(e=>e.textContent=t[e.dataset.i18n]);
   document.getElementById('langBtn').textContent=lang==='zh'?'EN':'中文';
-  buildTags();build();
+  buildTags();build();vText();
 }
 document.getElementById('langBtn').onclick=()=>{lang=lang==='zh'?'en':'zh';applyLang()};
 applyLang();
+vSelect('bust',false);   // 一開始預覽區先顯示「半身胸像」,想換預設造型改這裡的代號
 </script>
 </body>
 </html>
