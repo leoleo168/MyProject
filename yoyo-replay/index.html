@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="theme-color" content="#101827">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -10,10 +11,9 @@
   <meta name="apple-mobile-web-app-title" content="YoYo計分">
   <title>YoYo Replay｜表演計分</title>
 
-  <!-- 內嵌 Manifest（Data URL）；JS 會在載入後以絕對網址與 PNG 圖示重新產生 -->
-  <link rel="manifest" id="manifestLink" href="data:application/manifest+json;charset=utf-8,%7B%22name%22%3A%22YoYo%20Replay%20%E8%A1%A8%E6%BC%94%E8%A8%88%E5%88%86%22%2C%22short_name%22%3A%22YoYo%E8%A8%88%E5%88%86%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230b1220%22%2C%22theme_color%22%3A%22%23101827%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%3Bcharset%3Dutf-8%2C%253Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20512%20512'%253E%253Crect%20width%3D'512'%20height%3D'512'%20rx%3D'112'%20fill%3D'%2523101827'%2F%253E%253Ccircle%20cx%3D'256'%20cy%3D'290'%20r%3D'120'%20fill%3D'%252354e4bd'%2F%253E%253Ccircle%20cx%3D'256'%20cy%3D'290'%20r%3D'40'%20fill%3D'%2523101827'%2F%253E%253Cpath%20d%3D'M256%20170V80'%20stroke%3D'%2523ffc977'%20stroke-width%3D'16'%20stroke-linecap%3D'round'%2F%253E%253C%2Fsvg%253E%22%2C%22sizes%22%3A%22any%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%2C%22purpose%22%3A%22any%22%7D%5D%7D">
-  <link rel="apple-touch-icon" id="appleIcon" href="data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' fill='%23101827'/%3E%3Ccircle cx='256' cy='290' r='120' fill='%2354e4bd'/%3E%3Ccircle cx='256' cy='290' r='40' fill='%23101827'/%3E%3C/svg%3E">
-  <link rel="icon" href="data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='112' fill='%23101827'/%3E%3Ccircle cx='256' cy='290' r='120' fill='%2354e4bd'/%3E%3Ccircle cx='256' cy='290' r='40' fill='%23101827'/%3E%3C/svg%3E">
+  <link rel="manifest" id="manifestLink">
+  <link rel="apple-touch-icon" id="appleIcon">
+  <link rel="icon" id="favicon">
 
   <style>
     :root {
@@ -38,7 +38,7 @@
       overscroll-behavior-y: none;
       -webkit-user-select: none; user-select: none;
     }
-    input, .filename, .event-main small { -webkit-user-select: text; user-select: text; }
+    input, .filename, .event-main small, .yt-msg { -webkit-user-select: text; user-select: text; }
     button, input, select { font: inherit; }
     button { cursor: pointer; }
     .app {
@@ -59,6 +59,8 @@
     .section-head h2 { margin: 0; }
     .video-wrap { position: relative; background: #060b13; border-radius: 12px; overflow: hidden; margin-top: 12px; aspect-ratio: 16 / 9; display: grid; place-items: center; }
     video { width: 100%; height: 100%; display: none; background: #000; }
+    #ytBox { display: none; width: 100%; height: 100%; }
+    #ytBox iframe { width: 100%; height: 100%; border: 0; display: block; }
     .empty { text-align: center; padding: 22px; color: var(--muted); }
     .empty strong { display: block; color: var(--text); font-size: 18px; margin-bottom: 6px; }
     .toolbar { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-top: 12px; }
@@ -73,6 +75,14 @@
     input[type="file"] { display: none; }
     .filename { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px; }
     .time { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--mint); }
+    .yt-form { display: flex; gap: 8px; width: 100%; margin-top: 12px; }
+    .yt-form .note-input { flex: 1; min-width: 0; }
+    .yt-msg {
+      display: none; margin-top: 10px; padding: 10px 12px; border-radius: 10px;
+      background: rgba(255,119,134,.12); border: 1px solid var(--red); color: var(--text); font-size: 13px;
+    }
+    .yt-msg.show { display: block; }
+    .yt-msg a { color: var(--mint); font-weight: 700; }
     .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin: 14px 0; }
     .stat { background: var(--panel-2); border-radius: 12px; padding: 12px; }
     .stat small { display: block; color: var(--muted); font-size: 12px; }
@@ -81,7 +91,7 @@
     .negative { color: var(--red); }
     .note-input {
       width: 100%; border: 1px solid var(--line); background: #101b2b; color: var(--text);
-      border-radius: 10px; padding: 11px 12px; outline: none; font-size: 16px; /* 避免 iOS 聚焦時自動放大 */
+      border-radius: 10px; padding: 11px 12px; outline: none; font-size: 16px;
     }
     .note-input:focus { border-color: var(--mint); }
 
@@ -164,7 +174,7 @@
 </head>
 <body>
   <div class="install-bar" id="installBar" role="dialog" aria-label="安裝為手機 App">
-    <img id="installIcon" alt="" src="data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='112' fill='%23101827'/%3E%3Ccircle cx='256' cy='290' r='120' fill='%2354e4bd'/%3E%3Ccircle cx='256' cy='290' r='40' fill='%23101827'/%3E%3C/svg%3E">
+    <img id="installIcon" alt="">
     <div class="txt"><strong>安裝為手機 App</strong><span id="installDesc">加到主畫面，全螢幕使用、可離線開啟</span></div>
     <button class="go" id="installBtn">安裝</button>
     <button class="close" id="installClose" aria-label="關閉">×</button>
@@ -176,7 +186,7 @@
         <h1>YoYo Replay</h1>
         <p class="sub">表演計分 × 影片時間軸</p>
       </div>
-      <span class="badge">本機使用・不會上傳影片</span>
+      <span class="badge">計分存於本機・不上傳影片</span>
     </header>
 
     <div class="grid">
@@ -186,8 +196,9 @@
           <span class="muted filename" id="filename">尚未選擇影片</span>
         </div>
         <div class="video-wrap">
-          <div class="empty" id="emptyVideo"><strong>選擇一段表演影片</strong>支援手機中的常見影片格式；能否播放取決於瀏覽器。</div>
+          <div class="empty" id="emptyVideo"><strong>選擇影片或貼上 YouTube 連結</strong>可載入手機中的影片檔，或貼上 YouTube 網址。</div>
           <video id="video" controls playsinline preload="metadata"></video>
+          <div id="ytBox"><div id="ytPlayer"></div></div>
         </div>
         <div class="toolbar">
           <label class="file-button">選擇影片<input id="videoFile" type="file" accept="video/*"></label>
@@ -201,6 +212,12 @@
           </select>
           <strong class="time" id="time">00:00.0 / 00:00.0</strong>
         </div>
+        <form class="yt-form" id="ytForm" autocomplete="off">
+          <input id="ytUrl" class="note-input" type="url" inputmode="url" placeholder="或貼上 YouTube 連結" aria-label="YouTube 連結" autocomplete="off" value="">
+          <button class="button" type="submit">載入</button>
+        </form>
+        <div class="yt-msg" id="ytMsg" role="alert"></div>
+        <p class="hint">YouTube 影片需要網路。電腦版點過播放器後，快捷鍵會暫時失效，請點一下頁面空白處再使用。</p>
       </section>
 
       <section class="card">
@@ -271,8 +288,30 @@
     (() => {
       const ICON_SVG = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='112' fill='#101827'/><circle cx='256' cy='290' r='120' fill='#54e4bd'/><circle cx='256' cy='290' r='40' fill='#101827'/><path d='M256 170V80' stroke='#ffc977' stroke-width='16' stroke-linecap='round'/></svg>";
       const svgUrl = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(ICON_SVG);
+      const pageUrl = location.href.split("#")[0];
 
-      // 以 canvas 產生 PNG 圖示（iOS 的 apple-touch-icon 與 Android 安裝需要 PNG）
+      function setManifest(icons) {
+        const manifest = {
+          name: "YoYo Replay 表演計分",
+          short_name: "YoYo計分",
+          description: "溜溜球表演影片計分與時間軸分析",
+          start_url: pageUrl,
+          scope: pageUrl.replace(/[^/]*$/, ""),
+          display: "standalone",
+          orientation: "any",
+          background_color: "#0b1220",
+          theme_color: "#101827",
+          icons
+        };
+        document.getElementById("manifestLink").href =
+          "data:application/manifest+json;charset=utf-8," + encodeURIComponent(JSON.stringify(manifest));
+      }
+
+      document.getElementById("favicon").href = svgUrl;
+      document.getElementById("appleIcon").href = svgUrl;
+      document.getElementById("installIcon").src = svgUrl;
+      setManifest([{ src: svgUrl, sizes: "any", type: "image/svg+xml", purpose: "any" }]);
+
       function makePng(size) {
         return new Promise(resolve => {
           const img = new Image();
@@ -286,8 +325,7 @@
           img.src = svgUrl;
         });
       }
-
-      async function buildManifest() {
+      (async () => {
         const [p192, p512, p180] = await Promise.all([makePng(192), makePng(512), makePng(180)]);
         if (p180) {
           document.getElementById("appleIcon").href = p180;
@@ -296,29 +334,15 @@
         const icons = [{ src: svgUrl, sizes: "any", type: "image/svg+xml", purpose: "any" }];
         if (p192) icons.unshift({ src: p192, sizes: "192x192", type: "image/png", purpose: "any" });
         if (p512) icons.unshift({ src: p512, sizes: "512x512", type: "image/png", purpose: "any" });
-        const manifest = {
-          name: "YoYo Replay 表演計分",
-          short_name: "YoYo計分",
-          description: "溜溜球表演影片計分與時間軸分析",
-          start_url: location.href.split("#")[0],
-          scope: location.href.split("#")[0].replace(/[^/]*$/, ""),
-          display: "standalone",
-          orientation: "any",
-          background_color: "#0b1220",
-          theme_color: "#101827",
-          icons
-        };
-        document.getElementById("manifestLink").href =
-          "data:application/manifest+json;charset=utf-8," + encodeURIComponent(JSON.stringify(manifest));
-      }
-      buildManifest();
+        setManifest(icons);
+      })();
 
-      // Service Worker（Blob URL）。部分瀏覽器不允許 blob: 作為 SW 來源，失敗時改試同目錄 sw.js，再失敗則略過。
       if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)) {
         const swCode = `
-          const CACHE = "yoyo-replay-v1";
+          const CACHE = "yoyo-replay-v4";
+          const HOME = ${JSON.stringify(pageUrl)};
           self.addEventListener("install", e => {
-            e.waitUntil(caches.open(CACHE).then(c => c.add(${JSON.stringify(location.href.split("#")[0])})).catch(() => {}));
+            e.waitUntil(caches.open(CACHE).then(c => c.add(HOME)).catch(() => {}));
             self.skipWaiting();
           });
           self.addEventListener("activate", e => {
@@ -328,14 +352,15 @@
             const req = e.request;
             if (req.method !== "GET" || !req.url.startsWith("http")) return;
             if (req.destination === "video" || req.headers.has("range")) return;
+            if (new URL(req.url).origin !== self.location.origin) return;
             e.respondWith(
               fetch(req).then(res => {
-                if (res && res.ok && new URL(req.url).origin === self.location.origin) {
+                if (res && res.ok) {
                   const copy = res.clone();
                   caches.open(CACHE).then(c => c.put(req, copy));
                 }
                 return res;
-              }).catch(() => caches.match(req).then(r => r || caches.match(${JSON.stringify(location.href.split("#")[0])})))
+              }).catch(() => caches.match(req).then(r => r || caches.match(HOME)))
             );
           });`;
         window.addEventListener("load", async () => {
@@ -349,7 +374,6 @@
         });
       }
 
-      // 安裝提示
       const bar = document.getElementById("installBar");
       const btn = document.getElementById("installBtn");
       const isStandalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
@@ -372,16 +396,13 @@
           deferred.prompt();
           await deferred.userChoice.catch(() => {});
           deferred = null;
-          bar.classList.remove("show");
-        } else {
-          bar.classList.remove("show");
         }
+        bar.classList.remove("show");
       });
       window.addEventListener("appinstalled", () => bar.classList.remove("show"));
 
-      // iOS Safari 沒有 beforeinstallprompt，改顯示手動教學
       if (isIOS && !isStandalone && !dismissed()) {
-        document.getElementById("installDesc").innerHTML = "點下方 <b>分享 ⎋</b> →「<b>加入主畫面</b>」";
+        document.getElementById("installDesc").innerHTML = "點下方 <b>分享</b> →「<b>加入主畫面</b>」";
         btn.textContent = "知道了";
         setTimeout(() => bar.classList.add("show"), 1200);
       }
@@ -397,6 +418,25 @@
       let events = [];
       let videoUrl = null;
       let savedVideoName = "";
+      let savedYtUrl = "";
+
+      // 播放來源：none | local | yt
+      let mode = "none";
+      let yt = null, ytReady = false, ytPending = null, ytTimer = null, ytCurrentId = "";
+      const hasSource = () => mode !== "none";
+
+      function getDuration() {
+        if (mode === "yt") return ytReady && yt.getDuration ? (yt.getDuration() || NaN) : NaN;
+        return video.duration;
+      }
+      function currentTime() {
+        if (mode === "yt") return ytReady && yt.getCurrentTime ? (yt.getCurrentTime() || 0) : 0;
+        return Number.isFinite(video.currentTime) ? video.currentTime : 0;
+      }
+      function duration() {
+        const d = getDuration();
+        return Number.isFinite(d) && d > 0 ? d : Math.max(60, ...events.map(e => e.time + 5));
+      }
 
       function fmt(seconds) {
         const n = Math.max(0, Number(seconds) || 0);
@@ -405,13 +445,9 @@
         const tenths = Math.floor((n % 1) * 10);
         return `${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}.${tenths}`;
       }
-      function duration() {
-        return Number.isFinite(video.duration) && video.duration > 0
-          ? video.duration : Math.max(60, ...events.map(e => e.time + 5));
-      }
       function persist() {
         try {
-          localStorage.setItem(storageKey, JSON.stringify({ events, videoName: savedVideoName }));
+          localStorage.setItem(storageKey, JSON.stringify({ events, videoName: savedVideoName, ytUrl: savedYtUrl }));
         } catch (error) {
           console.warn("無法將紀錄儲存在此瀏覽器", error);
         }
@@ -421,7 +457,9 @@
           const data = JSON.parse(localStorage.getItem(storageKey) || "{}");
           if (Array.isArray(data.events)) events = normalize(data.events);
           savedVideoName = typeof data.videoName === "string" ? data.videoName : "";
-          if (savedVideoName) $("filename").textContent = `上次影片：${savedVideoName}（請重新選擇）`;
+          savedYtUrl = typeof data.ytUrl === "string" ? data.ytUrl : "";
+          if (savedVideoName) $("filename").textContent = `上次影片：${savedVideoName}（請重新載入）`;
+          // 不再把上次的 YouTube 網址自動填入輸入框
         } catch (error) {
           console.warn("無法讀取先前的紀錄", error);
         }
@@ -442,14 +480,16 @@
           };
         });
       }
-      function currentTime() { return Number.isFinite(video.currentTime) ? video.currentTime : 0; }
       function seek(time) {
-        if (!video.src) {
-          $("chartHint").textContent = `這筆紀錄位於 ${fmt(time)}；先選擇對應影片才能跳轉。`;
+        if (!hasSource()) {
+          $("chartHint").textContent = `這筆紀錄位於 ${fmt(time)}；先載入對應影片才能跳轉。`;
           return;
         }
-        video.currentTime = Math.min(Math.max(0, time), Number.isFinite(video.duration) ? video.duration : time);
-        video.scrollIntoView({ behavior: "smooth", block: "center" });
+        const d = getDuration();
+        const t = Math.min(Math.max(0, time), Number.isFinite(d) ? d : time);
+        if (mode === "yt") { if (ytReady) yt.seekTo(t, true); }
+        else video.currentTime = t;
+        document.querySelector(".video-wrap").scrollIntoView({ behavior: "smooth", block: "center" });
         updateTime();
         drawChart();
       }
@@ -514,7 +554,7 @@
           });
       }
       function updateTime() {
-        $("time").textContent = `${fmt(currentTime())} / ${fmt(video.duration)}`;
+        $("time").textContent = `${fmt(currentTime())} / ${fmt(getDuration())}`;
       }
       function drawChart() {
         const rect = canvas.getBoundingClientRect();
@@ -599,7 +639,7 @@
           const t = len * i / ticks;
           ctx.fillText(fmt(t).slice(0, 5), x(t), 246);
         }
-        if (video.src) {
+        if (hasSource()) {
           const playX = x(currentTime());
           ctx.strokeStyle = "#ffffff";
           ctx.lineWidth = 1.5;
@@ -609,34 +649,156 @@
         }
       }
 
+      /* ---------- YouTube ---------- */
+      function parseYouTubeId(input) {
+        const text = input.trim();
+        try {
+          const u = new URL(text);
+          const h = u.hostname.replace(/^www\.|^m\./, "");
+          if (h === "youtu.be") {
+            const id = u.pathname.slice(1).split("/")[0];
+            return /^[\w-]{11}$/.test(id) ? id : null;
+          }
+          if (h === "youtube.com" || h === "music.youtube.com" || h === "youtube-nocookie.com") {
+            const v = u.searchParams.get("v");
+            if (v && /^[\w-]{11}$/.test(v)) return v;
+            const m = u.pathname.match(/^\/(shorts|embed|live|v)\/([\w-]{11})/);
+            if (m) return m[2];
+          }
+        } catch {}
+        return /^[\w-]{11}$/.test(text) ? text : null;
+      }
+      function showYtMsg(html) {
+        const box = $("ytMsg");
+        if (!html) { box.classList.remove("show"); box.innerHTML = ""; return; }
+        box.innerHTML = html;
+        box.classList.add("show");
+      }
+      function ytErrorMessage(code) {
+        const link = ytCurrentId
+          ? ` <a href="https://www.youtube.com/watch?v=${encodeURIComponent(ytCurrentId)}" target="_blank" rel="noopener">在 YouTube 開啟</a>` : "";
+        const map = {
+          2: "連結中的影片 ID 無效，請確認網址是否完整。",
+          5: "播放器發生 HTML5 錯誤，請重新整理後再試。",
+          100: "找不到這部影片，可能已被刪除或設為私人。",
+          101: "上傳者不允許在其他網站嵌入這部影片（常見於官方 MV、音樂版權影片）。",
+          150: "上傳者不允許在其他網站嵌入這部影片（常見於官方 MV、音樂版權影片）。",
+          153: "YouTube 沒有收到網頁來源（Referer）。請用 http(s) 網址開啟（例如 Live Server 或 GitHub Pages），不要直接雙擊 HTML 檔案；也請確認瀏覽器或擴充功能沒有封鎖 Referer。"
+        };
+        return `<strong>YouTube 錯誤碼 ${code}</strong><br>${map[code] || "影片無法播放。"}${link}`;
+      }
+      function loadYTApi() {
+        return new Promise((resolve, reject) => {
+          if (window.YT && YT.Player) return resolve();
+          const prev = window.onYouTubeIframeAPIReady;
+          window.onYouTubeIframeAPIReady = () => { if (prev) prev(); resolve(); };
+          if (!document.getElementById("ytApiScript")) {
+            const s = document.createElement("script");
+            s.id = "ytApiScript";
+            s.src = "https://www.youtube.com/iframe_api";
+            s.onerror = () => { s.remove(); reject(new Error("無法載入 YouTube，請確認網路連線")); };
+            document.head.append(s);
+          }
+        });
+      }
+      function stopLocal() {
+        video.pause();
+        if (video.getAttribute("src")) { video.removeAttribute("src"); video.load(); }
+        if (videoUrl) { URL.revokeObjectURL(videoUrl); videoUrl = null; }
+        video.style.display = "none";
+      }
+      async function loadYouTube(id, url) {
+        if (location.protocol === "file:") {
+          showYtMsg("<strong>目前是以 file:// 開啟</strong><br>YouTube 嵌入需要 http(s) 網址，請用 Live Server 或上傳到 GitHub Pages 後再試。");
+          return;
+        }
+        showYtMsg("");
+        await loadYTApi();
+        stopLocal();
+        ytCurrentId = id;
+        $("emptyVideo").style.display = "none";
+        $("ytBox").style.display = "block";
+        mode = "yt";
+        savedVideoName = `YouTube：${url}`;
+        savedYtUrl = url;
+        $("filename").textContent = savedVideoName;
+        persist();
+        if (yt && ytReady) {
+          yt.loadVideoById(id);
+          yt.setPlaybackRate(Number($("speed").value));
+        } else if (yt) {
+          ytPending = id;
+        } else {
+          const vars = { playsinline: 1, rel: 0, enablejsapi: 1 };
+          if (/^https?:$/.test(location.protocol)) vars.origin = location.origin;
+          yt = new YT.Player("ytPlayer", {
+            videoId: id,
+            playerVars: vars,
+            events: {
+              onReady: () => {
+                ytReady = true;
+                if (ytPending) { yt.loadVideoById(ytPending); ytPending = null; }
+                yt.setPlaybackRate(Number($("speed").value));
+                updateTime(); drawChart();
+              },
+              onError: e => showYtMsg(ytErrorMessage(e.data))
+            }
+          });
+        }
+        clearInterval(ytTimer);
+        ytTimer = setInterval(() => { updateTime(); drawChart(); }, 250);
+        updateTime(); drawChart();
+      }
+
+      /* ---------- 事件綁定 ---------- */
       document.querySelectorAll("[data-score]").forEach(button => {
         button.addEventListener("click", () => addScore(Number(button.dataset.score)));
       });
       $("videoFile").addEventListener("change", e => {
         const file = e.target.files?.[0];
         if (!file) return;
+        if (yt && ytReady && yt.pauseVideo) yt.pauseVideo();
+        clearInterval(ytTimer);
+        showYtMsg("");
+        $("ytBox").style.display = "none";
+        mode = "local";
         if (videoUrl) URL.revokeObjectURL(videoUrl);
         videoUrl = URL.createObjectURL(file);
         video.src = videoUrl;
         video.style.display = "block";
         $("emptyVideo").style.display = "none";
         savedVideoName = file.name;
+        savedYtUrl = "";
         $("filename").textContent = file.name;
         persist();
         video.load();
+        video.playbackRate = Number($("speed").value);
         e.target.value = "";
+        updateTime(); drawChart();
       });
-      $("speed").addEventListener("change", e => { video.playbackRate = Number(e.target.value); });
+      $("ytForm").addEventListener("submit", async e => {
+        e.preventDefault();
+        const url = $("ytUrl").value.trim();
+        const id = parseYouTubeId(url);
+        if (!id) { showYtMsg("<strong>無法辨識連結</strong><br>請貼上完整的 YouTube 網址（youtube.com 或 youtu.be）。"); return; }
+        try { await loadYouTube(id, url); }
+        catch (err) { showYtMsg(`<strong>載入失敗</strong><br>${err.message}`); }
+      });
+      $("speed").addEventListener("change", e => {
+        const r = Number(e.target.value);
+        video.playbackRate = r;
+        if (mode === "yt" && ytReady && yt.setPlaybackRate) yt.setPlaybackRate(r);
+      });
       video.addEventListener("loadedmetadata", () => { updateTime(); drawChart(); });
       video.addEventListener("durationchange", () => { updateTime(); drawChart(); });
-      video.addEventListener("timeupdate", () => { updateTime(); drawChart(); });
+      video.addEventListener("timeupdate", () => { if (mode === "local") { updateTime(); drawChart(); } });
       $("binSize").addEventListener("change", drawChart);
       canvas.addEventListener("click", e => {
         const rect = canvas.getBoundingClientRect();
         const left = 43, right = 12;
         const fraction = Math.min(1, Math.max(0, (e.clientX - rect.left - left) / Math.max(1, rect.width - left - right)));
         const at = fraction * duration();
-        $("chartHint").textContent = `選取時間：${fmt(at)}。${video.src ? "已跳轉影片。" : "請先選擇影片以跳轉。"}`;
+        $("chartHint").textContent = `選取時間：${fmt(at)}。${hasSource() ? "已跳轉影片。" : "請先載入影片以跳轉。"}`;
         seek(at);
       });
       $("undo").addEventListener("click", () => {
@@ -651,6 +813,7 @@
         const data = {
           format: "yoyo-replay-v1",
           videoName: savedVideoName,
+          ytUrl: savedYtUrl,
           exportedAt: new Date().toISOString(),
           events
         };
@@ -672,9 +835,13 @@
           if (events.length && !confirm("匯入將取代目前的計分紀錄，確定繼續？")) return;
           events = imported;
           savedVideoName = typeof data.videoName === "string" ? data.videoName : "";
-          $("filename").textContent = video.src
-            ? $("filename").textContent
-            : (savedVideoName ? `紀錄影片：${savedVideoName}（請選擇影片）` : "尚未選擇影片");
+          savedYtUrl = typeof data.ytUrl === "string" ? data.ytUrl : "";
+          // 不再把匯入檔的 YouTube 網址自動填入輸入框
+          if (!hasSource()) {
+            $("filename").textContent = savedVideoName
+              ? `紀錄影片：${savedVideoName}（請載入影片）`
+              : "尚未選擇影片";
+          }
           refresh();
         } catch (error) {
           alert(`匯入失敗：${error.message}`);
@@ -685,11 +852,7 @@
       document.addEventListener("keydown", e => {
         if (e.altKey || e.ctrlKey || e.metaKey || e.repeat) return;
         if (["INPUT", "SELECT", "TEXTAREA"].includes(document.activeElement?.tagName)) return;
-        // 用實體按鍵位置判斷，中文（注音）輸入法開啟時也能使用
-        const shortcuts = {
-          KeyS: -3, KeyD: -2, KeyF: -1,
-          KeyJ: 1, KeyK: 2, KeyL: 3
-        };
+        const shortcuts = { KeyS: -3, KeyD: -2, KeyF: -1, KeyJ: 1, KeyK: 2, KeyL: 3 };
         const score = shortcuts[e.code];
         if (score !== undefined) {
           e.preventDefault();
