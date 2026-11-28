@@ -44,7 +44,6 @@ html,body{margin:0;height:100%;background:#111;color:#fff;font-family:-apple-sys
 #toast small{font-size:16px;opacity:.9}
 #toast.show{opacity:1}
 
-/* 右手(只放手臂與垃圾疊) */
 #hand{right:3%;bottom:0;width:clamp(190px,24vw,340px);display:flex;flex-direction:column;align-items:center;transition:transform .12s}
 #stack{display:flex;flex-direction:column-reverse;align-items:center;pointer-events:auto;margin-bottom:-40px;position:relative;z-index:1;min-height:30px}
 .hi{line-height:1;margin-top:-30px;filter:drop-shadow(0 4px 3px rgba(0,0,0,.5));font-size:clamp(46px,6vw,70px)}
@@ -53,8 +52,9 @@ html,body{margin:0;height:100%;background:#111;color:#fff;font-family:-apple-sys
 @keyframes bump{0%{transform:scale(1.5)}100%{transform:scale(1)}}
 #arm{width:clamp(120px,15vw,200px);height:clamp(150px,22vw,280px);border-radius:50px 50px 0 0;background:linear-gradient(#f0c39a 0 40%,#3f9d5e 40%);transform:rotate(-10deg);box-shadow:inset -14px 0 0 rgba(0,0,0,.14);position:relative}
 #arm:before{content:"";position:absolute;left:0;right:0;top:40%;height:9px;background:#2d7a47}
+#hand.throw #arm{animation:swing .3s}
+@keyframes swing{0%{transform:rotate(-10deg)}35%{transform:rotate(14deg) translateY(-18px)}100%{transform:rotate(-10deg)}}
 
-/* ★ 底部資訊列:名稱 + 數量,固定在最下方,蓋在手臂上、不會被垃圾擋住 */
 #handInfo{right:3%;bottom:calc(env(safe-area-inset-bottom) + 10px);width:clamp(190px,24vw,340px);display:flex;flex-direction:column;align-items:center;gap:6px;z-index:4}
 #curLbl{font-size:21px;font-weight:800;background:rgba(20,28,38,.92);padding:7px 16px;border-radius:14px;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis;border:2px solid rgba(255,215,102,.7);box-shadow:0 3px 8px rgba(0,0,0,.4)}
 #curLbl:empty{display:none}
@@ -122,7 +122,7 @@ html,body{margin:0;height:100%;background:#111;color:#fff;font-family:-apple-sys
   <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 移動 ・ <kbd>Shift</kbd> 跑步<br>
   滑鼠 自由轉頭(點畫面鎖定) ・ <kbd>Esc</kbd> 釋放<br>
   <kbd>左鍵</kbd> 對準垃圾 = 撿起<br>
-  <kbd>左鍵</kbd> 面對垃圾桶 = 丟入(也可按 <kbd>空白</kbd>)<br>
+  <kbd>左鍵</kbd> 面對垃圾桶 = 丟出去(也可按 <kbd>空白</kbd>)<br>
   <kbd>滾輪</kbd> / <kbd>Q</kbd> 切換要丟的垃圾<br>
   <kbd>M</kbd> 模式 ・ <kbd>B</kbd> 商店 ・ <kbd>G</kbd> 圖鑑
 </div>
@@ -165,7 +165,7 @@ const $=id=>document.getElementById(id);
   x.fillStyle='#3f7fc4';x.fillRect(34,40,22,40);x.fillStyle='#e08a2e';x.fillRect(66,40,22,40);
   const a=document.createElement('link');a.rel='apple-touch-icon';a.href=c.toDataURL();document.head.appendChild(a);
   try{
-    const code=`const C='sorter3d-v8';
+    const code=`const C='sorter3d-v10';
 self.addEventListener('install',e=>self.skipWaiting());
 self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));
 self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;
@@ -349,9 +349,10 @@ const obst=[];
  const m=new THREE.Mesh(new THREE.BoxGeometry(s,s,s),new THREE.MeshStandardMaterial({map:crateTex,roughness:.8}));
  m.position.set(x,s/2,z);m.rotation.y=rnd(-.3,.3);m.castShadow=m.receiveShadow=true;scene.add(m);obst.push({x,z,r:s*.72})});
 
-function labelTex(b){return canvasTex(256,256,(x,w)=>{x.fillStyle=b.c;x.fillRect(0,0,w,w);x.fillStyle='rgba(255,255,255,.15)';x.fillRect(0,0,w,40);x.font='110px '+EMOJI_FONT;x.textAlign='center';x.textBaseline='middle';x.fillText(b.e,128,115);x.fillStyle='#fff';x.font='bold 44px '+EMOJI_FONT;x.fillText(b.n,128,205)})}
+/* 垃圾桶:桶身前面只放大圖示(不寫字),名稱只寫在上方的招牌 */
+function labelTex(b){return canvasTex(256,256,(x,w)=>{x.fillStyle=b.c;x.fillRect(0,0,w,w);x.fillStyle='rgba(255,255,255,.15)';x.fillRect(0,0,w,40);x.font='150px '+EMOJI_FONT;x.textAlign='center';x.textBaseline='middle';x.fillText(b.e,128,140)})}
 function signTex(b){return canvasTex(256,96,(x,w,h)=>{x.fillStyle='rgba(20,28,38,.88)';x.beginPath();x.roundRect(4,4,w-8,h-8,22);x.fill();x.strokeStyle=b.c;x.lineWidth=8;x.stroke();x.fillStyle='#fff';x.font='bold 42px '+EMOJI_FONT;x.textAlign='center';x.textBaseline='middle';x.fillText(b.e+' '+b.n,w/2,h/2+2)})}
-const BINPOS=[.8,2.27,3.73,5.2].map((x,i)=>({x,z:1.5,i}));
+const BINPOS=[.8,2.27,3.73,5.2].map((x,i)=>({x,z:1.5,i,g:null,pulse:0}));
 BINPOS.forEach(p=>{
  const b=BIN[p.i],g=new THREE.Group();
  const body=new THREE.Mesh(new THREE.BoxGeometry(1.1,1,.9),[0,1,2,3,4,5].map(i=>i===4?new THREE.MeshStandardMaterial({map:labelTex(b),roughness:.5}):new THREE.MeshStandardMaterial({color:b.c,roughness:.5})));
@@ -360,8 +361,8 @@ BINPOS.forEach(p=>{
  lid.position.y=1.07;lid.castShadow=true;g.add(lid);
  const slot=new THREE.Mesh(new THREE.BoxGeometry(.7,.03,.18),new THREE.MeshBasicMaterial({color:0x111111}));slot.position.set(0,1.15,.05);g.add(slot);
  const sign=new THREE.Mesh(new THREE.PlaneGeometry(1.4,.52),new THREE.MeshBasicMaterial({map:signTex(b),transparent:true}));sign.position.set(0,1.85,.25);g.add(sign);
- const pad=new THREE.Mesh(new THREE.CircleGeometry(.68,28),new THREE.MeshBasicMaterial({color:b.c,transparent:true,opacity:.3,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}));pad.rotation.x=-Math.PI/2;pad.position.set(0,.012,1.15);g.add(pad);
- g.position.set(p.x,0,p.z);scene.add(g);
+ /* 已移除桶子腳下的大色圈,避免和地上的垃圾圈圈重疊 */
+ g.position.set(p.x,0,p.z);scene.add(g);p.g=g;
 });
 
 /* ---- 車外風景 ---- */
@@ -422,7 +423,8 @@ function truckUpdate(dt){
 /* ---- 垃圾 ---- */
 const spTex={};
 function emojiTex(e){return spTex[e]||(spTex[e]=canvasTex(128,128,(x)=>{x.font='96px '+EMOJI_FONT;x.textAlign='center';x.textBaseline='middle';x.fillText(e,64,70)}))}
-const discGeo=new THREE.CircleGeometry(.36,24);
+/* 垃圾腳下:改成細細的小圓環(原本是實心大圓,和別的圈圈疊在一起很怪) */
+const discGeo=new THREE.RingGeometry(.26,.34,32);
 let floorItems=[];
 const P={x:3,z:8,a:0,p:-.2};
 function blocked(x,z){
@@ -433,7 +435,7 @@ function blocked(x,z){
 function makeItem(id,x,z,state){
  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:emojiTex(ITEMS[id].e),transparent:true,fog:true}));
  sp.scale.set(.6,.6,1);sp.position.set(x,.5,z);
- const disc=new THREE.Mesh(discGeo,new THREE.MeshBasicMaterial({transparent:true,opacity:.5,color:0x000000,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}));
+ const disc=new THREE.Mesh(discGeo,new THREE.MeshBasicMaterial({transparent:true,opacity:.8,color:0x000000,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}));
  disc.rotation.x=-Math.PI/2;disc.position.set(x,.02,z);disc.visible=state==='idle';
  scene.add(sp,disc);
  const f={id,x,z,ph:Math.random()*6,sp,disc,state};floorItems.push(f);return f}
@@ -473,6 +475,7 @@ function toast(h,ms=2800){const t=$('toast');t.innerHTML=h;t.classList.add('show
 /* ========== 狀態 ========== */
 let held=[];
 let time=0,bobT=0,bob=0,target=null,aimed=null;
+const flights=[];
 const sheet=$('sheet');
 const isOpen=()=>sheet.classList.contains('open');
 const keys={};
@@ -489,7 +492,7 @@ function closeShop(){sheet.classList.remove('open')}
 function pickup(){
  if(isOpen())return;
  if(!target){toast('👀 把準心對準地上的垃圾,靠近一點再點左鍵',1800);return}
- if(held.length>=capN()){toast('👐 手滿了!先去丟一個吧',1800);tone(180,.08,'square',.04);return}
+ if(held.length+flights.length>=capN()){toast('👐 手滿了!先去丟一個吧',1800);tone(180,.08,'square',.04);return}
  const f=target,i=floorItems.indexOf(f);if(i<0)return;
  held.push(f.id);
  scene.remove(f.sp,f.disc);f.sp.material.dispose();f.disc.material.dispose();floorItems.splice(i,1);
@@ -501,30 +504,58 @@ function cycle(dir){
  if(dir>0)held.push(held.shift());else held.unshift(held.pop());
  tone(400,.04,'triangle',.05);renderHand();ui();
 }
+
+function handPos(out){
+ const cp=Math.cos(P.p),sp_=Math.sin(P.p);
+ const fx=-Math.sin(P.a),fz=-Math.cos(P.a),rx=Math.cos(P.a),rz=-Math.sin(P.a);
+ out.x=P.x+fx*cp*.55+rx*.38;
+ out.y=cam.position.y+sp_*.55-.32;
+ out.z=P.z+fz*cp*.55+rz*.38;
+ return out}
+
 function act(){
  if(isOpen())return;
+ if(flights.length)return;
  if(!held.length){toast('👐 手上沒有東西,先去撿垃圾吧',1500);return}
  const b=aimed;
- if(!b){toast('🎯 面對垃圾桶、靠近一點,再丟入',1600);return}
- const id=held[0],it=ITEMS[id],d=S.dex[id]||(S.dex[id]={ok:0,ng:0});
- if(it.b===b.i){
-  held.shift();d.ok++;S.ok++;S.sorted++;
+ if(!b){toast('🎯 面對垃圾桶、靠近一點,再丟出去',1600);return}
+ const id=held.shift();
+ const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:emojiTex(ITEMS[id].e),transparent:true,fog:false,depthTest:false}));
+ sp.renderOrder=10;
+ const s=handPos({});
+ sp.position.set(s.x,s.y,s.z);sp.scale.set(.5,.5,1);scene.add(sp);
+ flights.push({id,bin:b,sp,t:0,D:.5,phase:'out',sx:s.x,sy:s.y,sz:s.z,ex:b.x,ey:1.2,ez:b.z+.05,ok:ITEMS[id].b===b.i});
+ const h=$('hand');h.classList.remove('throw');void h.offsetWidth;h.classList.add('throw');
+ tone(300,.14,'triangle',.05,700);vib(6);
+ renderHand();ui();
+}
+
+function impact(f){
+ const b=f.bin,it=ITEMS[f.id],d=S.dex[f.id]||(S.dex[f.id]={ok:0,ng:0});
+ b.pulse=1;
+ if(f.ok){
+  d.ok++;S.ok++;S.sorted++;
   const gain=BIN[b.i].v*mult();S.money+=gain;S.total+=gain;
   toast(`✅ 答對了!<b style="color:#ffd766"> +$${fmt(gain)}</b><br><small>${it.e}${it.n}:${it.t}</small>`,3500);
-  tone(660,.15,'sine',.1);setTimeout(()=>tone(990,.15,'sine',.07),80);vib(14);
+  tone(160,.1,'sine',.12,90);
+  setTimeout(()=>tone(660,.15,'sine',.1),60);setTimeout(()=>tone(990,.15,'sine',.07),140);vib(14);
+  scene.remove(f.sp);f.sp.material.dispose();f.done=true;
+  ui();save();
  }else{
   d.ng++;S.ng++;
-  toast(`❌ ${it.e}${it.n} 不是「${BIN[b.i].n}」<br>應該丟「${BIN[it.b].e}${BIN[it.b].n}」<br><small>${it.t}</small><br><small>滾輪可以換一個要丟的垃圾</small>`,5500);
+  toast(`❌ ${it.e}${it.n} 不是「${BIN[b.i].n}」<br>應該丟「${BIN[it.b].e}${BIN[it.b].n}」<br><small>${it.t}</small><br><small>垃圾被彈回來了,滾輪可以換一個要丟的</small>`,5500);
   tone(160,.25,'sawtooth',.05);vib([30,40,30]);
+  f.phase='back';f.t=0;f.D=.42;f.sx=f.ex;f.sy=f.ey;f.sz=f.ez;
+  save();
  }
- renderHand();ui();save();
 }
+
 function smartClick(){
  if(isOpen())return;
- if(target&&held.length<capN()){pickup();return}
+ if(target&&held.length+flights.length<capN()){pickup();return}
  if(held.length&&aimed){act();return}
  if(target){pickup();return}
- if(held.length){toast('🎯 面對垃圾桶(靠近一點)再點左鍵丟入',1600);return}
+ if(held.length){toast('🎯 面對垃圾桶(靠近一點)再點左鍵丟出去',1600);return}
  toast('👀 對準地上的垃圾,靠近後點左鍵撿起',1600);
 }
 
@@ -621,6 +652,28 @@ function update(dt){
 
  const inc=income();if(inc>0){S.money+=inc*dt;S.total+=inc*dt}
 
+ for(const b of BINPOS){if(b.pulse>0){b.pulse=Math.max(0,b.pulse-dt*4.5);const s=b.pulse;b.g.scale.set(1+.1*s,1-.08*s,1+.1*s)}}
+
+ for(let i=flights.length-1;i>=0;i--){
+  const f=flights[i];
+  f.t+=dt;const u=Math.min(1,f.t/f.D),e=u*u*(3-2*u);
+  if(f.phase==='out'){
+   f.sp.position.set(f.sx+(f.ex-f.sx)*u,f.sy+(f.ey-f.sy)*e+Math.sin(Math.PI*u)*.75,f.sz+(f.ez-f.sz)*u);
+   f.sp.material.rotation=u*14;
+   const s=.5-.22*u;f.sp.scale.set(s,s,1);
+   if(u>=1)impact(f);
+  }else{
+   const h=handPos({});
+   f.sp.position.set(f.sx+(h.x-f.sx)*e,f.sy+(h.y-f.sy)*e+Math.sin(Math.PI*u)*.45,f.sz+(h.z-f.sz)*e);
+   f.sp.material.rotation=-u*8;
+   const s=.28+.22*u;f.sp.scale.set(s,s,1);
+   if(u>=1){
+    scene.remove(f.sp);f.sp.material.dispose();f.done=true;
+    held.unshift(f.id);renderHand(false);tone(520,.08,'sine',.06,700);ui()}
+  }
+  if(f.done)flights.splice(i,1);
+ }
+
  for(let i=floorItems.length-1;i>=0;i--){const f=floorItems[i];
   if(f.state!=='fall')continue;
   f.age+=dt;const u=Math.min(1,f.age/f.T);
@@ -634,8 +687,8 @@ function update(dt){
  floorItems.forEach(f=>{
   if(f.state!=='idle')return;
   f.sp.position.y=.5+.03*Math.sin(time*1.6+f.ph);
-  f.disc.material.color.set(S.mode===0?BIN[ITEMS[f.id].b].c:'#000000');
-  f.disc.material.opacity=S.mode===0?.6:.3;
+  f.disc.material.color.set(S.mode===0?BIN[ITEMS[f.id].b].c:'#222222');
+  f.disc.material.opacity=S.mode===0?.95:.45;
   f.sp.scale.set(.6,.6,1);
   const vx2=f.x-P.x,vy2=f.sp.position.y-cam.position.y,vz2=f.z-P.z;
   const d2=vx2*vx2+vy2*vy2+vz2*vz2,dot=vx2*dxv+vy2*dyv+vz2*dzv;
@@ -676,19 +729,20 @@ function ui(){
   st.textContent=dropping()?`🛑 停車中・車尾開口丟入垃圾(${r}秒後出發)`:`🛑 即將出發…(${r})`}
  else{st.className='hud pill go';
   st.textContent=T.ph==='brake'?'🚚 即將停靠…':T.ph==='acc'?'🚚 出發中…':'🚚 行駛中・前往下一個收運點'}
+ /* 準心提示:不再重複寫垃圾桶名稱(桶上已經有招牌) */
  let t='';
  if(target){const it=ITEMS[target.id];
   const nm=S.mode===0?`${it.e} ${it.n} → ${BIN[it.b].n}`:S.mode===1?`${it.e} ${it.n}`:'❓ 這是什麼垃圾?';
   t=(fine?'[左鍵] 撿起 ':'')+nm}
- else if(aimed&&held.length){t=(fine?'[左鍵] ':'')+'丟入 '+BIN[aimed.i].e+BIN[aimed.i].n}
+ else if(aimed&&held.length){t=(fine?'[左鍵] ':'')+'丟出去'}
  if(t!==lastTg){lastTg=t;$('tgTx').textContent=t}
  const cur=held.length?ITEMS[held[0]]:null;
  let lbl='';
  if(cur)lbl=S.mode===0?`${cur.n} → ${BIN[cur.b].n}`:S.mode===1?cur.n:'❓ 要丟哪一桶?';
  if($('curLbl').textContent!==lbl)$('curLbl').textContent=lbl;
- $('cnt').textContent=`手上 ${held.length}/${capN()}`;
- $('actBtn').classList.toggle('dim',!(aimed&&held.length));
- $('pickBtn').classList.toggle('dim',!target||held.length>=capN());
+ $('cnt').textContent=`手上 ${held.length+flights.length}/${capN()}`;
+ $('actBtn').classList.toggle('dim',!(aimed&&held.length&&!flights.length));
+ $('pickBtn').classList.toggle('dim',!target||held.length+flights.length>=capN());
  $('modeBtn').textContent=MODES[S.mode].l;
  $('bobBtn').textContent=S.bob?'🌀開':'🌀關';$('bobBtn').classList.toggle('off',!S.bob);
  if(isOpen()&&tab==='shop')updShop();
@@ -747,7 +801,7 @@ function loop(n){
 }
 renderHand();ui();requestAnimationFrame(loop);
 setTimeout(()=>toast(fine
- ?'🚚 你站在回收車的車斗上!<br>WASD 移動・點畫面後滑鼠轉頭<br>垃圾會從<b>車尾開口</b>丟進來<br>對準撿起(左鍵)→ 面對垃圾桶丟入(左鍵)'
+ ?'🚚 你站在回收車的車斗上!<br>WASD 移動・點畫面後滑鼠轉頭<br>垃圾會從<b>車尾開口</b>丟進來<br>對準撿起(左鍵)→ 面對垃圾桶丟出去(左鍵)'
  :'🚚 你站在回收車的車斗上!<br>左半邊=走路 右半邊=轉頭<br>垃圾從<b>車尾開口</b>丟進來<br>準心對準垃圾按 ✋,面對垃圾桶按 🗑️',8000),500);
 </script>
 </body>
