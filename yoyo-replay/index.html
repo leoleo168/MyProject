@@ -1,0 +1,711 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#101827">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="YoYo計分">
+  <title>YoYo Replay｜表演計分</title>
+
+  <!-- 內嵌 Manifest（Data URL）；JS 會在載入後以絕對網址與 PNG 圖示重新產生 -->
+  <link rel="manifest" id="manifestLink" href="data:application/manifest+json;charset=utf-8,%7B%22name%22%3A%22YoYo%20Replay%20%E8%A1%A8%E6%BC%94%E8%A8%88%E5%88%86%22%2C%22short_name%22%3A%22YoYo%E8%A8%88%E5%88%86%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230b1220%22%2C%22theme_color%22%3A%22%23101827%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%3Bcharset%3Dutf-8%2C%253Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20512%20512'%253E%253Crect%20width%3D'512'%20height%3D'512'%20rx%3D'112'%20fill%3D'%2523101827'%2F%253E%253Ccircle%20cx%3D'256'%20cy%3D'290'%20r%3D'120'%20fill%3D'%252354e4bd'%2F%253E%253Ccircle%20cx%3D'256'%20cy%3D'290'%20r%3D'40'%20fill%3D'%2523101827'%2F%253E%253Cpath%20d%3D'M256%20170V80'%20stroke%3D'%2523ffc977'%20stroke-width%3D'16'%20stroke-linecap%3D'round'%2F%253E%253C%2Fsvg%253E%22%2C%22sizes%22%3A%22any%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%2C%22purpose%22%3A%22any%22%7D%5D%7D">
+  <link rel="apple-touch-icon" id="appleIcon" href="data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' fill='%23101827'/%3E%3Ccircle cx='256' cy='290' r='120' fill='%2354e4bd'/%3E%3Ccircle cx='256' cy='290' r='40' fill='%23101827'/%3E%3C/svg%3E">
+  <link rel="icon" href="data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='112' fill='%23101827'/%3E%3Ccircle cx='256' cy='290' r='120' fill='%2354e4bd'/%3E%3Ccircle cx='256' cy='290' r='40' fill='%23101827'/%3E%3C/svg%3E">
+
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b1220;
+      --panel: #162235;
+      --panel-2: #1d2c42;
+      --line: #304159;
+      --text: #f2f7fb;
+      --muted: #9eafc3;
+      --mint: #54e4bd;
+      --red: #ff7786;
+      --yellow: #ffc977;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 15px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      overscroll-behavior-y: none;
+      -webkit-user-select: none; user-select: none;
+    }
+    input, .filename, .event-main small { -webkit-user-select: text; user-select: text; }
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
+    .app {
+      max-width: 1100px; margin: auto;
+      padding: calc(18px + env(safe-area-inset-top)) calc(18px + env(safe-area-inset-right)) 130px calc(18px + env(safe-area-inset-left));
+    }
+    header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 18px; }
+    h1, h2, p { margin-top: 0; }
+    h1 { font-size: 23px; letter-spacing: -.04em; margin-bottom: 2px; }
+    h2 { font-size: 17px; margin-bottom: 12px; }
+    .sub, .hint, .muted { color: var(--muted); }
+    .sub { font-size: 13px; margin: 0; }
+    .badge { border: 1px solid var(--line); border-radius: 99px; padding: 7px 11px; color: var(--mint); white-space: nowrap; font-size: 12px; }
+    .grid { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(290px, 1fr); gap: 16px; }
+    .card { min-width: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 16px; box-shadow: 0 6px 18px rgba(0,0,0,.25); }
+    .full { grid-column: 1 / -1; }
+    .section-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .section-head h2 { margin: 0; }
+    .video-wrap { position: relative; background: #060b13; border-radius: 12px; overflow: hidden; margin-top: 12px; aspect-ratio: 16 / 9; display: grid; place-items: center; }
+    video { width: 100%; height: 100%; display: none; background: #000; }
+    .empty { text-align: center; padding: 22px; color: var(--muted); }
+    .empty strong { display: block; color: var(--text); font-size: 18px; margin-bottom: 6px; }
+    .toolbar { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-top: 12px; }
+    .button, .file-button, select {
+      display: inline-flex; align-items: center; justify-content: center;
+      border: 1px solid var(--line); background: var(--panel-2); color: var(--text);
+      border-radius: 10px; min-height: 39px; padding: 7px 11px;
+      text-decoration: none; transition: transform .08s, border-color .15s;
+    }
+    .button:hover, .file-button:hover { border-color: var(--mint); }
+    .button:active, .file-button:active { transform: scale(.96); }
+    input[type="file"] { display: none; }
+    .filename { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px; }
+    .time { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--mint); }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin: 14px 0; }
+    .stat { background: var(--panel-2); border-radius: 12px; padding: 12px; }
+    .stat small { display: block; color: var(--muted); font-size: 12px; }
+    .stat strong { display: block; font-size: 27px; line-height: 1.3; font-variant-numeric: tabular-nums; }
+    .positive { color: var(--mint); }
+    .negative { color: var(--red); }
+    .note-input {
+      width: 100%; border: 1px solid var(--line); background: #101b2b; color: var(--text);
+      border-radius: 10px; padding: 11px 12px; outline: none; font-size: 16px; /* 避免 iOS 聚焦時自動放大 */
+    }
+    .note-input:focus { border-color: var(--mint); }
+
+    /* 左手扣分、右手加分；靠中央為 1，往外依序為 2、3。 */
+    .score-buttons { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 7px; margin: 10px 0; }
+    .score-buttons button {
+      border: 0; border-radius: 12px; min-height: 60px; min-width: 0;
+      font-size: 20px; font-weight: 750; line-height: 1.2;
+      color: #07241c; background: var(--mint); touch-action: manipulation;
+      box-shadow: 0 3px 8px rgba(0,0,0,.3);
+    }
+    .score-buttons button.minus { background: var(--red); color: #351017; }
+    .score-buttons button:nth-child(4) { margin-left: 5px; }
+    .score-buttons button:active, .score-buttons button.pressed { transform: scale(.95); filter: brightness(1.2); }
+    .score-buttons button small { display: block; font-size: 11px; font-weight: 600; opacity: .65; line-height: 1; margin-top: 2px; }
+    @media (hover: none) { .score-buttons button small { display: none; } }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .actions .button, .actions .file-button { font-size: 13px; }
+    .hint { font-size: 12px; margin: 11px 0 0; }
+    .chart-controls { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 13px; }
+    .chart-controls select { min-height: 32px; padding: 3px 6px; }
+    canvas { width: 100%; height: 260px; display: block; margin-top: 10px; cursor: crosshair; touch-action: manipulation; }
+    .legend { display: flex; flex-wrap: wrap; gap: 15px; color: var(--muted); font-size: 12px; }
+    .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; }
+    .events { max-height: 390px; overflow-y: auto; margin-top: 12px; -webkit-overflow-scrolling: touch; }
+    .event { display: flex; align-items: center; gap: 10px; border-top: 1px solid var(--line); padding: 10px 2px; }
+    .event-main { flex: 1; min-width: 0; }
+    .event-main button { background: none; border: 0; padding: 0; color: var(--text); text-align: left; font-weight: 650; }
+    .event-main button:hover { color: var(--mint); text-decoration: underline; }
+    .event-main small { display: block; color: var(--muted); overflow-wrap: anywhere; }
+    .pill { min-width: 43px; text-align: center; font-weight: 750; font-variant-numeric: tabular-nums; }
+    .delete { border: 0; background: transparent; color: var(--muted); padding: 7px; }
+    .delete:hover { color: var(--red); }
+    .no-events { color: var(--muted); padding: 28px 8px; text-align: center; }
+    .mobile-score { display: none; }
+
+    /* 安裝提示橫幅 */
+    .install-bar {
+      position: fixed; z-index: 20; left: 12px; right: 12px;
+      top: calc(10px + env(safe-area-inset-top));
+      max-width: 520px; margin: auto;
+      display: none; align-items: center; gap: 10px;
+      background: linear-gradient(135deg, #1d2c42, #162235);
+      border: 1px solid var(--mint); border-radius: 16px;
+      padding: 10px 12px; box-shadow: 0 10px 30px rgba(0,0,0,.5);
+      animation: slideIn .35s ease;
+    }
+    .install-bar.show { display: flex; }
+    .install-bar img { width: 40px; height: 40px; border-radius: 10px; }
+    .install-bar .txt { flex: 1; min-width: 0; font-size: 13px; line-height: 1.35; }
+    .install-bar .txt strong { display: block; font-size: 14px; }
+    .install-bar .txt span { color: var(--muted); }
+    .install-bar .go { border: 0; background: var(--mint); color: #07241c; font-weight: 750; border-radius: 10px; padding: 9px 13px; white-space: nowrap; }
+    .install-bar .close { border: 0; background: transparent; color: var(--muted); font-size: 20px; padding: 4px 6px; line-height: 1; }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(-14px); } to { opacity: 1; transform: none; } }
+
+    @media (max-width: 760px) {
+      .app { padding: calc(14px + env(safe-area-inset-top)) 12px 165px; }
+      .grid { grid-template-columns: 1fr; gap: 12px; }
+      .full { grid-column: auto; }
+      .card { padding: 13px; }
+      .desktop-score { display: none; }
+      .mobile-score {
+        display: block; position: fixed; z-index: 5; bottom: 0; left: 0; right: 0;
+        padding: 9px calc(12px + env(safe-area-inset-right)) calc(9px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left));
+        background: rgba(16, 24, 39, .97); border-top: 1px solid var(--line);
+        -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+      }
+      .mobile-score .score-buttons { max-width: 700px; margin: auto; }
+      .mobile-score .score-buttons button { min-height: 66px; }
+      .stat strong { font-size: 24px; }
+      .time { margin-left: 0; }
+    }
+    @media (max-width: 370px) {
+      .mobile-score { padding-left: 7px; padding-right: 7px; }
+      .score-buttons { gap: 4px; }
+      .score-buttons button { font-size: 18px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="install-bar" id="installBar" role="dialog" aria-label="安裝為手機 App">
+    <img id="installIcon" alt="" src="data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='112' fill='%23101827'/%3E%3Ccircle cx='256' cy='290' r='120' fill='%2354e4bd'/%3E%3Ccircle cx='256' cy='290' r='40' fill='%23101827'/%3E%3C/svg%3E">
+    <div class="txt"><strong>安裝為手機 App</strong><span id="installDesc">加到主畫面，全螢幕使用、可離線開啟</span></div>
+    <button class="go" id="installBtn">安裝</button>
+    <button class="close" id="installClose" aria-label="關閉">×</button>
+  </div>
+
+  <main class="app">
+    <header>
+      <div>
+        <h1>YoYo Replay</h1>
+        <p class="sub">表演計分 × 影片時間軸</p>
+      </div>
+      <span class="badge">本機使用・不會上傳影片</span>
+    </header>
+
+    <div class="grid">
+      <section class="card">
+        <div class="section-head">
+          <h2>表演影片</h2>
+          <span class="muted filename" id="filename">尚未選擇影片</span>
+        </div>
+        <div class="video-wrap">
+          <div class="empty" id="emptyVideo"><strong>選擇一段表演影片</strong>支援手機中的常見影片格式；能否播放取決於瀏覽器。</div>
+          <video id="video" controls playsinline preload="metadata"></video>
+        </div>
+        <div class="toolbar">
+          <label class="file-button">選擇影片<input id="videoFile" type="file" accept="video/*"></label>
+          <label for="speed" class="muted">速度</label>
+          <select id="speed" aria-label="播放速度">
+            <option value="0.5">0.5×</option>
+            <option value="0.75">0.75×</option>
+            <option value="1" selected>1×</option>
+            <option value="1.25">1.25×</option>
+            <option value="1.5">1.5×</option>
+          </select>
+          <strong class="time" id="time">00:00.0 / 00:00.0</strong>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>即時計分</h2>
+        <div class="stats">
+          <div class="stat"><small>目前總分</small><strong id="total">0</strong></div>
+          <div class="stat"><small>獲得分數</small><strong class="positive" id="gained">+0</strong></div>
+          <div class="stat"><small>扣除分數</small><strong class="negative" id="lost">-0</strong></div>
+        </div>
+        <input class="note-input" id="note" maxlength="120" placeholder="選填備註，例如：橫向組合、失誤…" aria-label="本次計分備註">
+        <div class="score-buttons desktop-score" aria-label="左手扣分、右手加分">
+          <button class="minus" data-score="-3">−3<small>S</small></button>
+          <button class="minus" data-score="-2">−2<small>D</small></button>
+          <button class="minus" data-score="-1">−1<small>F</small></button>
+          <button data-score="1">+1<small>J</small></button>
+          <button data-score="2">+2<small>K</small></button>
+          <button data-score="3">+3<small>L</small></button>
+        </div>
+        <div class="actions">
+          <button class="button" id="undo">復原上一筆</button>
+          <button class="button" id="export">匯出紀錄</button>
+          <label class="file-button">匯入紀錄<input id="importFile" type="file" accept=".json,application/json"></label>
+          <button class="button" id="clear">清空計分</button>
+        </div>
+        <p class="hint">計分會記在影片目前時間，並自動儲存在本機。靠中央為 1 分，往外為 2、3 分。鍵盤：左手 S D F 扣 3、2、1 分，右手 J K L 加 1、2、3 分。在備註欄輸入時快捷鍵暫停。</p>
+      </section>
+
+      <section class="card full">
+        <div class="section-head">
+          <h2>分數與影片時間軸</h2>
+          <div class="chart-controls"><label for="binSize">時段</label>
+            <select id="binSize"><option value="5">每 5 秒</option><option value="10" selected>每 10 秒</option><option value="15">每 15 秒</option><option value="30">每 30 秒</option></select>
+          </div>
+        </div>
+        <canvas id="chart" role="img" aria-label="累積得分曲線及各時段加扣分圖表，點擊可跳至影片時間"></canvas>
+        <div class="legend">
+          <span><i style="background:#ffc977"></i>累積總分</span>
+          <span><i style="background:#54e4bd"></i>該時段加分</span>
+          <span><i style="background:#ff7786"></i>該時段扣分</span>
+          <span><i style="background:#fff"></i>影片目前位置</span>
+        </div>
+        <p class="hint" id="chartHint">點擊圖表即可跳到對應的影片時間。</p>
+      </section>
+
+      <section class="card full">
+        <div class="section-head">
+          <h2>逐筆紀錄</h2>
+          <span class="muted" id="eventCount">0 筆</span>
+        </div>
+        <div class="events" id="events"></div>
+      </section>
+    </div>
+  </main>
+
+  <div class="mobile-score">
+    <div class="score-buttons" aria-label="左手扣分、右手加分">
+      <button class="minus" data-score="-3">−3<small>S</small></button>
+      <button class="minus" data-score="-2">−2<small>D</small></button>
+      <button class="minus" data-score="-1">−1<small>F</small></button>
+      <button data-score="1">+1<small>J</small></button>
+      <button data-score="2">+2<small>K</small></button>
+      <button data-score="3">+3<small>L</small></button>
+    </div>
+  </div>
+
+  <script>
+    /* ========== PWA：圖示 / Manifest / Service Worker / 安裝提示 ========== */
+    (() => {
+      const ICON_SVG = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='112' fill='#101827'/><circle cx='256' cy='290' r='120' fill='#54e4bd'/><circle cx='256' cy='290' r='40' fill='#101827'/><path d='M256 170V80' stroke='#ffc977' stroke-width='16' stroke-linecap='round'/></svg>";
+      const svgUrl = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(ICON_SVG);
+
+      // 以 canvas 產生 PNG 圖示（iOS 的 apple-touch-icon 與 Android 安裝需要 PNG）
+      function makePng(size) {
+        return new Promise(resolve => {
+          const img = new Image();
+          img.onload = () => {
+            const c = document.createElement("canvas");
+            c.width = c.height = size;
+            c.getContext("2d").drawImage(img, 0, 0, size, size);
+            try { resolve(c.toDataURL("image/png")); } catch { resolve(null); }
+          };
+          img.onerror = () => resolve(null);
+          img.src = svgUrl;
+        });
+      }
+
+      async function buildManifest() {
+        const [p192, p512, p180] = await Promise.all([makePng(192), makePng(512), makePng(180)]);
+        if (p180) {
+          document.getElementById("appleIcon").href = p180;
+          document.getElementById("installIcon").src = p180;
+        }
+        const icons = [{ src: svgUrl, sizes: "any", type: "image/svg+xml", purpose: "any" }];
+        if (p192) icons.unshift({ src: p192, sizes: "192x192", type: "image/png", purpose: "any" });
+        if (p512) icons.unshift({ src: p512, sizes: "512x512", type: "image/png", purpose: "any" });
+        const manifest = {
+          name: "YoYo Replay 表演計分",
+          short_name: "YoYo計分",
+          description: "溜溜球表演影片計分與時間軸分析",
+          start_url: location.href.split("#")[0],
+          scope: location.href.split("#")[0].replace(/[^/]*$/, ""),
+          display: "standalone",
+          orientation: "any",
+          background_color: "#0b1220",
+          theme_color: "#101827",
+          icons
+        };
+        document.getElementById("manifestLink").href =
+          "data:application/manifest+json;charset=utf-8," + encodeURIComponent(JSON.stringify(manifest));
+      }
+      buildManifest();
+
+      // Service Worker（Blob URL）。部分瀏覽器不允許 blob: 作為 SW 來源，失敗時改試同目錄 sw.js，再失敗則略過。
+      if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)) {
+        const swCode = `
+          const CACHE = "yoyo-replay-v1";
+          self.addEventListener("install", e => {
+            e.waitUntil(caches.open(CACHE).then(c => c.add(${JSON.stringify(location.href.split("#")[0])})).catch(() => {}));
+            self.skipWaiting();
+          });
+          self.addEventListener("activate", e => {
+            e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
+          });
+          self.addEventListener("fetch", e => {
+            const req = e.request;
+            if (req.method !== "GET" || !req.url.startsWith("http")) return;
+            if (req.destination === "video" || req.headers.has("range")) return;
+            e.respondWith(
+              fetch(req).then(res => {
+                if (res && res.ok && new URL(req.url).origin === self.location.origin) {
+                  const copy = res.clone();
+                  caches.open(CACHE).then(c => c.put(req, copy));
+                }
+                return res;
+              }).catch(() => caches.match(req).then(r => r || caches.match(${JSON.stringify(location.href.split("#")[0])})))
+            );
+          });`;
+        window.addEventListener("load", async () => {
+          try {
+            const blobUrl = URL.createObjectURL(new Blob([swCode], { type: "text/javascript" }));
+            await navigator.serviceWorker.register(blobUrl);
+          } catch (err) {
+            try { await navigator.serviceWorker.register("./sw.js"); }
+            catch (err2) { console.info("Service Worker 未啟用：", err2.message); }
+          }
+        });
+      }
+
+      // 安裝提示
+      const bar = document.getElementById("installBar");
+      const btn = document.getElementById("installBtn");
+      const isStandalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+      const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+      let deferred = null;
+
+      document.getElementById("installClose").addEventListener("click", () => {
+        bar.classList.remove("show");
+        try { sessionStorage.setItem("yoyo-install-dismissed", "1"); } catch {}
+      });
+      const dismissed = () => { try { return sessionStorage.getItem("yoyo-install-dismissed"); } catch { return false; } };
+
+      window.addEventListener("beforeinstallprompt", e => {
+        e.preventDefault();
+        deferred = e;
+        if (!isStandalone && !dismissed()) bar.classList.add("show");
+      });
+      btn.addEventListener("click", async () => {
+        if (deferred) {
+          deferred.prompt();
+          await deferred.userChoice.catch(() => {});
+          deferred = null;
+          bar.classList.remove("show");
+        } else {
+          bar.classList.remove("show");
+        }
+      });
+      window.addEventListener("appinstalled", () => bar.classList.remove("show"));
+
+      // iOS Safari 沒有 beforeinstallprompt，改顯示手動教學
+      if (isIOS && !isStandalone && !dismissed()) {
+        document.getElementById("installDesc").innerHTML = "點下方 <b>分享 ⎋</b> →「<b>加入主畫面</b>」";
+        btn.textContent = "知道了";
+        setTimeout(() => bar.classList.add("show"), 1200);
+      }
+    })();
+
+    /* ========== 計分主程式 ========== */
+    (() => {
+      const $ = id => document.getElementById(id);
+      const storageKey = "yoyo-replay-v1";
+      const video = $("video");
+      const canvas = $("chart");
+      const ctx = canvas.getContext("2d");
+      let events = [];
+      let videoUrl = null;
+      let savedVideoName = "";
+
+      function fmt(seconds) {
+        const n = Math.max(0, Number(seconds) || 0);
+        const minutes = Math.floor(n / 60);
+        const secs = Math.floor(n % 60);
+        const tenths = Math.floor((n % 1) * 10);
+        return `${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}.${tenths}`;
+      }
+      function duration() {
+        return Number.isFinite(video.duration) && video.duration > 0
+          ? video.duration : Math.max(60, ...events.map(e => e.time + 5));
+      }
+      function persist() {
+        try {
+          localStorage.setItem(storageKey, JSON.stringify({ events, videoName: savedVideoName }));
+        } catch (error) {
+          console.warn("無法將紀錄儲存在此瀏覽器", error);
+        }
+      }
+      function load() {
+        try {
+          const data = JSON.parse(localStorage.getItem(storageKey) || "{}");
+          if (Array.isArray(data.events)) events = normalize(data.events);
+          savedVideoName = typeof data.videoName === "string" ? data.videoName : "";
+          if (savedVideoName) $("filename").textContent = `上次影片：${savedVideoName}（請重新選擇）`;
+        } catch (error) {
+          console.warn("無法讀取先前的紀錄", error);
+        }
+      }
+      function normalize(raw) {
+        if (!Array.isArray(raw) || raw.length > 10000) throw new Error("紀錄格式不正確或筆數過多");
+        return raw.map((e, i) => {
+          const time = Number(e.time);
+          const score = Number(e.score);
+          if (!Number.isFinite(time) || time < 0 || time > 86400 ||
+              !Number.isInteger(score) || ![1, 2, 3, -1, -2, -3].includes(score)) {
+            throw new Error(`第 ${i + 1} 筆紀錄的時間或分數無效`);
+          }
+          return {
+            id: typeof e.id === "string" ? e.id : `${Date.now()}-${i}`,
+            time, score,
+            note: typeof e.note === "string" ? e.note.slice(0, 120) : ""
+          };
+        });
+      }
+      function currentTime() { return Number.isFinite(video.currentTime) ? video.currentTime : 0; }
+      function seek(time) {
+        if (!video.src) {
+          $("chartHint").textContent = `這筆紀錄位於 ${fmt(time)}；先選擇對應影片才能跳轉。`;
+          return;
+        }
+        video.currentTime = Math.min(Math.max(0, time), Number.isFinite(video.duration) ? video.duration : time);
+        video.scrollIntoView({ behavior: "smooth", block: "center" });
+        updateTime();
+        drawChart();
+      }
+      function addScore(score) {
+        const note = $("note");
+        events.push({
+          id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          time: currentTime(), score, note: note.value.trim()
+        });
+        note.value = "";
+        if (navigator.vibrate) navigator.vibrate(20);
+        refresh();
+      }
+      function refresh() {
+        persist();
+        const gained = events.reduce((s, e) => s + Math.max(0, e.score), 0);
+        const lost = events.reduce((s, e) => s + Math.max(0, -e.score), 0);
+        $("total").textContent = gained - lost;
+        $("gained").textContent = `+${gained}`;
+        $("lost").textContent = `-${lost}`;
+        $("eventCount").textContent = `${events.length} 筆`;
+        renderEvents();
+        drawChart();
+      }
+      function renderEvents() {
+        const parent = $("events");
+        parent.replaceChildren();
+        if (!events.length) {
+          const empty = document.createElement("div");
+          empty.className = "no-events";
+          empty.textContent = "尚無計分。播放影片後，按下方的加減分按鈕開始。";
+          parent.append(empty);
+          return;
+        }
+        events.map((event, index) => ({ event, index }))
+          .sort((a, b) => b.event.time - a.event.time || b.index - a.index)
+          .forEach(({ event }) => {
+            const row = document.createElement("div");
+            row.className = "event";
+            const pill = document.createElement("span");
+            pill.className = `pill ${event.score > 0 ? "positive" : "negative"}`;
+            pill.textContent = event.score > 0 ? `+${event.score}` : `${event.score}`;
+            const main = document.createElement("div");
+            main.className = "event-main";
+            const jump = document.createElement("button");
+            jump.textContent = fmt(event.time);
+            jump.title = "跳至此影片時間";
+            jump.addEventListener("click", () => seek(event.time));
+            const detail = document.createElement("small");
+            detail.textContent = event.note || "無備註";
+            main.append(jump, detail);
+            const remove = document.createElement("button");
+            remove.className = "delete";
+            remove.textContent = "刪除";
+            remove.setAttribute("aria-label", `刪除 ${fmt(event.time)} 的計分`);
+            remove.addEventListener("click", () => {
+              events = events.filter(e => e !== event);
+              refresh();
+            });
+            row.append(pill, main, remove);
+            parent.append(row);
+          });
+      }
+      function updateTime() {
+        $("time").textContent = `${fmt(currentTime())} / ${fmt(video.duration)}`;
+      }
+      function drawChart() {
+        const rect = canvas.getBoundingClientRect();
+        const w = rect.width;
+        if (!w) return;
+        const h = rect.height;
+        const dpr = window.devicePixelRatio || 1;
+        const pixelW = Math.round(w * dpr), pixelH = Math.round(h * dpr);
+        if (canvas.width !== pixelW || canvas.height !== pixelH) {
+          canvas.width = pixelW; canvas.height = pixelH;
+        }
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, w, h);
+        const left = 43, right = 12, top = 19, curveBottom = 123;
+        const barTop = 153, zero = 191, barBottom = 228;
+        const plotW = Math.max(1, w - left - right);
+        const len = duration();
+        const x = t => left + Math.min(1, Math.max(0, t / len)) * plotW;
+        const sorted = [...events].sort((a, b) => a.time - b.time);
+        let cumulative = 0;
+        const points = [{ time: 0, value: 0 }];
+        for (const e of sorted) {
+          cumulative += e.score;
+          points.push({ time: e.time, value: cumulative });
+        }
+        points.push({ time: len, value: cumulative });
+        const values = points.map(p => p.value);
+        const min = Math.min(0, ...values), max = Math.max(0, ...values);
+        const span = Math.max(2, max - min);
+        const y = value => curveBottom - (value - min) / span * (curveBottom - top);
+
+        ctx.font = "11px system-ui";
+        ctx.textBaseline = "middle";
+        ctx.strokeStyle = "#304159";
+        ctx.fillStyle = "#9eafc3";
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 2; i++) {
+          const value = min + (max - min) * (1 - i / 2);
+          const lineY = top + (curveBottom - top) * i / 2;
+          ctx.beginPath(); ctx.moveTo(left, lineY); ctx.lineTo(w - right, lineY); ctx.stroke();
+          ctx.textAlign = "right"; ctx.fillText(String(Math.round(value)), left - 7, lineY);
+        }
+        ctx.beginPath(); ctx.moveTo(left, zero); ctx.lineTo(w - right, zero); ctx.stroke();
+
+        const bin = Number($("binSize").value);
+        const count = Math.ceil(len / bin);
+        const buckets = new Map();
+        for (const e of events) {
+          const i = Math.min(count - 1, Math.floor(e.time / bin));
+          const item = buckets.get(i) || { plus: 0, minus: 0 };
+          if (e.score > 0) item.plus += e.score;
+          else item.minus -= e.score;
+          buckets.set(i, item);
+        }
+        const maxBar = Math.max(1, ...[...buckets.values()].flatMap(b => [b.plus, b.minus]));
+        for (const [i, b] of buckets) {
+          const start = x(i * bin), end = x(Math.min(len, (i + 1) * bin));
+          const bw = Math.max(2, end - start - 2);
+          ctx.fillStyle = "#54e4bd";
+          ctx.fillRect(start + 1, zero - b.plus / maxBar * (zero - barTop), bw, b.plus / maxBar * (zero - barTop));
+          ctx.fillStyle = "#ff7786";
+          ctx.fillRect(start + 1, zero, bw, b.minus / maxBar * (barBottom - zero));
+        }
+
+        ctx.strokeStyle = "#ffc977";
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(x(0), y(0));
+        let running = 0;
+        for (const e of sorted) {
+          ctx.lineTo(x(e.time), y(running));
+          running += e.score;
+          ctx.lineTo(x(e.time), y(running));
+        }
+        ctx.lineTo(x(len), y(running));
+        ctx.stroke();
+
+        ctx.fillStyle = "#9eafc3";
+        ctx.textAlign = "center";
+        const ticks = w < 440 ? 3 : 5;
+        for (let i = 0; i <= ticks; i++) {
+          const t = len * i / ticks;
+          ctx.fillText(fmt(t).slice(0, 5), x(t), 246);
+        }
+        if (video.src) {
+          const playX = x(currentTime());
+          ctx.strokeStyle = "#ffffff";
+          ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.moveTo(playX, top); ctx.lineTo(playX, barBottom); ctx.stroke();
+          ctx.fillStyle = "#ffffff";
+          ctx.beginPath(); ctx.arc(playX, top, 4, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+
+      document.querySelectorAll("[data-score]").forEach(button => {
+        button.addEventListener("click", () => addScore(Number(button.dataset.score)));
+      });
+      $("videoFile").addEventListener("change", e => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (videoUrl) URL.revokeObjectURL(videoUrl);
+        videoUrl = URL.createObjectURL(file);
+        video.src = videoUrl;
+        video.style.display = "block";
+        $("emptyVideo").style.display = "none";
+        savedVideoName = file.name;
+        $("filename").textContent = file.name;
+        persist();
+        video.load();
+        e.target.value = "";
+      });
+      $("speed").addEventListener("change", e => { video.playbackRate = Number(e.target.value); });
+      video.addEventListener("loadedmetadata", () => { updateTime(); drawChart(); });
+      video.addEventListener("durationchange", () => { updateTime(); drawChart(); });
+      video.addEventListener("timeupdate", () => { updateTime(); drawChart(); });
+      $("binSize").addEventListener("change", drawChart);
+      canvas.addEventListener("click", e => {
+        const rect = canvas.getBoundingClientRect();
+        const left = 43, right = 12;
+        const fraction = Math.min(1, Math.max(0, (e.clientX - rect.left - left) / Math.max(1, rect.width - left - right)));
+        const at = fraction * duration();
+        $("chartHint").textContent = `選取時間：${fmt(at)}。${video.src ? "已跳轉影片。" : "請先選擇影片以跳轉。"}`;
+        seek(at);
+      });
+      $("undo").addEventListener("click", () => {
+        if (events.length) { events.pop(); refresh(); }
+      });
+      $("clear").addEventListener("click", () => {
+        if (events.length && confirm("確定清空所有計分紀錄？此動作無法復原。")) {
+          events = []; refresh();
+        }
+      });
+      $("export").addEventListener("click", () => {
+        const data = {
+          format: "yoyo-replay-v1",
+          videoName: savedVideoName,
+          exportedAt: new Date().toISOString(),
+          events
+        };
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `yoyo-score-${new Date().toISOString().slice(0, 10)}.json`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      });
+      $("importFile").addEventListener("change", async e => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        try {
+          const data = JSON.parse(await file.text());
+          if (data.format !== "yoyo-replay-v1") throw new Error("不是此計分程式匯出的檔案");
+          const imported = normalize(data.events);
+          if (events.length && !confirm("匯入將取代目前的計分紀錄，確定繼續？")) return;
+          events = imported;
+          savedVideoName = typeof data.videoName === "string" ? data.videoName : "";
+          $("filename").textContent = video.src
+            ? $("filename").textContent
+            : (savedVideoName ? `紀錄影片：${savedVideoName}（請選擇影片）` : "尚未選擇影片");
+          refresh();
+        } catch (error) {
+          alert(`匯入失敗：${error.message}`);
+        } finally {
+          e.target.value = "";
+        }
+      });
+      document.addEventListener("keydown", e => {
+        if (e.altKey || e.ctrlKey || e.metaKey || e.repeat) return;
+        if (["INPUT", "SELECT", "TEXTAREA"].includes(document.activeElement?.tagName)) return;
+        // 用實體按鍵位置判斷，中文（注音）輸入法開啟時也能使用
+        const shortcuts = {
+          KeyS: -3, KeyD: -2, KeyF: -1,
+          KeyJ: 1, KeyK: 2, KeyL: 3
+        };
+        const score = shortcuts[e.code];
+        if (score !== undefined) {
+          e.preventDefault();
+          addScore(score);
+          document.querySelectorAll(`[data-score="${score}"]`).forEach(btn => {
+            btn.classList.add("pressed");
+            setTimeout(() => btn.classList.remove("pressed"), 100);
+          });
+        }
+      });
+      window.addEventListener("resize", drawChart);
+      window.addEventListener("beforeunload", () => { if (videoUrl) URL.revokeObjectURL(videoUrl); });
+      load();
+      refresh();
+      updateTime();
+    })();
+  </script>
+</body>
+</html>
