@@ -69,16 +69,18 @@ html,body{margin:0;height:100%;background:#111;color:#fff;font-family:-apple-sys
 .abtn.dim{background:#8a8f95!important;box-shadow:0 6px 0 #5f646a!important;color:#333}
 #joy{display:none;width:110px;height:110px;border-radius:50%;border:3px solid rgba(255,255,255,.35);background:rgba(255,255,255,.08);z-index:2}
 #knob{position:absolute;left:33px;top:33px;width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.55)}
-#keys{display:none;left:14px;bottom:calc(env(safe-area-inset-bottom) + 14px);font-size:15px;line-height:1.9;opacity:.95}
+/* 左下教學字:縮小 */
+#keys{display:none;left:10px;bottom:calc(env(safe-area-inset-bottom) + 10px);font-size:11px;line-height:1.55;opacity:.85;padding:6px 10px;border-radius:12px}
 @media (pointer:fine){#keys{display:block}#acts{display:none}}
-#keys kbd{background:rgba(255,255,255,.22);border-radius:6px;padding:2px 8px;font-family:inherit;font-weight:700}
+#keys kbd{background:rgba(255,255,255,.22);border-radius:4px;padding:0 5px;font-family:inherit;font-weight:700;font-size:10.5px}
 
-#sheet{position:fixed;left:0;right:0;bottom:0;height:82%;background:#25323f;border-radius:24px 24px 0 0;box-shadow:0 -8px 30px rgba(0,0,0,.5);transform:translateY(105%);transition:transform .3s ease-out;display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom);z-index:6;touch-action:pan-y;max-width:900px;margin:0 auto}
+/* 商店選單:抬高,四邊都留空隙,不再貼著螢幕底部 */
+#sheet{position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom) + 22px);height:min(80%,calc(100% - 50px));background:#25323f;border-radius:24px;box-shadow:0 8px 30px rgba(0,0,0,.5);transform:translateY(calc(100% + 80px));transition:transform .3s ease-out;display:flex;flex-direction:column;z-index:6;touch-action:pan-y;max-width:860px;margin:0 auto;width:calc(100% - 20px)}
 #sheet *{touch-action:pan-y}
 #sheet.open{transform:none}
-#sheet h3{margin:0;padding:16px 18px;display:flex;justify-content:space-between;align-items:center;font-size:20px}
-.tabs{display:flex;gap:8px}
-.tab{border:0;border-radius:12px;padding:12px 20px;background:#33465a;color:#fff;font-weight:800;font-size:19px;cursor:pointer}
+#sheet h3{margin:0;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;font-size:20px;gap:8px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tab{border:0;border-radius:12px;padding:12px 14px;background:#33465a;color:#fff;font-weight:800;font-size:18px;cursor:pointer}
 .tab.on{background:#ffd766;color:#3a2a00}
 #list{overflow-y:auto;padding:0 16px 20px;flex:1;-webkit-overflow-scrolling:touch}
 .it{display:flex;align-items:center;gap:14px;background:#2f4052;border-radius:16px;padding:14px;margin-bottom:12px}
@@ -89,6 +91,9 @@ html,body{margin:0;height:100%;background:#111;color:#fff;font-family:-apple-sys
 .buy{border:0;border-radius:14px;padding:14px 16px;min-width:110px;font-weight:800;font-size:19px;background:#5fcf80;color:#06260f;box-shadow:0 4px 0 #3a9a58;cursor:pointer}
 .buy:active{transform:translateY(2px);box-shadow:0 2px 0 #3a9a58}
 .buy:disabled{background:#4a5966;color:#99a;box-shadow:0 4px 0 #38444f;cursor:default}
+.loopcard{background:#3a3150;border:2px solid #b69cff;border-radius:16px;padding:16px;margin-bottom:12px;font-size:17px;line-height:1.7}
+.loopcard .buy{width:100%;margin-top:10px;background:#b69cff;color:#1d1236;box-shadow:0 4px 0 #7a62c4}
+.loopcard .buy:disabled{background:#4a5966;color:#99a;box-shadow:0 4px 0 #38444f}
 #modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:9}
 #modal>div{background:#2f4052;border-radius:22px;padding:28px;text-align:center;width:86%;max-width:380px;font-size:18px}
 #modal h3{font-size:24px}
@@ -142,7 +147,7 @@ html,body{margin:0;height:100%;background:#111;color:#fff;font-family:-apple-sys
 </div>
 
 <div id="sheet">
-  <h3><div class="tabs"><button class="tab on" id="tShop">🛠️ 升級</button><button class="tab" id="tDex">📖 圖鑑</button></div><button class="icbtn" id="closeShop">✕</button></h3>
+  <h3><div class="tabs"><button class="tab on" id="tShop">🛠️ 升級</button><button class="tab" id="tLoop">🔄 輪迴</button><button class="tab" id="tDex">📖 圖鑑</button></div><button class="icbtn" id="closeShop">✕</button></h3>
   <div id="list"></div>
 </div>
 <div id="modal"><div><div style="font-size:52px">🌙</div><h3 style="margin:6px 0">歡迎回來!</h3><p id="offTx"></p><button id="offOk">收下</button></div></div>
@@ -165,7 +170,7 @@ const $=id=>document.getElementById(id);
   x.fillStyle='#3f7fc4';x.fillRect(34,40,22,40);x.fillStyle='#e08a2e';x.fillRect(66,40,22,40);
   const a=document.createElement('link');a.rel='apple-touch-icon';a.href=c.toDataURL();document.head.appendChild(a);
   try{
-    const code=`const C='sorter3d-v10';
+    const code=`const C='sorter3d-v12';
 self.addEventListener('install',e=>self.skipWaiting());
 self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));
 self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;
@@ -185,7 +190,7 @@ try{THREE=await import('https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.m
 catch(e){$('loading').innerHTML='❌ 無法載入 3D 引擎<br>請確認網路連線後重新整理';throw e}
 $('loading').style.display='none';
 
-/* ========== 資料:台灣垃圾分類 ========== */
+/* ========== 資料 ========== */
 const BIN=[
  {n:'資源回收',e:'♻️',c:'#3f7fc4',v:5},
  {n:'廚餘',e:'🍎',c:'#e08a2e',v:3},
@@ -226,7 +231,6 @@ const ITEMS=[
 ];
 const MODES=[{l:'💡簡易',m:1,d:'簡易:顯示答案'},{l:'🎓標準',m:1.5,d:'標準:只顯示名稱,收入 ×1.5'},{l:'🔥挑戰',m:2,d:'挑戰:不顯示名稱,收入 ×2'}];
 
-/* 圖示相容檢查:缺字自動換成備用圖示 */
 const EMOJI_FONT='"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif';
 function glyphAlpha(ch){
  const c=document.createElement('canvas');c.width=c.height=40;
@@ -244,25 +248,39 @@ ITEMS.forEach(it=>{if(!emojiOK(it.e))it.e='🎁'});
 /* ========== 存檔 ========== */
 const KEY='trashSorter3d.v1';
 const LV0={cap:0,spd:0,rng:0,val:0,vol:0};
-let S={money:0,total:0,sorted:0,ok:0,ng:0,dex:{},lv:{...LV0},mode:0,mute:false,bob:false,last:Date.now()};
-try{const d=JSON.parse(localStorage.getItem(KEY));if(d)S={...S,...d,lv:{...LV0,...d.lv},dex:d.dex||{}}}catch(e){}
+const PM0={inc:0,vol:0,cap:0,start:0,vs:0};
+let S={money:0,total:0,run:0,badges:0,loops:0,sorted:0,ok:0,ng:0,dex:{},lv:{...LV0},pm:{...PM0},mode:0,mute:false,bob:false,last:Date.now()};
+try{const d=JSON.parse(localStorage.getItem(KEY));if(d){S={...S,...d,lv:{...LV0,...d.lv},dex:d.dex||{},pm:{...PM0,...d.pm}};if(d.run===undefined)S.run=d.total||0}}catch(e){}
 const save=()=>{S.last=Date.now();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
 setInterval(save,4000);addEventListener('pagehide',save);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)save()});
 
-/* ========== 升級 ========== */
+/* ========== 升級 / 輪迴強化 ========== */
 const UP=[
  {id:'cap',ic:'✋',name:'手持格數',desc:'一次可以拿更多垃圾',base:30,r:1.6,max:7},
  {id:'spd',ic:'👟',name:'移動速度',desc:'走路更快',base:40,r:1.5,max:10},
  {id:'rng',ic:'🔍',name:'撿取距離',desc:'站遠一點也能撿到',base:50,r:1.5,max:8},
  {id:'val',ic:'💎',name:'分類技術',desc:'收入提升(每 10 級 ×2)',base:25,r:1.4},
- {id:'vol',ic:'👷',name:'分類志工',desc:'自動幫你分類,每位 +1 元/秒',base:80,r:1.18},
+ {id:'vol',ic:'👷',name:'分類志工',desc:'車斗裡多一位志工,會自己撿垃圾分類(最多顯示 8 位,更多會讓每位賺更多)',base:80,r:1.18},
+];
+const PM=[
+ {id:'inc',ic:'💰',name:'永久收入加成',desc:'每級:所有收入 +25%',base:1,r:1.7},
+ {id:'vol',ic:'🔧',name:'志工幹勁',desc:'每級:志工分類收入 +20%',base:2,r:1.7},
+ {id:'vs',ic:'👥',name:'起始志工',desc:'每級:新輪班一開始就有 1 位志工',base:3,r:1.8,max:5},
+ {id:'cap',ic:'✋',name:'起始手持格',desc:'每級:永久多 1 格手持',base:2,r:2,max:4},
+ {id:'start',ic:'💵',name:'起始資金',desc:'每級:新輪班一開始有 $60',base:1,r:1.8,max:10},
 ];
 const cost=u=>Math.ceil(u.base*Math.pow(u.r,S.lv[u.id]));
-const capN=()=>3+S.lv.cap;
+const pmCost=u=>Math.ceil(u.base*Math.pow(u.r,S.pm[u.id]));
+const capN=()=>3+S.lv.cap+S.pm.cap;
 const valMult=()=>Math.pow(1.2,S.lv.val)*Math.pow(2,Math.floor(S.lv.val/10));
-const mult=()=>valMult()*MODES[S.mode].m;
-const income=()=>S.lv.vol*mult();
+const mult=()=>valMult()*MODES[S.mode].m*(1+.25*S.pm.inc);
+const volEff=()=>1+.2*S.pm.vol;
+const offlineRate=()=>S.lv.vol*.6*mult()*volEff();
+const runGain=()=>Math.floor(Math.sqrt(S.run/400));
+const earn=g=>{S.money+=g;S.total+=g;S.run+=g};
+const nVis=()=>Math.min(S.lv.vol,8);
+const maxItems=()=>10+nVis()*2;
 function fmt(n){if(n<1000)return n<10?(Math.round(n*10)/10)+'':Math.floor(n)+'';
  const s=['K','M','B','T','Qa'];let i=-1;while(n>=1000&&i<s.length-1){n/=1000;i++}return (n<10?n.toFixed(2):n<100?n.toFixed(1):Math.floor(n))+s[i]}
 
@@ -349,7 +367,6 @@ const obst=[];
  const m=new THREE.Mesh(new THREE.BoxGeometry(s,s,s),new THREE.MeshStandardMaterial({map:crateTex,roughness:.8}));
  m.position.set(x,s/2,z);m.rotation.y=rnd(-.3,.3);m.castShadow=m.receiveShadow=true;scene.add(m);obst.push({x,z,r:s*.72})});
 
-/* 垃圾桶:桶身前面只放大圖示(不寫字),名稱只寫在上方的招牌 */
 function labelTex(b){return canvasTex(256,256,(x,w)=>{x.fillStyle=b.c;x.fillRect(0,0,w,w);x.fillStyle='rgba(255,255,255,.15)';x.fillRect(0,0,w,40);x.font='150px '+EMOJI_FONT;x.textAlign='center';x.textBaseline='middle';x.fillText(b.e,128,140)})}
 function signTex(b){return canvasTex(256,96,(x,w,h)=>{x.fillStyle='rgba(20,28,38,.88)';x.beginPath();x.roundRect(4,4,w-8,h-8,22);x.fill();x.strokeStyle=b.c;x.lineWidth=8;x.stroke();x.fillStyle='#fff';x.font='bold 42px '+EMOJI_FONT;x.textAlign='center';x.textBaseline='middle';x.fillText(b.e+' '+b.n,w/2,h/2+2)})}
 const BINPOS=[.8,2.27,3.73,5.2].map((x,i)=>({x,z:1.5,i,g:null,pulse:0}));
@@ -361,7 +378,6 @@ BINPOS.forEach(p=>{
  lid.position.y=1.07;lid.castShadow=true;g.add(lid);
  const slot=new THREE.Mesh(new THREE.BoxGeometry(.7,.03,.18),new THREE.MeshBasicMaterial({color:0x111111}));slot.position.set(0,1.15,.05);g.add(slot);
  const sign=new THREE.Mesh(new THREE.PlaneGeometry(1.4,.52),new THREE.MeshBasicMaterial({map:signTex(b),transparent:true}));sign.position.set(0,1.85,.25);g.add(sign);
- /* 已移除桶子腳下的大色圈,避免和地上的垃圾圈圈重疊 */
  g.position.set(p.x,0,p.z);scene.add(g);p.g=g;
 });
 
@@ -401,7 +417,7 @@ for(const side of [-1,1]){
 
 /* ---- 卡車狀態 ---- */
 const T={ph:'stop',t:0,v:0};
-const STOP=45,ACC=4,CRU=8,BRK=4,VMAX=9,MAXI=10;
+const STOP=45,ACC=4,CRU=8,BRK=4,VMAX=9;
 const ease=x=>{x=Math.max(0,Math.min(1,x));return x*x*(3-2*x)};
 let dropT=.8;
 const dropping=()=>T.ph==='stop'&&T.t<STOP-3;
@@ -417,13 +433,12 @@ function truckUpdate(dt){
   road.material.map.offset.y+=dist/9;
   wheels.forEach(w=>w.rotation.x-=dist/.6)}
  CHUTE.lamp.material.color.set(dropping()?0x44ff66:0xff4444);
- if(dropping()){dropT-=dt;if(dropT<=0){if(floorItems.length<MAXI)dropItem();dropT=rnd(1.3,2.4)}}
+ if(dropping()){dropT-=dt;if(dropT<=0){if(floorItems.length<maxItems())dropItem();dropT=rnd(1.3,2.4)/(1+.25*nVis())}}
 }
 
 /* ---- 垃圾 ---- */
 const spTex={};
 function emojiTex(e){return spTex[e]||(spTex[e]=canvasTex(128,128,(x)=>{x.font='96px '+EMOJI_FONT;x.textAlign='center';x.textBaseline='middle';x.fillText(e,64,70)}))}
-/* 垃圾腳下:改成細細的小圓環(原本是實心大圓,和別的圈圈疊在一起很怪) */
 const discGeo=new THREE.RingGeometry(.26,.34,32);
 let floorItems=[];
 const P={x:3,z:8,a:0,p:-.2};
@@ -438,7 +453,7 @@ function makeItem(id,x,z,state){
  const disc=new THREE.Mesh(discGeo,new THREE.MeshBasicMaterial({transparent:true,opacity:.8,color:0x000000,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}));
  disc.rotation.x=-Math.PI/2;disc.position.set(x,.02,z);disc.visible=state==='idle';
  scene.add(sp,disc);
- const f={id,x,z,ph:Math.random()*6,sp,disc,state};floorItems.push(f);return f}
+ const f={id,x,z,ph:Math.random()*6,sp,disc,state,claimed:null};floorItems.push(f);return f}
 function freeSpot(){
  for(let t=0;t<40;t++){
   const x=rnd(1.2,BW-1.2),z=rnd(5.2,BL-1.2);
@@ -457,7 +472,108 @@ function dropItem(){
  if(!dropItem.hinted){dropItem.hinted=1;toast('📢 車尾開口丟進垃圾了!<br><small>轉身(往後看)找找地上的垃圾</small>',4000)}
 }
 function placeStatic(){const s=freeSpot();if(s)makeItem(Math.floor(Math.random()*ITEMS.length),s[0],s[1],'idle')}
+function removeItem(f){const i=floorItems.indexOf(f);if(i>=0)floorItems.splice(i,1);scene.remove(f.sp,f.disc);f.sp.material.dispose();f.disc.material.dispose()}
 for(let i=0;i<6;i++)placeStatic();
+
+/* ========== 分類志工(場景裡真的會動) ========== */
+const vols=[];
+const VSP=2.3;
+function makeVolMesh(){
+ const g=new THREE.Group();
+ const M=c=>new THREE.MeshStandardMaterial({color:c,roughness:.7});
+ const add=(geo,mat,x,y,z,p)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);m.castShadow=true;(p||g).add(m);return m};
+ const legL=new THREE.Group();legL.position.set(-.11,.55,0);g.add(legL);
+ const legR=new THREE.Group();legR.position.set(.11,.55,0);g.add(legR);
+ const pants=M(0x2f4a7a);
+ add(new THREE.BoxGeometry(.16,.55,.18),pants,0,-.275,0,legL);
+ add(new THREE.BoxGeometry(.16,.55,.18),pants,0,-.275,0,legR);
+ add(new THREE.BoxGeometry(.46,.55,.28),M(0xff8a1f),0,.83,0);
+ add(new THREE.BoxGeometry(.48,.07,.3),M(0xeeeeee),0,.8,0);
+ const armL=new THREE.Group();armL.position.set(-.3,1.06,0);g.add(armL);
+ const armR=new THREE.Group();armR.position.set(.3,1.06,0);g.add(armR);
+ add(new THREE.BoxGeometry(.12,.5,.12),M(0xff8a1f),0,-.25,0,armL);
+ add(new THREE.BoxGeometry(.12,.5,.12),M(0xff8a1f),0,-.25,0,armR);
+ add(new THREE.SphereGeometry(.17,12,10),M(0xf0c39a),0,1.28,0);
+ add(new THREE.SphereGeometry(.19,12,8,0,Math.PI*2,0,Math.PI/2),M(0xffd23a),0,1.31,0);
+ add(new THREE.CylinderGeometry(.22,.22,.025,14),M(0xffd23a),0,1.31,.02);
+ const eyeM=new THREE.MeshBasicMaterial({color:0x222222});
+ [-.06,.06].forEach(x=>{const e=new THREE.Mesh(new THREE.BoxGeometry(.03,.04,.02),eyeM);e.position.set(x,1.29,.16);g.add(e)});
+ g.scale.setScalar(1.1);
+ return {g,legL,legR,armL,armR}}
+function addVol(){
+ const m=makeVolMesh();
+ let x=3,z=7;
+ for(let t=0;t<50;t++){const a=rnd(1,5),b=rnd(5,10);if(!blocked(a,b)&&!vols.some(v=>Math.hypot(v.x-a,v.z-b)<1)){x=a;z=b;break}}
+ const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:emojiTex(ITEMS[0].e),transparent:true,fog:false}));
+ sp.scale.set(.45,.45,1);sp.visible=false;scene.add(m.g,sp);
+ vols.push({m,sp,x,z,st:'idle',item:null,bin:null,id:0,tm:0,t:0,wt:rnd(0,2),wp:null,face:0,ph:Math.random()*6,walk:false});
+}
+function removeVol(v){scene.remove(v.m.g,v.sp);v.sp.material.dispose();if(v.item)v.item.claimed=null}
+function syncVols(force){
+ if(force)while(vols.length)removeVol(vols.pop());
+ const n=nVis();
+ while(vols.length>n)removeVol(vols.pop());
+ while(vols.length<n)addVol();
+}
+function volMove(v,tx,tz,dt){
+ const dx=tx-v.x,dz=tz-v.z,d=Math.hypot(dx,dz);
+ if(d<.01)return d;
+ const s=Math.min(d,VSP*dt),ux=dx/d*s,uz=dz/d*s;
+ let mvd=false;
+ if(!blocked(v.x+ux,v.z)){v.x+=ux;mvd=true}
+ if(!blocked(v.x,v.z+uz)){v.z+=uz;mvd=true}
+ if(mvd){v.walk=true;v.face=Math.atan2(dx,dz)}
+ return Math.hypot(tx-v.x,tz-v.z)}
+function volsUpdate(dt){
+ for(const v of vols){
+  v.walk=false;v.tm+=dt;
+  if(v.st==='idle'){
+   let best=null,bd=1e9;
+   for(const f of floorItems){if(f.state!=='idle'||f.claimed)continue;const d=Math.hypot(f.x-v.x,f.z-v.z);if(d<bd){bd=d;best=f}}
+   if(best){best.claimed=v;v.item=best;v.st='go';v.tm=0}
+   else{
+    v.wt-=dt;
+    if(v.wt<=0){v.wt=rnd(2,4);for(let t=0;t<12;t++){const a=rnd(1,5),b=rnd(4.5,BL-1.5);if(!blocked(a,b)){v.wp=[a,b];break}}}
+    if(v.wp&&volMove(v,v.wp[0],v.wp[1],dt)<.15)v.wp=null;
+   }
+  }else if(v.st==='go'){
+   const f=v.item;
+   if(!f||floorItems.indexOf(f)<0){v.st='idle';v.item=null}
+   else if(volMove(v,f.x,f.z,dt)<.35){
+    v.id=f.id;removeItem(f);v.item=null;
+    v.bin=BINPOS[ITEMS[v.id].b];
+    v.sp.material.map=emojiTex(ITEMS[v.id].e);v.sp.visible=true;
+    v.st='carry';v.tm=0;tone(520,.05,'sine',.025,780);
+   }else if(v.tm>10){f.claimed=null;v.item=null;v.st='idle'}
+  }else if(v.st==='carry'){
+   const b=v.bin;
+   if(volMove(v,b.x,b.z+1.0,dt)<.3||v.tm>12){v.st='throw';v.t=0;v.face=Math.atan2(b.x-v.x,b.z-v.z)}
+   v.sp.position.set(v.x,1.8,v.z);
+  }else if(v.st==='throw'){
+   const b=v.bin;v.t+=dt;const u=Math.min(1,v.t/.55),e=u*u*(3-2*u);
+   v.sp.position.set(v.x+(b.x-v.x)*u,1.7+(1.2-1.7)*e+Math.sin(Math.PI*u)*.7,v.z+(b.z+.05-v.z)*u);
+   v.sp.material.rotation=u*12;
+   if(u>=1){
+    v.sp.visible=false;v.sp.material.rotation=0;
+    b.pulse=1;
+    earn(BIN[b.i].v*mult()*(S.lv.vol/Math.max(1,vols.length))*volEff());
+    tone(150,.07,'sine',.04,90);
+    v.st='idle';v.wt=.3;
+   }
+  }
+  const g=v.m.g;
+  g.position.set(v.x,0,v.z);
+  let da=((v.face-g.rotation.y+Math.PI*3)%(Math.PI*2))-Math.PI;
+  g.rotation.y+=da*Math.min(1,dt*10);
+  if(v.walk)v.ph+=dt*9;
+  const sw=v.walk?Math.sin(v.ph)*.7:0;
+  v.m.legL.rotation.x=sw;v.m.legR.rotation.x=-sw;
+  const carrying=v.st==='carry'||v.st==='throw';
+  const raise=v.st==='throw'?-2.2*(1-Math.min(1,v.t/.4)):-1.1;
+  v.m.armL.rotation.x=carrying?raise:-sw;v.m.armR.rotation.x=carrying?raise:sw;
+  g.position.y=v.walk?Math.abs(Math.sin(v.ph))*.03:0;
+ }
+}
 
 /* ========== 聲音 ========== */
 let ac=null;
@@ -493,9 +609,8 @@ function pickup(){
  if(isOpen())return;
  if(!target){toast('👀 把準心對準地上的垃圾,靠近一點再點左鍵',1800);return}
  if(held.length+flights.length>=capN()){toast('👐 手滿了!先去丟一個吧',1800);tone(180,.08,'square',.04);return}
- const f=target,i=floorItems.indexOf(f);if(i<0)return;
- held.push(f.id);
- scene.remove(f.sp,f.disc);f.sp.material.dispose();f.disc.material.dispose();floorItems.splice(i,1);
+ const f=target;if(floorItems.indexOf(f)<0||f.claimed)return;
+ held.push(f.id);removeItem(f);
  target=null;
  tone(520,.08,'sine',.08,820);vib(8);renderHand(true);ui();
 }
@@ -504,7 +619,6 @@ function cycle(dir){
  if(dir>0)held.push(held.shift());else held.unshift(held.pop());
  tone(400,.04,'triangle',.05);renderHand();ui();
 }
-
 function handPos(out){
  const cp=Math.cos(P.p),sp_=Math.sin(P.p);
  const fx=-Math.sin(P.a),fz=-Math.cos(P.a),rx=Math.cos(P.a),rz=-Math.sin(P.a);
@@ -512,7 +626,6 @@ function handPos(out){
  out.y=cam.position.y+sp_*.55-.32;
  out.z=P.z+fz*cp*.55+rz*.38;
  return out}
-
 function act(){
  if(isOpen())return;
  if(flights.length)return;
@@ -529,13 +642,12 @@ function act(){
  tone(300,.14,'triangle',.05,700);vib(6);
  renderHand();ui();
 }
-
 function impact(f){
  const b=f.bin,it=ITEMS[f.id],d=S.dex[f.id]||(S.dex[f.id]={ok:0,ng:0});
  b.pulse=1;
  if(f.ok){
   d.ok++;S.ok++;S.sorted++;
-  const gain=BIN[b.i].v*mult();S.money+=gain;S.total+=gain;
+  const gain=BIN[b.i].v*mult();earn(gain);
   toast(`✅ 答對了!<b style="color:#ffd766"> +$${fmt(gain)}</b><br><small>${it.e}${it.n}:${it.t}</small>`,3500);
   tone(160,.1,'sine',.12,90);
   setTimeout(()=>tone(660,.15,'sine',.1),60);setTimeout(()=>tone(990,.15,'sine',.07),140);vib(14);
@@ -549,7 +661,6 @@ function impact(f){
   save();
  }
 }
-
 function smartClick(){
  if(isOpen())return;
  if(target&&held.length+flights.length<capN()){pickup();return}
@@ -557,6 +668,25 @@ function smartClick(){
  if(target){pickup();return}
  if(held.length){toast('🎯 面對垃圾桶(靠近一點)再點左鍵丟出去',1600);return}
  toast('👀 對準地上的垃圾,靠近後點左鍵撿起',1600);
+}
+
+/* ========== 輪迴 ========== */
+function doPrestige(){
+ const g=runGain();if(g<1)return;
+ S.badges+=g;S.loops++;
+ S.money=60*S.pm.start;S.run=0;
+ S.lv={...LV0,vol:S.pm.vs};
+ held=[];
+ flights.forEach(f=>{scene.remove(f.sp);f.sp.material.dispose()});flights.length=0;
+ [...floorItems].forEach(removeItem);
+ syncVols(true);
+ T.ph='stop';T.t=0;T.v=0;dropT=1;
+ P.x=3;P.z=8;P.a=0;P.p=-.2;vel.x=vel.z=0;
+ for(let i=0;i<6;i++)placeStatic();
+ renderHand();save();
+ tone(440,.2,'triangle',.1,880);setTimeout(()=>tone(660,.3,'triangle',.1,1320),160);
+ toast(`🔄 新輪班開始!<br><small>獲得 ${g} 枚 🏅 環保徽章,可以到「輪迴」頁買永久強化</small>`,5000);
+ setTab('loop');ui();
 }
 
 /* ========== 鍵盤 / 滑鼠 / 觸控 ========== */
@@ -621,6 +751,7 @@ $('stack').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagati
 /* ========== 更新 ========== */
 function update(dt){
  truckUpdate(dt);
+ volsUpdate(dt);
  const open=isOpen();
  if(!open){
   if(keys['arrowleft'])lookA+=1.6*dt;if(keys['arrowright'])lookA-=1.6*dt;
@@ -649,8 +780,6 @@ function update(dt){
  if(S.bob){bobT+=moving*dt*8*run;bob=Math.sin(bobT)*.022*moving}else bob=0;
  cam.position.set(P.x,1.6+bob,P.z);cam.rotation.set(P.p,P.a,0);
  $('hand').style.transform=S.bob?`translate(0,${Math.abs(Math.sin(bobT))*5*moving}px)`:'none';
-
- const inc=income();if(inc>0){S.money+=inc*dt;S.total+=inc*dt}
 
  for(const b of BINPOS){if(b.pulse>0){b.pulse=Math.max(0,b.pulse-dt*4.5);const s=b.pulse;b.g.scale.set(1+.1*s,1-.08*s,1+.1*s)}}
 
@@ -690,6 +819,7 @@ function update(dt){
   f.disc.material.color.set(S.mode===0?BIN[ITEMS[f.id].b].c:'#222222');
   f.disc.material.opacity=S.mode===0?.95:.45;
   f.sp.scale.set(.6,.6,1);
+  if(f.claimed)return;
   const vx2=f.x-P.x,vy2=f.sp.position.y-cam.position.y,vz2=f.z-P.z;
   const d2=vx2*vx2+vy2*vy2+vz2*vz2,dot=vx2*dxv+vy2*dyv+vz2*dzv;
   if(dot<=0||d2>reach*reach)return;
@@ -721,7 +851,7 @@ let uiT=0,lastTg='';
 function ui(){
  $('money').textContent='$'+fmt(S.money);
  const acc=S.ok+S.ng?Math.round(S.ok/(S.ok+S.ng)*100):0;
- $('rate').textContent=(S.lv.vol?'每秒 $'+fmt(income())+' ・ ':'')+'正確率 '+acc+'%';
+ $('rate').textContent=(S.badges?'🏅'+S.badges+' ・ ':'')+(S.lv.vol?'志工 '+S.lv.vol+' 位 ・ ':'')+'正確率 '+acc+'%';
  let best=null;UP.forEach(u=>{if(u.max&&S.lv[u.id]>=u.max)return;const c=cost(u);if(!best||c<best.c)best={u,c}});
  if(best){$('goalTx').textContent='🎯 '+best.u.name+' Lv'+(S.lv[best.u.id]+1)+' $'+fmt(best.c);$('barI').style.width=Math.min(100,S.money/best.c*100)+'%'}
  const st=$('state');
@@ -729,7 +859,6 @@ function ui(){
   st.textContent=dropping()?`🛑 停車中・車尾開口丟入垃圾(${r}秒後出發)`:`🛑 即將出發…(${r})`}
  else{st.className='hud pill go';
   st.textContent=T.ph==='brake'?'🚚 即將停靠…':T.ph==='acc'?'🚚 出發中…':'🚚 行駛中・前往下一個收運點'}
- /* 準心提示:不再重複寫垃圾桶名稱(桶上已經有招牌) */
  let t='';
  if(target){const it=ITEMS[target.id];
   const nm=S.mode===0?`${it.e} ${it.n} → ${BIN[it.b].n}`:S.mode===1?`${it.e} ${it.n}`:'❓ 這是什麼垃圾?';
@@ -745,10 +874,11 @@ function ui(){
  $('pickBtn').classList.toggle('dim',!target||held.length+flights.length>=capN());
  $('modeBtn').textContent=MODES[S.mode].l;
  $('bobBtn').textContent=S.bob?'🌀開':'🌀關';$('bobBtn').classList.toggle('off',!S.bob);
- if(isOpen()&&tab==='shop')updShop();
+ $('shopBtn').textContent=runGain()>=1?'🛒❗':'🛒';
+ if(isOpen()){if(tab==='shop')updShop();else if(tab==='loop')updLoop()}
 }
 
-/* ========== 商店 / 圖鑑 ========== */
+/* ========== 商店 / 輪迴 / 圖鑑 ========== */
 function buildShop(){
  const L=$('list');L.innerHTML='';
  UP.forEach(u=>{const d=document.createElement('div');d.className='it';d.id='u_'+u.id;
@@ -759,6 +889,41 @@ function buildShop(){
 function updShop(){UP.forEach(u=>{const d=$('u_'+u.id);if(!d)return;const lv=S.lv[u.id],mx=u.max&&lv>=u.max,c=cost(u);
  d.querySelector('b').textContent=u.name+'  Lv'+lv+(u.max?'/'+u.max:'');
  const b=d.querySelector('button');b.textContent=mx?'已滿級':'$'+fmt(c);b.disabled=mx||S.money<c})}
+
+let confirming=false,confirmTm=0;
+function buildLoop(){
+ const L=$('list');L.innerHTML='';
+ const c=document.createElement('div');c.className='loopcard';
+ c.innerHTML=`<div id="lpInfo"></div><button class="buy" id="lpBtn"></button>`;
+ L.appendChild(c);
+ $('lpBtn').onclick=()=>{
+  if(runGain()<1)return;
+  if(!confirming){confirming=true;clearTimeout(confirmTm);confirmTm=setTimeout(()=>{confirming=false;updLoop()},3500);updLoop();return}
+  confirming=false;clearTimeout(confirmTm);doPrestige()};
+ const h=document.createElement('div');h.className='it';h.style.background='transparent';h.style.padding='4px 0';
+ h.innerHTML='<div class="tx"><b>🏅 永久強化(用徽章購買,輪迴後也保留)</b></div>';L.appendChild(h);
+ PM.forEach(u=>{const d=document.createElement('div');d.className='it';d.id='p_'+u.id;
+  d.innerHTML=`<div class="ic">${u.ic}</div><div class="tx"><b></b><small>${u.desc}</small></div><button class="buy"></button>`;
+  d.querySelector('button').onclick=()=>buyPM(u);L.appendChild(d)});
+ updLoop();
+}
+function updLoop(){
+ const info=$('lpInfo');if(!info)return;
+ const g=runGain();
+ info.innerHTML=`🔄 <b>輪迴 · 新輪班</b><br>🏅 環保徽章:<b>${S.badges}</b> 枚・已輪班 ${S.loops} 次<br>本輪累積收入:<b>$${fmt(S.run)}</b><br>現在換班可獲得:<b style="color:#ffd766">${g} 🏅</b><br><small style="font-size:15px;opacity:.85">換班會重置:金錢、升級、志工。<br>保留:徽章、永久強化、圖鑑。累積越多,徽章越多。</small>`;
+ const b=$('lpBtn');
+ b.disabled=g<1;
+ b.textContent=g<1?'本輪累積至少 $400 才能換班':confirming?'⚠️ 再按一次確認重新開始':`🔄 換新輪班(獲得 ${g} 🏅)`;
+ PM.forEach(u=>{const d=$('p_'+u.id);if(!d)return;const lv=S.pm[u.id],mx=u.max&&lv>=u.max,c=pmCost(u);
+  d.querySelector('b').textContent=u.name+'  Lv'+lv+(u.max?'/'+u.max:'');
+  const bt=d.querySelector('button');bt.textContent=mx?'已滿級':c+' 🏅';bt.disabled=mx||S.badges<c})
+}
+function buyPM(u){
+ const c=pmCost(u);if(S.badges<c||(u.max&&S.pm[u.id]>=u.max))return;
+ S.badges-=c;S.pm[u.id]++;
+ tone(520,.12,'triangle',.1);setTimeout(()=>tone(780,.18,'triangle',.1),90);vib([10,30,10]);
+ renderHand();updLoop();ui();save();
+}
 function buildDex(){
  const L=$('list');const seen=Object.keys(S.dex).length;
  let h=`<div class="it"><div class="tx"><b>📖 分類圖鑑 ${seen}/${ITEMS.length}</b><small>答對 ${S.ok} 次・答錯 ${S.ng} 次。投入過的物品會解鎖說明。</small></div></div>`;
@@ -767,16 +932,19 @@ function buildDex(){
   h+=`<div class="it"><div class="ic">${it.e}</div><div class="tx"><b>${it.n}</b><span class="tag" style="background:${BIN[it.b].c}">${BIN[it.b].n}</span><small>${it.t}<br>✅${d.ok} ❌${d.ng}</small></div></div>`});
  L.innerHTML=h;
 }
-function setTab(t){tab=t;$('tShop').classList.toggle('on',t==='shop');$('tDex').classList.toggle('on',t==='dex');t==='shop'?buildShop():buildDex()}
+function setTab(t){tab=t;confirming=false;
+ $('tShop').classList.toggle('on',t==='shop');$('tLoop').classList.toggle('on',t==='loop');$('tDex').classList.toggle('on',t==='dex');
+ t==='shop'?buildShop():t==='loop'?buildLoop():buildDex()}
 function buy(u){
  const c=cost(u);if(S.money<c||(u.max&&S.lv[u.id]>=u.max))return;
  S.money-=c;S.lv[u.id]++;tone(520,.12,'triangle',.1);setTimeout(()=>tone(780,.18,'triangle',.1),90);vib([10,30,10]);
  if(u.id==='cap')renderHand();
+ if(u.id==='vol'){syncVols();toast('👷 一位新志工上車了!<br><small>他會自己撿垃圾、丟進正確的桶子</small>',2800)}
  updShop();ui();save();
 }
 $('shopBtn').onclick=()=>openShop('shop');
 $('closeShop').onclick=closeShop;
-$('tShop').onclick=()=>setTab('shop');$('tDex').onclick=()=>setTab('dex');
+$('tShop').onclick=()=>setTab('shop');$('tLoop').onclick=()=>setTab('loop');$('tDex').onclick=()=>setTab('dex');
 $('mute').textContent=S.mute?'🔇':'🔊';
 $('mute').onclick=()=>{S.mute=!S.mute;$('mute').textContent=S.mute?'🔇':'🔊';save()};
 $('modeBtn').onclick=()=>{S.mode=(S.mode+1)%3;toast(MODES[S.mode].d,2200);ui();save()};
@@ -784,8 +952,8 @@ $('bobBtn').onclick=()=>{S.bob=!S.bob;toast(S.bob?'🌀 走路晃動:開':'🌀 
 
 /* ========== 離線收益 ========== */
 (function(){
- const secs=Math.min((Date.now()-S.last)/1000,8*3600),r=income();
- if(r>0&&secs>60){const g=r*secs*.5;S.money+=g;S.total+=g;const m=Math.floor(secs/60);
+ const secs=Math.min((Date.now()-S.last)/1000,8*3600),r=offlineRate();
+ if(r>0&&secs>60){const g=r*secs*.5;earn(g);const m=Math.floor(secs/60);
   $('offTx').innerHTML='你離開了 '+(m>=60?Math.floor(m/60)+' 小時 ':'')+(m%60)+' 分鐘<br>志工們幫你賺了 <b style="color:#ffd766">$'+fmt(g)+'</b>';
   $('modal').style.display='flex'}
  $('offOk').onclick=()=>{$('modal').style.display='none'};save();
@@ -799,7 +967,7 @@ function loop(n){
  uiT+=dt;if(uiT>.1){uiT=0;ui()}
  requestAnimationFrame(loop);
 }
-renderHand();ui();requestAnimationFrame(loop);
+syncVols();renderHand();ui();requestAnimationFrame(loop);
 setTimeout(()=>toast(fine
  ?'🚚 你站在回收車的車斗上!<br>WASD 移動・點畫面後滑鼠轉頭<br>垃圾會從<b>車尾開口</b>丟進來<br>對準撿起(左鍵)→ 面對垃圾桶丟出去(左鍵)'
  :'🚚 你站在回收車的車斗上!<br>左半邊=走路 右半邊=轉頭<br>垃圾從<b>車尾開口</b>丟進來<br>準心對準垃圾按 ✋,面對垃圾桶按 🗑️',8000),500);
