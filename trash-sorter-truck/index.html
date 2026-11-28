@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#2b3a4a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="垃圾分類員">
+<title>垃圾分類員</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;touch-action:none}
+html,body{margin:0;height:100%;background:#111;color:#fff;font-family:-apple-system,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;overflow:hidden}
+#cv{position:fixed;inset:0}
+#cv canvas{display:block;width:100%;height:100%}
+#touch{position:fixed;inset:0;z-index:1}
+.hud{position:fixed;z-index:2;pointer-events:none}
+#top{left:0;right:0;top:0;padding:calc(env(safe-area-inset-top) + 10px) 14px 0;display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.pill{background:rgba(20,28,38,.72);border-radius:16px;padding:8px 16px;backdrop-filter:blur(4px)}
+.money{font-size:32px;font-weight:800;color:#ffd766;line-height:1.1}
+.sub{font-size:15px;opacity:.9;margin-top:2px}
+.btns{display:flex;gap:8px;pointer-events:auto;flex-wrap:wrap;justify-content:flex-end;max-width:62%}
+.icbtn{background:rgba(51,70,90,.92);border:0;color:#fff;min-width:52px;height:52px;padding:0 14px;border-radius:14px;font-size:19px;font-weight:700;box-shadow:0 4px 0 rgba(0,0,0,.35);cursor:pointer}
+.icbtn:active{transform:translateY(2px);box-shadow:0 2px 0 rgba(0,0,0,.35)}
+.icbtn.off{opacity:.6}
+@media (max-width:600px){.icbtn{min-width:46px;height:46px;font-size:17px;padding:0 10px}.btns{gap:6px}.money{font-size:28px}}
+#goal{top:calc(env(safe-area-inset-top) + 102px);left:14px;width:250px;font-size:15px;font-weight:700}
+#bar{height:9px;background:rgba(0,0,0,.45);border-radius:6px;margin-top:5px;overflow:hidden}
+#bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#ffd766,#ff9f5a)}
+#state{top:calc(env(safe-area-inset-top) + 170px);left:14px;font-size:16px;font-weight:800;max-width:300px}
+#state.stop{border-left:6px solid #5fcf80}
+#state.go{border-left:6px solid #ff9f5a}
+#install{display:none;position:fixed;z-index:3;right:14px;top:calc(env(safe-area-inset-top) + 120px);padding:12px 20px;border-radius:16px;background:linear-gradient(135deg,#5fcf80,#3aa668);color:#fff;font-weight:700;border:0;font-size:17px;box-shadow:0 4px 12px rgba(0,0,0,.4)}
+#iosHint{display:none;top:calc(env(safe-area-inset-top) + 220px);left:14px;right:14px;font-size:15px;text-align:center}
+#cross{left:50%;top:50%;width:22px;height:22px;transform:translate(-50%,-50%);opacity:.9;transition:transform .1s}
+#cross:before,#cross:after{content:"";position:absolute;background:#fff;mix-blend-mode:difference}
+#cross:before{left:10px;top:0;width:2px;height:22px}#cross:after{top:10px;left:0;height:2px;width:22px}
+#cross.on{transform:translate(-50%,-50%) scale(1.5) rotate(45deg)}
+#target{left:0;right:0;top:57%;text-align:center;font-size:21px;font-weight:800}
+#target span{display:inline-block;background:rgba(20,28,38,.82);padding:8px 18px;border-radius:14px}
+#target span:empty{display:none}
+#toast{left:50%;top:20%;transform:translate(-50%,0);width:90%;max-width:520px;text-align:center;font-size:19px;line-height:1.55;background:rgba(20,28,38,.92);border-radius:18px;padding:14px 18px;opacity:0;transition:opacity .25s}
+#toast small{font-size:16px;opacity:.9}
+#toast.show{opacity:1}
+
+/* 右手(只放手臂與垃圾疊) */
+#hand{right:3%;bottom:0;width:clamp(190px,24vw,340px);display:flex;flex-direction:column;align-items:center;transition:transform .12s}
+#stack{display:flex;flex-direction:column-reverse;align-items:center;pointer-events:auto;margin-bottom:-40px;position:relative;z-index:1;min-height:30px}
+.hi{line-height:1;margin-top:-30px;filter:drop-shadow(0 4px 3px rgba(0,0,0,.5));font-size:clamp(46px,6vw,70px)}
+.hi.cur{font-size:clamp(84px,11vw,130px);margin-top:0;filter:drop-shadow(0 0 12px #ffd766) drop-shadow(0 4px 3px rgba(0,0,0,.5))}
+.hi.bump{animation:bump .25s}
+@keyframes bump{0%{transform:scale(1.5)}100%{transform:scale(1)}}
+#arm{width:clamp(120px,15vw,200px);height:clamp(150px,22vw,280px);border-radius:50px 50px 0 0;background:linear-gradient(#f0c39a 0 40%,#3f9d5e 40%);transform:rotate(-10deg);box-shadow:inset -14px 0 0 rgba(0,0,0,.14);position:relative}
+#arm:before{content:"";position:absolute;left:0;right:0;top:40%;height:9px;background:#2d7a47}
+
+/* ★ 底部資訊列:名稱 + 數量,固定在最下方,蓋在手臂上、不會被垃圾擋住 */
+#handInfo{right:3%;bottom:calc(env(safe-area-inset-bottom) + 10px);width:clamp(190px,24vw,340px);display:flex;flex-direction:column;align-items:center;gap:6px;z-index:4}
+#curLbl{font-size:21px;font-weight:800;background:rgba(20,28,38,.92);padding:7px 16px;border-radius:14px;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis;border:2px solid rgba(255,215,102,.7);box-shadow:0 3px 8px rgba(0,0,0,.4)}
+#curLbl:empty{display:none}
+#cnt{font-size:17px;font-weight:800;background:rgba(20,28,38,.85);padding:3px 14px;border-radius:12px}
+
+#acts{right:calc(clamp(190px,24vw,340px) + 24px);bottom:calc(env(safe-area-inset-bottom) + 24px);display:flex;flex-direction:row;gap:12px;align-items:center;pointer-events:auto}
+.abtn{width:84px;height:84px;border-radius:50%;border:0;color:#3a2a00;font-size:15px;font-weight:800;box-shadow:0 6px 0 rgba(0,0,0,.35);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.15}
+.abtn b{font-size:32px}
+.abtn:active{transform:translateY(3px);box-shadow:0 3px 0 rgba(0,0,0,.35)}
+#pickBtn{background:#7fd6ff;box-shadow:0 6px 0 #3a8fb8}
+#actBtn{background:#ffd766;box-shadow:0 6px 0 #c9a23a}
+.abtn.dim{background:#8a8f95!important;box-shadow:0 6px 0 #5f646a!important;color:#333}
+#joy{display:none;width:110px;height:110px;border-radius:50%;border:3px solid rgba(255,255,255,.35);background:rgba(255,255,255,.08);z-index:2}
+#knob{position:absolute;left:33px;top:33px;width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.55)}
+#keys{display:none;left:14px;bottom:calc(env(safe-area-inset-bottom) + 14px);font-size:15px;line-height:1.9;opacity:.95}
+@media (pointer:fine){#keys{display:block}#acts{display:none}}
+#keys kbd{background:rgba(255,255,255,.22);border-radius:6px;padding:2px 8px;font-family:inherit;font-weight:700}
+
+#sheet{position:fixed;left:0;right:0;bottom:0;height:82%;background:#25323f;border-radius:24px 24px 0 0;box-shadow:0 -8px 30px rgba(0,0,0,.5);transform:translateY(105%);transition:transform .3s ease-out;display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom);z-index:6;touch-action:pan-y;max-width:900px;margin:0 auto}
+#sheet *{touch-action:pan-y}
+#sheet.open{transform:none}
+#sheet h3{margin:0;padding:16px 18px;display:flex;justify-content:space-between;align-items:center;font-size:20px}
+.tabs{display:flex;gap:8px}
+.tab{border:0;border-radius:12px;padding:12px 20px;background:#33465a;color:#fff;font-weight:800;font-size:19px;cursor:pointer}
+.tab.on{background:#ffd766;color:#3a2a00}
+#list{overflow-y:auto;padding:0 16px 20px;flex:1;-webkit-overflow-scrolling:touch}
+.it{display:flex;align-items:center;gap:14px;background:#2f4052;border-radius:16px;padding:14px;margin-bottom:12px}
+.it .ic{font-size:42px;width:56px;text-align:center}
+.it .tx{flex:1;min-width:0}
+.it b{font-size:20px}.it small{display:block;font-size:16px;opacity:.85;margin-top:4px;line-height:1.5}
+.tag{display:inline-block;font-size:14px;padding:2px 10px;border-radius:10px;margin-left:8px;color:#fff;font-weight:700}
+.buy{border:0;border-radius:14px;padding:14px 16px;min-width:110px;font-weight:800;font-size:19px;background:#5fcf80;color:#06260f;box-shadow:0 4px 0 #3a9a58;cursor:pointer}
+.buy:active{transform:translateY(2px);box-shadow:0 2px 0 #3a9a58}
+.buy:disabled{background:#4a5966;color:#99a;box-shadow:0 4px 0 #38444f;cursor:default}
+#modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:9}
+#modal>div{background:#2f4052;border-radius:22px;padding:28px;text-align:center;width:86%;max-width:380px;font-size:18px}
+#modal h3{font-size:24px}
+#modal button{margin-top:16px;border:0;border-radius:14px;padding:14px 32px;background:#ffd766;font-weight:800;font-size:20px;cursor:pointer}
+#loading{position:fixed;inset:0;z-index:20;background:#1c2630;display:flex;align-items:center;justify-content:center;font-size:20px;text-align:center;padding:30px}
+</style>
+</head>
+<body>
+<div id="cv"></div>
+<div id="touch"></div>
+<div id="joy" class="hud"><div id="knob"></div></div>
+
+<div id="top" class="hud">
+  <div class="pill"><div class="money" id="money">$0</div><div class="sub" id="rate"></div></div>
+  <div class="btns">
+    <button class="icbtn" id="modeBtn">💡簡易</button>
+    <button class="icbtn" id="bobBtn">🌀關</button>
+    <button class="icbtn" id="mute">🔊</button>
+    <button class="icbtn" id="shopBtn">🛒</button>
+  </div>
+</div>
+<div id="goal" class="hud pill"><span id="goalTx"></span><div id="bar"><i id="barI"></i></div></div>
+<div id="state" class="hud pill stop"></div>
+<div id="cross" class="hud"></div>
+<div id="target" class="hud"><span id="tgTx"></span></div>
+<div id="toast" class="hud"></div>
+<button id="install">📲 安裝為手機 App</button>
+<div id="iosHint" class="hud pill">iPhone:點下方「分享」→「加入主畫面」即可安裝 📲</div>
+
+<div id="keys" class="hud pill">
+  <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 移動 ・ <kbd>Shift</kbd> 跑步<br>
+  滑鼠 自由轉頭(點畫面鎖定) ・ <kbd>Esc</kbd> 釋放<br>
+  <kbd>左鍵</kbd> 對準垃圾 = 撿起<br>
+  <kbd>左鍵</kbd> 面對垃圾桶 = 丟入(也可按 <kbd>空白</kbd>)<br>
+  <kbd>滾輪</kbd> / <kbd>Q</kbd> 切換要丟的垃圾<br>
+  <kbd>M</kbd> 模式 ・ <kbd>B</kbd> 商店 ・ <kbd>G</kbd> 圖鑑
+</div>
+
+<div id="hand" class="hud">
+  <div id="stack"></div>
+  <div id="arm"></div>
+</div>
+<div id="handInfo" class="hud">
+  <div id="curLbl"></div>
+  <div id="cnt"></div>
+</div>
+
+<div id="acts" class="hud">
+  <button class="abtn" id="pickBtn"><b>✋</b>撿起</button>
+  <button class="abtn" id="actBtn"><b>🗑️</b>丟入</button>
+</div>
+
+<div id="sheet">
+  <h3><div class="tabs"><button class="tab on" id="tShop">🛠️ 升級</button><button class="tab" id="tDex">📖 圖鑑</button></div><button class="icbtn" id="closeShop">✕</button></h3>
+  <div id="list"></div>
+</div>
+<div id="modal"><div><div style="font-size:52px">🌙</div><h3 style="margin:6px 0">歡迎回來!</h3><p id="offTx"></p><button id="offOk">收下</button></div></div>
+<div id="loading">⏳ 載入 3D 場景中…<br>(第一次需要連網)</div>
+
+<script type="module">
+const $=id=>document.getElementById(id);
+
+/* ========== PWA ========== */
+(function(){
+  const svg="<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='12' fill='#2b3a4a'/><rect x='8' y='26' width='36' height='20' rx='3' fill='#3f9d5e'/><rect x='46' y='30' width='12' height='16' rx='3' fill='#e0b030'/><circle cx='18' cy='48' r='6' fill='#222'/><circle cx='48' cy='48' r='6' fill='#222'/><rect x='14' y='16' width='8' height='10' fill='#3f7fc4'/><rect x='26' y='16' width='8' height='10' fill='#e08a2e'/></svg>";
+  const iconUrl="data:image/svg+xml,"+encodeURIComponent(svg);
+  const m={name:"垃圾分類員",short_name:"垃圾分類",display:"standalone",background_color:"#2b3a4a",theme_color:"#2b3a4a",start_url:location.href.split('#')[0],icons:[{src:iconUrl,sizes:"any",type:"image/svg+xml",purpose:"any"}]};
+  const l=document.createElement('link');l.rel='manifest';
+  l.href='data:application/manifest+json,'+encodeURIComponent(JSON.stringify(m));document.head.appendChild(l);
+  const c=document.createElement('canvas');c.width=c.height=180;const x=c.getContext('2d');
+  x.fillStyle='#2b3a4a';x.fillRect(0,0,180,180);
+  x.fillStyle='#3f9d5e';x.fillRect(20,80,100,56);x.fillStyle='#e0b030';x.fillRect(126,90,36,46);
+  x.fillStyle='#222';x.beginPath();x.arc(50,142,16,0,7);x.arc(136,142,16,0,7);x.fill();
+  x.fillStyle='#3f7fc4';x.fillRect(34,40,22,40);x.fillStyle='#e08a2e';x.fillRect(66,40,22,40);
+  const a=document.createElement('link');a.rel='apple-touch-icon';a.href=c.toDataURL();document.head.appendChild(a);
+  try{
+    const code=`const C='sorter3d-v8';
+self.addEventListener('install',e=>self.skipWaiting());
+self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));
+self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;
+e.respondWith(fetch(e.request).then(r=>{const cp=r.clone();caches.open(C).then(c=>c.put(e.request,cp));return r}).catch(()=>caches.match(e.request)))});`;
+    if('serviceWorker' in navigator)navigator.serviceWorker.register(URL.createObjectURL(new Blob([code],{type:'text/javascript'}))).catch(()=>{});
+  }catch(e){}
+})();
+let dp=null;const ib=$('install');
+addEventListener('beforeinstallprompt',e=>{e.preventDefault();dp=e;ib.style.display='block'});
+ib.onclick=async()=>{if(!dp)return;dp.prompt();await dp.userChoice;dp=null;ib.style.display='none'};
+addEventListener('appinstalled',()=>ib.style.display='none');
+if(/iphone|ipad|ipod/i.test(navigator.userAgent)&&!(matchMedia('(display-mode: standalone)').matches||navigator.standalone))$('iosHint').style.display='block';
+
+/* ========== 載入 Three.js ========== */
+let THREE;
+try{THREE=await import('https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js')}
+catch(e){$('loading').innerHTML='❌ 無法載入 3D 引擎<br>請確認網路連線後重新整理';throw e}
+$('loading').style.display='none';
+
+/* ========== 資料:台灣垃圾分類 ========== */
+const BIN=[
+ {n:'資源回收',e:'♻️',c:'#3f7fc4',v:5},
+ {n:'廚餘',e:'🍎',c:'#e08a2e',v:3},
+ {n:'一般垃圾',e:'🗑️',c:'#6b7280',v:2},
+ {n:'特殊回收',e:'🔋',c:'#c94a4a',v:8},
+];
+const ITEMS=[
+ {e:'🥤',n:'寶特瓶',b:0,t:'寶特瓶倒空、沖洗、壓扁後回收,瓶蓋也可以一起回收。'},
+ {e:'🥫',n:'鐵鋁罐',b:0,t:'金屬罐(鐵罐、鋁罐)倒空洗淨後屬於資源回收。'},
+ {e:'🍾',n:'玻璃瓶',b:0,t:'完整的玻璃瓶罐洗淨後可回收;破掉的玻璃要包好丟一般垃圾。'},
+ {e:'📰',n:'報紙',b:0,t:'乾淨的紙類(報紙、書本、紙箱)可以回收。'},
+ {e:'📦',n:'紙箱',b:0,t:'紙箱拆掉膠帶、壓扁後回收。'},
+ {e:'🥛',n:'鋁箔包',b:0,t:'鋁箔包屬於紙容器,洗淨壓扁後回收。'},
+ {e:'📚',n:'舊書本',b:0,t:'書本屬於紙類,乾淨的可以回收。'},
+ {e:'👕',n:'乾淨舊衣',b:0,t:'乾淨的衣物可投入舊衣回收箱,屬於資源回收。'},
+ {e:'🍶',n:'洗髮精瓶',b:0,t:'塑膠瓶身沖洗乾淨後回收。'},
+ {e:'🍌',n:'香蕉皮',b:1,t:'水果皮屬於廚餘(可堆肥)。'},
+ {e:'🍚',n:'吃剩的白飯',b:1,t:'剩菜剩飯屬於廚餘(養豬廚餘)。'},
+ {e:'🥕',n:'紅蘿蔔皮',b:1,t:'蔬菜的皮、根、葉屬於廚餘。'},
+ {e:'🍎',n:'蘋果核',b:1,t:'水果的果核、果皮屬於廚餘。'},
+ {e:'🍵',n:'茶葉渣',b:1,t:'茶渣、咖啡渣瀝乾後屬於廚餘。'},
+ {e:'🍜',n:'吃剩的麵條',b:1,t:'煮熟的麵食、剩菜屬於廚餘。'},
+ {e:'🍉',n:'西瓜皮',b:1,t:'瓜果皮屬於廚餘。'},
+ {e:'📃',n:'用過的衛生紙',b:2,t:'衛生紙纖維太短、又有髒污,不能回收,丟一般垃圾。'},
+ {e:'🍖',n:'大骨頭',b:2,t:'豬牛大骨太硬,不能當廚餘,丟一般垃圾。'},
+ {e:'🍢',n:'竹籤',b:2,t:'竹、木製的籤、筷子屬於一般垃圾。'},
+ {e:'🏺',n:'破掉的陶瓷',b:2,t:'陶瓷碗盤不能回收,包好後丟一般垃圾。'},
+ {e:'🎈',n:'破掉的氣球',b:2,t:'氣球是橡膠製品,無法回收,屬於一般垃圾。'},
+ {e:'😷',n:'用過的口罩',b:2,t:'用過的口罩屬於一般垃圾,耳繩剪斷再丟更環保。'},
+ {e:'🐚',n:'貝殼',b:2,t:'貝殼、蚵殼太硬不易分解,屬於一般垃圾。'},
+ {e:'🚬',n:'菸蒂',b:2,t:'菸蒂屬於一般垃圾,要確認熄滅後再丟。'},
+ {e:'🍱',n:'油污便當盒',b:2,t:'沾滿油污的紙餐盒無法回收,屬於一般垃圾。'},
+ {e:'🔋',n:'廢電池',b:3,t:'電池含重金屬,不能丟一般垃圾,要拿到回收點。'},
+ {e:'💡',n:'日光燈管',b:3,t:'燈管含汞,不可打破,要送到回收點。'},
+ {e:'📱',n:'壞掉的手機',b:3,t:'手機屬於廢資訊物品(3C),要送到回收管道。'},
+ {e:'🌡️',n:'水銀溫度計',b:3,t:'水銀溫度計含汞,屬於有害物,要送到回收點。'},
+ {e:'🎧',n:'壞掉的耳機',b:3,t:'廢小型電子產品要送到回收管道。'},
+];
+const MODES=[{l:'💡簡易',m:1,d:'簡易:顯示答案'},{l:'🎓標準',m:1.5,d:'標準:只顯示名稱,收入 ×1.5'},{l:'🔥挑戰',m:2,d:'挑戰:不顯示名稱,收入 ×2'}];
+
+/* 圖示相容檢查:缺字自動換成備用圖示 */
+const EMOJI_FONT='"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif';
+function glyphAlpha(ch){
+ const c=document.createElement('canvas');c.width=c.height=40;
+ const x=c.getContext('2d',{willReadFrequently:true});
+ x.font='28px '+EMOJI_FONT;x.textBaseline='middle';x.fillText(ch,2,20);
+ const d=x.getImageData(0,0,40,40).data,a=new Uint8Array(1600);
+ for(let i=0;i<1600;i++)a[i]=d[i*4+3]>40?1:0;return a}
+const TOFU=glyphAlpha('\u{10FFFE}');
+function emojiOK(e){
+ try{const a=glyphAlpha(e);let on=0,diff=0;
+  for(let i=0;i<1600;i++){on+=a[i];if(a[i]!==TOFU[i])diff++}
+  return on>20&&diff>25}catch(_){return true}}
+ITEMS.forEach(it=>{if(!emojiOK(it.e))it.e='🎁'});
+
+/* ========== 存檔 ========== */
+const KEY='trashSorter3d.v1';
+const LV0={cap:0,spd:0,rng:0,val:0,vol:0};
+let S={money:0,total:0,sorted:0,ok:0,ng:0,dex:{},lv:{...LV0},mode:0,mute:false,bob:false,last:Date.now()};
+try{const d=JSON.parse(localStorage.getItem(KEY));if(d)S={...S,...d,lv:{...LV0,...d.lv},dex:d.dex||{}}}catch(e){}
+const save=()=>{S.last=Date.now();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+setInterval(save,4000);addEventListener('pagehide',save);
+document.addEventListener('visibilitychange',()=>{if(document.hidden)save()});
+
+/* ========== 升級 ========== */
+const UP=[
+ {id:'cap',ic:'✋',name:'手持格數',desc:'一次可以拿更多垃圾',base:30,r:1.6,max:7},
+ {id:'spd',ic:'👟',name:'移動速度',desc:'走路更快',base:40,r:1.5,max:10},
+ {id:'rng',ic:'🔍',name:'撿取距離',desc:'站遠一點也能撿到',base:50,r:1.5,max:8},
+ {id:'val',ic:'💎',name:'分類技術',desc:'收入提升(每 10 級 ×2)',base:25,r:1.4},
+ {id:'vol',ic:'👷',name:'分類志工',desc:'自動幫你分類,每位 +1 元/秒',base:80,r:1.18},
+];
+const cost=u=>Math.ceil(u.base*Math.pow(u.r,S.lv[u.id]));
+const capN=()=>3+S.lv.cap;
+const valMult=()=>Math.pow(1.2,S.lv.val)*Math.pow(2,Math.floor(S.lv.val/10));
+const mult=()=>valMult()*MODES[S.mode].m;
+const income=()=>S.lv.vol*mult();
+function fmt(n){if(n<1000)return n<10?(Math.round(n*10)/10)+'':Math.floor(n)+'';
+ const s=['K','M','B','T','Qa'];let i=-1;while(n>=1000&&i<s.length-1){n/=1000;i++}return (n<10?n.toFixed(2):n<100?n.toFixed(1):Math.floor(n))+s[i]}
+
+/* ========== 3D 場景:回收車車斗 ========== */
+const BW=6,BL=12;
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+$('cv').appendChild(renderer.domElement);
+const SKY=0xbfe2f5;
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(SKY);
+scene.fog=new THREE.Fog(SKY,22,64);
+const cam=new THREE.PerspectiveCamera(65,1,.2,90);
+cam.rotation.order='YXZ';
+function resize(){renderer.setSize(innerWidth,innerHeight,false);cam.aspect=innerWidth/innerHeight;cam.fov=innerWidth<innerHeight?72:64;cam.updateProjectionMatrix()}
+addEventListener('resize',resize);resize();
+
+scene.add(new THREE.HemisphereLight(0xffffff,0xaab2a0,.95));
+const sun=new THREE.DirectionalLight(0xfff3dd,.85);
+sun.position.set(8,14,2);sun.target.position.set(3,0,6);sun.castShadow=true;
+sun.shadow.mapSize.set(1024,1024);
+sun.shadow.bias=-.0006;sun.shadow.normalBias=.03;
+Object.assign(sun.shadow.camera,{left:-9,right:9,top:11,bottom:-11,near:1,far:40});
+scene.add(sun,sun.target);
+
+function canvasTex(w,h,fn,rep){const c=document.createElement('canvas');c.width=w;c.height=h;fn(c.getContext('2d'),w,h);const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=4;if(rep){t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(rep[0],rep[1])}return t}
+const rnd=(a,b)=>a+Math.random()*(b-a);
+
+const floorTex=canvasTex(128,128,(x,w)=>{
+ x.fillStyle='#8d959c';x.fillRect(0,0,w,w);
+ x.fillStyle='#7b838a';for(let i=0;i<4;i++)for(let j=0;j<4;j++){x.beginPath();x.ellipse(i*32+16,j*32+16,9,4,Math.PI/4,0,7);x.fill()}
+ x.strokeStyle='rgba(50,60,70,.45)';x.lineWidth=3;x.strokeRect(0,0,w,w)},[3,6]);
+floorTex.minFilter=THREE.LinearMipmapLinearFilter;floorTex.anisotropy=8;
+const floor=new THREE.Mesh(new THREE.PlaneGeometry(BW,BL),new THREE.MeshStandardMaterial({map:floorTex,roughness:.75,metalness:.1}));
+floor.rotation.x=-Math.PI/2;floor.position.set(BW/2,0,BL/2);floor.receiveShadow=true;scene.add(floor);
+
+const greenMat=new THREE.MeshStandardMaterial({color:0x3f9d5e,roughness:.6});
+const railMat=new THREE.MeshStandardMaterial({color:0xe9eef0,roughness:.5});
+const darkMat=new THREE.MeshStandardMaterial({color:0x3b4048,roughness:.8});
+const yelMat=new THREE.MeshStandardMaterial({color:0xf0b429,roughness:.5});
+function box(w,h,d,mat,x,y,z,shadow){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);m.position.set(x,y,z);if(shadow){m.castShadow=true;m.receiveShadow=true}scene.add(m);return m}
+box(.25,1.3,BL+.1,greenMat,-.125,.65,BL/2+.05,true);
+box(.25,1.3,BL+.1,greenMat,BW+.125,.65,BL/2+.05,true);
+box(.4,.1,BL+.2,railMat,-.12,1.35,BL/2+.1);
+box(.4,.1,BL+.2,railMat,BW+.12,1.35,BL/2+.1);
+box(BW+.5,3.4,.3,greenMat,BW/2,1.7,-.15,true);
+box(BW+.5,.12,.34,railMat,BW/2,3.42,-.15);
+box(BW+.7,.9,BL+.7,darkMat,BW/2,-.52,BL/2);
+(function(){
+ const t=canvasTex(512,128,(x,w,h)=>{x.fillStyle='#1f6d3d';x.beginPath();x.roundRect(4,4,w-8,h-8,24);x.fill();x.fillStyle='#fff';x.font='bold 64px '+EMOJI_FONT;x.textAlign='center';x.textBaseline='middle';x.fillText('♻️ 回收車 ♻️',w/2,h/2+4)});
+ const m=new THREE.Mesh(new THREE.PlaneGeometry(3.6,.9),new THREE.MeshBasicMaterial({map:t,transparent:true}));
+ m.position.set(BW/2,2.85,.03);scene.add(m)})();
+const wheels=[];
+[[-.3,2.6],[BW+.3,2.6],[-.3,9.6],[BW+.3,9.6]].forEach(([x,z])=>{
+ const g=new THREE.Group();g.position.set(x,-.7,z);
+ const tire=new THREE.Mesh(new THREE.CylinderGeometry(.6,.6,.5,18),new THREE.MeshStandardMaterial({color:0x222428,roughness:.9}));tire.rotation.z=Math.PI/2;g.add(tire);
+ const hub=new THREE.Mesh(new THREE.BoxGeometry(.54,.16,.95),new THREE.MeshStandardMaterial({color:0xb8bec4}));g.add(hub);
+ const hub2=hub.clone();hub2.rotation.x=Math.PI/2;g.add(hub2);
+ scene.add(g);wheels.push(g)});
+
+const OPEN={x:BW/2,z:BL};
+const CHUTE={lamp:null};
+(function(){
+ box(.3,3.4,.3,yelMat,.15,1.7,BL-.05,true);
+ box(.3,3.4,.3,yelMat,BW-.15,1.7,BL-.05,true);
+ box(BW,.35,.35,yelMat,BW/2,3.4,BL-.05,true);
+ const stripe=canvasTex(128,32,(x,w,h)=>{x.fillStyle='#f0b429';x.fillRect(0,0,w,h);x.fillStyle='#222';for(let i=-1;i<8;i++){x.beginPath();x.moveTo(i*20,h);x.lineTo(i*20+10,h);x.lineTo(i*20+26,0);x.lineTo(i*20+16,0);x.fill()}},[3,1]);
+ const bar=new THREE.Mesh(new THREE.BoxGeometry(BW-.4,.16,.12),new THREE.MeshStandardMaterial({map:stripe}));
+ bar.position.set(BW/2,.55,BL-.15);bar.castShadow=true;scene.add(bar);
+ box(BW+.2,.1,.5,darkMat,BW/2,-.02,BL+.25);
+ const st=canvasTex(512,112,(x,w,h)=>{x.fillStyle='rgba(20,28,38,.92)';x.beginPath();x.roundRect(4,4,w-8,h-8,24);x.fill();x.strokeStyle='#f0b429';x.lineWidth=8;x.stroke();x.fillStyle='#fff';x.font='bold 50px '+EMOJI_FONT;x.textAlign='center';x.textBaseline='middle';x.fillText('⬇ 垃圾投入口 ⬇',w/2,h/2+3)});
+ const sg=new THREE.Mesh(new THREE.PlaneGeometry(3.2,.7),new THREE.MeshBasicMaterial({map:st,transparent:true}));
+ sg.position.set(BW/2,2.85,BL-.2);sg.rotation.y=Math.PI;scene.add(sg);
+ const lamp=new THREE.Mesh(new THREE.SphereGeometry(.22,14,14),new THREE.MeshBasicMaterial({color:0x44ff66}));
+ lamp.position.set(BW/2,3.85,BL-.05);scene.add(lamp);CHUTE.lamp=lamp;
+ const line=new THREE.Mesh(new THREE.PlaneGeometry(BW-.2,.5),new THREE.MeshBasicMaterial({map:stripe,transparent:true,opacity:.9,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}));
+ line.rotation.x=-Math.PI/2;line.position.set(BW/2,.012,BL-.6);scene.add(line);
+})();
+
+const crateTex=canvasTex(64,64,(x,w)=>{x.fillStyle='#b8833f';x.fillRect(0,0,w,w);x.strokeStyle='#7a5226';x.lineWidth=5;x.strokeRect(2,2,w-4,w-4);x.beginPath();x.moveTo(0,0);x.lineTo(w,w);x.moveTo(w,0);x.lineTo(0,w);x.stroke()});
+const obst=[];
+[[.75,4.6,.9],[5.25,5.4,1],[.7,5.55,.7]].forEach(([x,z,s])=>{
+ const m=new THREE.Mesh(new THREE.BoxGeometry(s,s,s),new THREE.MeshStandardMaterial({map:crateTex,roughness:.8}));
+ m.position.set(x,s/2,z);m.rotation.y=rnd(-.3,.3);m.castShadow=m.receiveShadow=true;scene.add(m);obst.push({x,z,r:s*.72})});
+
+function labelTex(b){return canvasTex(256,256,(x,w)=>{x.fillStyle=b.c;x.fillRect(0,0,w,w);x.fillStyle='rgba(255,255,255,.15)';x.fillRect(0,0,w,40);x.font='110px '+EMOJI_FONT;x.textAlign='center';x.textBaseline='middle';x.fillText(b.e,128,115);x.fillStyle='#fff';x.font='bold 44px '+EMOJI_FONT;x.fillText(b.n,128,205)})}
+function signTex(b){return canvasTex(256,96,(x,w,h)=>{x.fillStyle='rgba(20,28,38,.88)';x.beginPath();x.roundRect(4,4,w-8,h-8,22);x.fill();x.strokeStyle=b.c;x.lineWidth=8;x.stroke();x.fillStyle='#fff';x.font='bold 42px '+EMOJI_FONT;x.textAlign='center';x.textBaseline='middle';x.fillText(b.e+' '+b.n,w/2,h/2+2)})}
+const BINPOS=[.8,2.27,3.73,5.2].map((x,i)=>({x,z:1.5,i}));
+BINPOS.forEach(p=>{
+ const b=BIN[p.i],g=new THREE.Group();
+ const body=new THREE.Mesh(new THREE.BoxGeometry(1.1,1,.9),[0,1,2,3,4,5].map(i=>i===4?new THREE.MeshStandardMaterial({map:labelTex(b),roughness:.5}):new THREE.MeshStandardMaterial({color:b.c,roughness:.5})));
+ body.position.y=.5;body.castShadow=body.receiveShadow=true;g.add(body);
+ const lid=new THREE.Mesh(new THREE.BoxGeometry(1.2,.14,1),new THREE.MeshStandardMaterial({color:new THREE.Color(b.c).multiplyScalar(.7),roughness:.5}));
+ lid.position.y=1.07;lid.castShadow=true;g.add(lid);
+ const slot=new THREE.Mesh(new THREE.BoxGeometry(.7,.03,.18),new THREE.MeshBasicMaterial({color:0x111111}));slot.position.set(0,1.15,.05);g.add(slot);
+ const sign=new THREE.Mesh(new THREE.PlaneGeometry(1.4,.52),new THREE.MeshBasicMaterial({map:signTex(b),transparent:true}));sign.position.set(0,1.85,.25);g.add(sign);
+ const pad=new THREE.Mesh(new THREE.CircleGeometry(.68,28),new THREE.MeshBasicMaterial({color:b.c,transparent:true,opacity:.3,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}));pad.rotation.x=-Math.PI/2;pad.position.set(0,.012,1.15);g.add(pad);
+ g.position.set(p.x,0,p.z);scene.add(g);
+});
+
+/* ---- 車外風景 ---- */
+const road=new THREE.Mesh(new THREE.PlaneGeometry(18,200),new THREE.MeshStandardMaterial({
+ map:canvasTex(128,128,(x,w)=>{x.fillStyle='#4a4e55';x.fillRect(0,0,w,w);for(let i=0;i<500;i++){x.fillStyle=`rgba(${Math.random()<.5?255:0},${Math.random()<.5?255:0},${Math.random()<.5?255:0},.05)`;x.fillRect(Math.random()*w,Math.random()*w,2,2)}
+  x.fillStyle='#f3f3f3';x.fillRect(2,0,3,w);x.fillRect(w-5,0,3,w);x.fillStyle='#f0d84a';x.fillRect(w*.25-2,0,4,w*.4);x.fillRect(w*.75-2,0,4,w*.4)},[1,22]),roughness:.95}));
+road.rotation.x=-Math.PI/2;road.position.set(3,-1.3,0);scene.add(road);
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(500,500),new THREE.MeshStandardMaterial({color:0x9bb58a,roughness:1}));
+ground.rotation.x=-Math.PI/2;ground.position.set(3,-1.6,0);scene.add(ground);
+const walkMat=new THREE.MeshStandardMaterial({color:0xcfc8bb,roughness:.9});
+[[-8,4],[14,4]].forEach(([x,w])=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w,.3,200),walkMat);m.position.set(x,-1.2,0);scene.add(m)});
+
+const scen=[];const LOOP=150,ZMIN=-75,ZMAX=75;
+const winTex=canvasTex(64,64,(x,w)=>{x.fillStyle='#fff';x.fillRect(0,0,w,w);x.fillStyle='#8fb4d4';[[8,8],[38,8],[8,38],[38,38]].forEach(([a,b])=>x.fillRect(a,b,18,18))},[1,1]);
+const bColors=[0xe9d8c4,0xd7e3ec,0xf0d0c0,0xcfe0c8,0xe8e0f0,0xf2e6b8];
+for(const side of [-1,1]){
+ let z=ZMIN;
+ while(z<ZMAX){
+  const w=rnd(6,10),d=rnd(6,9),h=rnd(7,20);
+  const tex=winTex.clone();tex.needsUpdate=true;tex.repeat.set(Math.round(w/3),Math.round(h/3));
+  const m=new THREE.Mesh(new THREE.BoxGeometry(d,h,w),new THREE.MeshStandardMaterial({map:tex,color:bColors[Math.floor(Math.random()*bColors.length)],roughness:.9}));
+  m.position.set(side<0?-11-d/2:17+d/2,-1.2+h/2,z+w/2);scene.add(m);scen.push(m);
+  z+=w+rnd(.5,3)}
+ for(let z2=ZMIN+3;z2<ZMAX;z2+=12){
+  const g=new THREE.Group();
+  const tr=new THREE.Mesh(new THREE.CylinderGeometry(.14,.2,1.8,8),new THREE.MeshStandardMaterial({color:0x7a5230}));tr.position.y=-.15;g.add(tr);
+  const fo=new THREE.Mesh(new THREE.SphereGeometry(1.2,12,10),new THREE.MeshStandardMaterial({color:0x5aa05a,roughness:.9}));fo.position.y=1.4;g.add(fo);
+  g.position.set(side<0?-8.8:14.8,-1.05,z2+rnd(-1,1));scene.add(g);scen.push(g)}
+ for(let z3=ZMIN+8;z3<ZMAX;z3+=15){
+  const g=new THREE.Group();
+  const p=new THREE.Mesh(new THREE.CylinderGeometry(.07,.09,4.8,8),new THREE.MeshStandardMaterial({color:0x666c72}));p.position.y=1.35;g.add(p);
+  const arm=new THREE.Mesh(new THREE.BoxGeometry(1.1,.08,.08),new THREE.MeshStandardMaterial({color:0x666c72}));arm.position.set(side<0?.5:-.5,3.7,0);g.add(arm);
+  const bulb=new THREE.Mesh(new THREE.SphereGeometry(.17,8,8),new THREE.MeshBasicMaterial({color:0xfff2b0}));bulb.position.set(side<0?1:-1,3.62,0);g.add(bulb);
+  g.position.set(side<0?-6.4:12.4,-1.05,z3);scene.add(g);scen.push(g)}
+}
+
+/* ---- 卡車狀態 ---- */
+const T={ph:'stop',t:0,v:0};
+const STOP=45,ACC=4,CRU=8,BRK=4,VMAX=9,MAXI=10;
+const ease=x=>{x=Math.max(0,Math.min(1,x));return x*x*(3-2*x)};
+let dropT=.8;
+const dropping=()=>T.ph==='stop'&&T.t<STOP-3;
+function truckUpdate(dt){
+ T.t+=dt;
+ if(T.ph==='stop'){T.v=0;if(T.t>=STOP){T.ph='acc';T.t=0;tone(220,.5,'sawtooth',.04,330);toast('🚚 卡車出發了!<br><small>前往下一個收運點,先把手上的垃圾分完</small>',3500)}}
+ else if(T.ph==='acc'){T.v=VMAX*ease(T.t/ACC);if(T.t>=ACC){T.ph='cruise';T.t=0}}
+ else if(T.ph==='cruise'){T.v=VMAX;if(T.t>=CRU){T.ph='brake';T.t=0}}
+ else if(T.ph==='brake'){T.v=VMAX*(1-ease(T.t/BRK));if(T.t>=BRK){T.ph='stop';T.t=0;T.v=0;dropT=1;tone(300,.4,'triangle',.06,120);toast('🛑 已停靠!<br><small>垃圾會從<b>車尾開口</b>丟進車斗,轉身看看</small>',4500)}}
+ const dist=T.v*dt;
+ if(dist>0){
+  for(const o of scen){o.position.z+=dist;if(o.position.z>ZMAX)o.position.z-=LOOP}
+  road.material.map.offset.y+=dist/9;
+  wheels.forEach(w=>w.rotation.x-=dist/.6)}
+ CHUTE.lamp.material.color.set(dropping()?0x44ff66:0xff4444);
+ if(dropping()){dropT-=dt;if(dropT<=0){if(floorItems.length<MAXI)dropItem();dropT=rnd(1.3,2.4)}}
+}
+
+/* ---- 垃圾 ---- */
+const spTex={};
+function emojiTex(e){return spTex[e]||(spTex[e]=canvasTex(128,128,(x)=>{x.font='96px '+EMOJI_FONT;x.textAlign='center';x.textBaseline='middle';x.fillText(e,64,70)}))}
+const discGeo=new THREE.CircleGeometry(.36,24);
+let floorItems=[];
+const P={x:3,z:8,a:0,p:-.2};
+function blocked(x,z){
+ if(x<.5||x>BW-.5||z<.5||z>BL-.7)return true;
+ for(const b of BINPOS)if(Math.abs(x-b.x)<.85&&Math.abs(z-b.z)<.7)return true;
+ for(const o of obst)if(Math.hypot(x-o.x,z-o.z)<o.r+.25)return true;
+ return false}
+function makeItem(id,x,z,state){
+ const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:emojiTex(ITEMS[id].e),transparent:true,fog:true}));
+ sp.scale.set(.6,.6,1);sp.position.set(x,.5,z);
+ const disc=new THREE.Mesh(discGeo,new THREE.MeshBasicMaterial({transparent:true,opacity:.5,color:0x000000,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}));
+ disc.rotation.x=-Math.PI/2;disc.position.set(x,.02,z);disc.visible=state==='idle';
+ scene.add(sp,disc);
+ const f={id,x,z,ph:Math.random()*6,sp,disc,state};floorItems.push(f);return f}
+function freeSpot(){
+ for(let t=0;t<40;t++){
+  const x=rnd(1.2,BW-1.2),z=rnd(5.2,BL-1.2);
+  if(blocked(x,z)||Math.hypot(x-P.x,z-P.z)<1)continue;
+  if(floorItems.some(f=>Math.hypot(f.x-x,f.z-z)<.7))continue;
+  return [x,z]}return null}
+function dropItem(){
+ const s=freeSpot();if(!s)return;
+ const [tx,tz]=s,id=Math.floor(Math.random()*ITEMS.length);
+ const f=makeItem(id,OPEN.x,2.6,'fall');
+ const x0=rnd(1.5,BW-1.5),y0=rnd(2.2,2.8),z0=BL+3.2,TT=.95;
+ f.x0=x0;f.z0=z0;f.y0=y0;f.tx=tx;f.tz=tz;f.T=TT;f.age=0;
+ f.vy=(.5-y0+4.9*TT*TT)/TT;f.x=tx;f.z=tz;
+ f.sp.position.set(x0,y0,z0);
+ tone(260,.25,'triangle',.05,140);
+ if(!dropItem.hinted){dropItem.hinted=1;toast('📢 車尾開口丟進垃圾了!<br><small>轉身(往後看)找找地上的垃圾</small>',4000)}
+}
+function placeStatic(){const s=freeSpot();if(s)makeItem(Math.floor(Math.random()*ITEMS.length),s[0],s[1],'idle')}
+for(let i=0;i<6;i++)placeStatic();
+
+/* ========== 聲音 ========== */
+let ac=null;
+function getAC(){try{ac=ac||new (window.AudioContext||window.webkitAudioContext)();if(ac.state==='suspended')ac.resume()}catch(e){}return ac}
+function tone(f,d=.1,type='sine',v=.08,f2){if(S.mute)return;const a=getAC();if(!a)return;try{
+ const o=a.createOscillator(),g=a.createGain();o.type=type;o.frequency.setValueAtTime(f,a.currentTime);
+ if(f2)o.frequency.exponentialRampToValueAtTime(f2,a.currentTime+d);
+ g.gain.setValueAtTime(v,a.currentTime);g.gain.exponentialRampToValueAtTime(.001,a.currentTime+d);
+ o.connect(g).connect(a.destination);o.start();o.stop(a.currentTime+d)}catch(e){}}
+const vib=n=>{if(!S.mute&&navigator.vibrate)navigator.vibrate(n)};
+addEventListener('pointerdown',getAC);addEventListener('keydown',getAC);
+let toastT=0;
+function toast(h,ms=2800){const t=$('toast');t.innerHTML=h;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),ms)}
+
+/* ========== 狀態 ========== */
+let held=[];
+let time=0,bobT=0,bob=0,target=null,aimed=null;
+const sheet=$('sheet');
+const isOpen=()=>sheet.classList.contains('open');
+const keys={};
+const touch=$('touch'),joy=$('joy'),knob=$('knob');
+const fine=matchMedia('(pointer:fine)').matches;
+let tab='shop';
+let lookA=0,lookP=0;
+const vel={x:0,z:0};
+
+function openShop(t){sheet.classList.add('open');document.exitPointerLock?.();setTab(t||'shop')}
+function closeShop(){sheet.classList.remove('open')}
+
+/* ========== 動作 ========== */
+function pickup(){
+ if(isOpen())return;
+ if(!target){toast('👀 把準心對準地上的垃圾,靠近一點再點左鍵',1800);return}
+ if(held.length>=capN()){toast('👐 手滿了!先去丟一個吧',1800);tone(180,.08,'square',.04);return}
+ const f=target,i=floorItems.indexOf(f);if(i<0)return;
+ held.push(f.id);
+ scene.remove(f.sp,f.disc);f.sp.material.dispose();f.disc.material.dispose();floorItems.splice(i,1);
+ target=null;
+ tone(520,.08,'sine',.08,820);vib(8);renderHand(true);ui();
+}
+function cycle(dir){
+ if(held.length<2||isOpen())return;
+ if(dir>0)held.push(held.shift());else held.unshift(held.pop());
+ tone(400,.04,'triangle',.05);renderHand();ui();
+}
+function act(){
+ if(isOpen())return;
+ if(!held.length){toast('👐 手上沒有東西,先去撿垃圾吧',1500);return}
+ const b=aimed;
+ if(!b){toast('🎯 面對垃圾桶、靠近一點,再丟入',1600);return}
+ const id=held[0],it=ITEMS[id],d=S.dex[id]||(S.dex[id]={ok:0,ng:0});
+ if(it.b===b.i){
+  held.shift();d.ok++;S.ok++;S.sorted++;
+  const gain=BIN[b.i].v*mult();S.money+=gain;S.total+=gain;
+  toast(`✅ 答對了!<b style="color:#ffd766"> +$${fmt(gain)}</b><br><small>${it.e}${it.n}:${it.t}</small>`,3500);
+  tone(660,.15,'sine',.1);setTimeout(()=>tone(990,.15,'sine',.07),80);vib(14);
+ }else{
+  d.ng++;S.ng++;
+  toast(`❌ ${it.e}${it.n} 不是「${BIN[b.i].n}」<br>應該丟「${BIN[it.b].e}${BIN[it.b].n}」<br><small>${it.t}</small><br><small>滾輪可以換一個要丟的垃圾</small>`,5500);
+  tone(160,.25,'sawtooth',.05);vib([30,40,30]);
+ }
+ renderHand();ui();save();
+}
+function smartClick(){
+ if(isOpen())return;
+ if(target&&held.length<capN()){pickup();return}
+ if(held.length&&aimed){act();return}
+ if(target){pickup();return}
+ if(held.length){toast('🎯 面對垃圾桶(靠近一點)再點左鍵丟入',1600);return}
+ toast('👀 對準地上的垃圾,靠近後點左鍵撿起',1600);
+}
+
+/* ========== 鍵盤 / 滑鼠 / 觸控 ========== */
+addEventListener('keydown',e=>{
+ const k=e.key.toLowerCase();
+ if(['arrowup','arrowdown','arrowleft','arrowright',' ','tab'].includes(k))e.preventDefault();
+ keys[k]=1;
+ if(e.repeat)return;
+ if(k===' '||k==='e'||k==='enter')act();
+ else if(k==='q')cycle(1);
+ else if(k==='m')$('modeBtn').click();
+ else if(k==='b'||k==='tab')isOpen()?closeShop():openShop('shop');
+ else if(k==='g')isOpen()&&tab==='dex'?closeShop():openShop('dex');
+ else if(k==='escape')closeShop();
+});
+addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=0});
+addEventListener('blur',()=>{for(const k in keys)keys[k]=0});
+
+touch.addEventListener('click',e=>{
+ if(e.pointerType==='touch')return;
+ if(fine&&!document.pointerLockElement&&!isOpen())touch.requestPointerLock?.();
+});
+const clampM=v=>Math.max(-80,Math.min(80,v));
+document.addEventListener('mousemove',e=>{
+ if(document.pointerLockElement===touch){
+  lookA-=clampM(e.movementX)*.0022;
+  lookP-=clampM(e.movementY)*.0022;
+ }
+});
+touch.addEventListener('mousedown',e=>{
+ if(document.pointerLockElement===touch&&e.button===0)smartClick();
+});
+addEventListener('wheel',e=>{
+ if(isOpen())return;e.preventDefault();
+ if(Math.abs(e.deltaY)<1)return;
+ cycle(e.deltaY>0?1:-1);
+},{passive:false});
+
+let mv={id:null,ox:0,oy:0,vx:0,vy:0},lk={id:null,x:0,y:0};
+touch.addEventListener('pointerdown',e=>{
+ if(e.pointerType==='mouse')return;
+ e.preventDefault();try{touch.setPointerCapture(e.pointerId)}catch(_){}
+ if(e.clientX<innerWidth*.5&&mv.id===null){mv={id:e.pointerId,ox:e.clientX,oy:e.clientY,vx:0,vy:0};
+  joy.style.display='block';joy.style.left=(e.clientX-55)+'px';joy.style.top=(e.clientY-55)+'px';knob.style.transform='translate(0,0)'}
+ else if(lk.id===null){lk={id:e.pointerId,x:e.clientX,y:e.clientY}}
+});
+touch.addEventListener('pointermove',e=>{
+ if(e.pointerType==='mouse')return;
+ if(e.pointerId===mv.id){let dx=(e.clientX-mv.ox)/55,dy=(e.clientY-mv.oy)/55;const l=Math.hypot(dx,dy);if(l>1){dx/=l;dy/=l}
+  mv.vx=dx;mv.vy=dy;knob.style.transform=`translate(${dx*33}px,${dy*33}px)`}
+ else if(e.pointerId===lk.id){
+  lookA-=(e.clientX-lk.x)*.006;
+  lookP-=(e.clientY-lk.y)*.006;
+  lk.x=e.clientX;lk.y=e.clientY}
+});
+function up(e){if(e.pointerId===mv.id){mv={id:null,ox:0,oy:0,vx:0,vy:0};joy.style.display='none'}if(e.pointerId===lk.id)lk={id:null,x:0,y:0}}
+touch.addEventListener('pointerup',up);touch.addEventListener('pointercancel',up);
+$('pickBtn').addEventListener('pointerdown',e=>{e.preventDefault();pickup()});
+$('actBtn').addEventListener('pointerdown',e=>{e.preventDefault();act()});
+$('stack').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();cycle(1)});
+
+/* ========== 更新 ========== */
+function update(dt){
+ truckUpdate(dt);
+ const open=isOpen();
+ if(!open){
+  if(keys['arrowleft'])lookA+=1.6*dt;if(keys['arrowright'])lookA-=1.6*dt;
+ }
+ const k=1-Math.exp(-dt*28);
+ const dA=lookA*k,dP=lookP*k;lookA-=dA;lookP-=dP;
+ P.a+=dA;P.p=Math.max(-1.3,Math.min(1.3,P.p+dP));
+
+ let fwd=0,str=0;
+ if(!open){
+  if(keys['w']||keys['arrowup'])fwd+=1;if(keys['s']||keys['arrowdown'])fwd-=1;
+  if(keys['d'])str+=1;if(keys['a'])str-=1;
+  if(mv.id!==null){fwd+=-mv.vy;str+=mv.vx}
+ }
+ const l=Math.hypot(fwd,str);if(l>1){fwd/=l;str/=l}
+ const run=keys['shift']?1.5:1;
+ const sp=2.8*(1+.08*S.lv.spd)*run;
+ const fx=-Math.sin(P.a),fz=-Math.cos(P.a),rx=Math.cos(P.a),rz=-Math.sin(P.a);
+ const tvx=(fx*fwd+rx*str)*sp,tvz=(fz*fwd+rz*str)*sp;
+ const ka=1-Math.exp(-dt*11);
+ vel.x+=(tvx-vel.x)*ka;vel.z+=(tvz-vel.z)*ka;
+ const vx=vel.x*dt,vz=vel.z*dt;
+ if(!blocked(P.x+vx,P.z))P.x+=vx;else vel.x=0;
+ if(!blocked(P.x,P.z+vz))P.z+=vz;else vel.z=0;
+ const moving=Math.min(1,Math.hypot(vel.x,vel.z)/sp||0);
+ if(S.bob){bobT+=moving*dt*8*run;bob=Math.sin(bobT)*.022*moving}else bob=0;
+ cam.position.set(P.x,1.6+bob,P.z);cam.rotation.set(P.p,P.a,0);
+ $('hand').style.transform=S.bob?`translate(0,${Math.abs(Math.sin(bobT))*5*moving}px)`:'none';
+
+ const inc=income();if(inc>0){S.money+=inc*dt;S.total+=inc*dt}
+
+ for(let i=floorItems.length-1;i>=0;i--){const f=floorItems[i];
+  if(f.state!=='fall')continue;
+  f.age+=dt;const u=Math.min(1,f.age/f.T);
+  f.sp.position.set(f.x0+(f.tx-f.x0)*u,f.y0+f.vy*f.age-4.9*f.age*f.age,f.z0+(f.tz-f.z0)*u);
+  f.sp.material.rotation=f.age*7;
+  if(f.age>=f.T){f.state='idle';f.sp.material.rotation=0;f.disc.visible=true;f.sp.position.set(f.tx,.5,f.tz);tone(110,.12,'sine',.1,60)}}
+
+ const cp=Math.cos(P.p),dxv=-Math.sin(P.a)*cp,dyv=Math.sin(P.p),dzv=-Math.cos(P.a)*cp;
+ const reach=2.5+.25*S.lv.rng;
+ let tg=null,best=1e9;
+ floorItems.forEach(f=>{
+  if(f.state!=='idle')return;
+  f.sp.position.y=.5+.03*Math.sin(time*1.6+f.ph);
+  f.disc.material.color.set(S.mode===0?BIN[ITEMS[f.id].b].c:'#000000');
+  f.disc.material.opacity=S.mode===0?.6:.3;
+  f.sp.scale.set(.6,.6,1);
+  const vx2=f.x-P.x,vy2=f.sp.position.y-cam.position.y,vz2=f.z-P.z;
+  const d2=vx2*vx2+vy2*vy2+vz2*vz2,dot=vx2*dxv+vy2*dyv+vz2*dzv;
+  if(dot<=0||d2>reach*reach)return;
+  const perp=Math.sqrt(Math.max(0,d2-dot*dot));
+  if(perp<.42&&dot<best){best=dot;tg=f}});
+ if(tg)tg.sp.scale.set(.78,.78,1);
+ target=tg;
+ let ab=null,bc=.9;
+ for(const b of BINPOS){
+  const vx3=b.x-P.x,vy3=.8-cam.position.y,vz3=b.z-P.z,d=Math.hypot(vx3,vy3,vz3);
+  if(d>3.9)continue;
+  const c=(vx3*dxv+vy3*dyv+vz3*dzv)/d;
+  if(c>bc){bc=c;ab=b}}
+ aimed=ab;
+ $('cross').classList.toggle('on',!!tg||(!!ab&&held.length>0));
+}
+
+/* ========== UI ========== */
+function renderHand(bump){
+ const st=$('stack');st.innerHTML='';
+ held.forEach((id,i)=>{
+  const d=document.createElement('div');d.className='hi'+(i===0?' cur':'');
+  d.textContent=ITEMS[id].e;
+  d.style.transform=`translateX(${i===0?0:(i%2?10:-10)}px) rotate(${i===0?0:(i%2?8:-8)}deg)`;
+  if(bump&&i===held.length-1)d.classList.add('bump');
+  st.appendChild(d)});
+}
+let uiT=0,lastTg='';
+function ui(){
+ $('money').textContent='$'+fmt(S.money);
+ const acc=S.ok+S.ng?Math.round(S.ok/(S.ok+S.ng)*100):0;
+ $('rate').textContent=(S.lv.vol?'每秒 $'+fmt(income())+' ・ ':'')+'正確率 '+acc+'%';
+ let best=null;UP.forEach(u=>{if(u.max&&S.lv[u.id]>=u.max)return;const c=cost(u);if(!best||c<best.c)best={u,c}});
+ if(best){$('goalTx').textContent='🎯 '+best.u.name+' Lv'+(S.lv[best.u.id]+1)+' $'+fmt(best.c);$('barI').style.width=Math.min(100,S.money/best.c*100)+'%'}
+ const st=$('state');
+ if(T.ph==='stop'){const r=Math.ceil(STOP-T.t);st.className='hud pill stop';
+  st.textContent=dropping()?`🛑 停車中・車尾開口丟入垃圾(${r}秒後出發)`:`🛑 即將出發…(${r})`}
+ else{st.className='hud pill go';
+  st.textContent=T.ph==='brake'?'🚚 即將停靠…':T.ph==='acc'?'🚚 出發中…':'🚚 行駛中・前往下一個收運點'}
+ let t='';
+ if(target){const it=ITEMS[target.id];
+  const nm=S.mode===0?`${it.e} ${it.n} → ${BIN[it.b].n}`:S.mode===1?`${it.e} ${it.n}`:'❓ 這是什麼垃圾?';
+  t=(fine?'[左鍵] 撿起 ':'')+nm}
+ else if(aimed&&held.length){t=(fine?'[左鍵] ':'')+'丟入 '+BIN[aimed.i].e+BIN[aimed.i].n}
+ if(t!==lastTg){lastTg=t;$('tgTx').textContent=t}
+ const cur=held.length?ITEMS[held[0]]:null;
+ let lbl='';
+ if(cur)lbl=S.mode===0?`${cur.n} → ${BIN[cur.b].n}`:S.mode===1?cur.n:'❓ 要丟哪一桶?';
+ if($('curLbl').textContent!==lbl)$('curLbl').textContent=lbl;
+ $('cnt').textContent=`手上 ${held.length}/${capN()}`;
+ $('actBtn').classList.toggle('dim',!(aimed&&held.length));
+ $('pickBtn').classList.toggle('dim',!target||held.length>=capN());
+ $('modeBtn').textContent=MODES[S.mode].l;
+ $('bobBtn').textContent=S.bob?'🌀開':'🌀關';$('bobBtn').classList.toggle('off',!S.bob);
+ if(isOpen()&&tab==='shop')updShop();
+}
+
+/* ========== 商店 / 圖鑑 ========== */
+function buildShop(){
+ const L=$('list');L.innerHTML='';
+ UP.forEach(u=>{const d=document.createElement('div');d.className='it';d.id='u_'+u.id;
+  d.innerHTML=`<div class="ic">${u.ic}</div><div class="tx"><b></b><small>${u.desc}</small></div><button class="buy"></button>`;
+  d.querySelector('button').onclick=()=>buy(u);L.appendChild(d)});
+ updShop();
+}
+function updShop(){UP.forEach(u=>{const d=$('u_'+u.id);if(!d)return;const lv=S.lv[u.id],mx=u.max&&lv>=u.max,c=cost(u);
+ d.querySelector('b').textContent=u.name+'  Lv'+lv+(u.max?'/'+u.max:'');
+ const b=d.querySelector('button');b.textContent=mx?'已滿級':'$'+fmt(c);b.disabled=mx||S.money<c})}
+function buildDex(){
+ const L=$('list');const seen=Object.keys(S.dex).length;
+ let h=`<div class="it"><div class="tx"><b>📖 分類圖鑑 ${seen}/${ITEMS.length}</b><small>答對 ${S.ok} 次・答錯 ${S.ng} 次。投入過的物品會解鎖說明。</small></div></div>`;
+ ITEMS.forEach((it,i)=>{const d=S.dex[i];
+  if(!d){h+=`<div class="it"><div class="ic">❓</div><div class="tx"><b>未知物品</b><small>投入垃圾桶後解鎖</small></div></div>`;return}
+  h+=`<div class="it"><div class="ic">${it.e}</div><div class="tx"><b>${it.n}</b><span class="tag" style="background:${BIN[it.b].c}">${BIN[it.b].n}</span><small>${it.t}<br>✅${d.ok} ❌${d.ng}</small></div></div>`});
+ L.innerHTML=h;
+}
+function setTab(t){tab=t;$('tShop').classList.toggle('on',t==='shop');$('tDex').classList.toggle('on',t==='dex');t==='shop'?buildShop():buildDex()}
+function buy(u){
+ const c=cost(u);if(S.money<c||(u.max&&S.lv[u.id]>=u.max))return;
+ S.money-=c;S.lv[u.id]++;tone(520,.12,'triangle',.1);setTimeout(()=>tone(780,.18,'triangle',.1),90);vib([10,30,10]);
+ if(u.id==='cap')renderHand();
+ updShop();ui();save();
+}
+$('shopBtn').onclick=()=>openShop('shop');
+$('closeShop').onclick=closeShop;
+$('tShop').onclick=()=>setTab('shop');$('tDex').onclick=()=>setTab('dex');
+$('mute').textContent=S.mute?'🔇':'🔊';
+$('mute').onclick=()=>{S.mute=!S.mute;$('mute').textContent=S.mute?'🔇':'🔊';save()};
+$('modeBtn').onclick=()=>{S.mode=(S.mode+1)%3;toast(MODES[S.mode].d,2200);ui();save()};
+$('bobBtn').onclick=()=>{S.bob=!S.bob;toast(S.bob?'🌀 走路晃動:開':'🌀 走路晃動:關(比較不暈)',1800);ui();save()};
+
+/* ========== 離線收益 ========== */
+(function(){
+ const secs=Math.min((Date.now()-S.last)/1000,8*3600),r=income();
+ if(r>0&&secs>60){const g=r*secs*.5;S.money+=g;S.total+=g;const m=Math.floor(secs/60);
+  $('offTx').innerHTML='你離開了 '+(m>=60?Math.floor(m/60)+' 小時 ':'')+(m%60)+' 分鐘<br>志工們幫你賺了 <b style="color:#ffd766">$'+fmt(g)+'</b>';
+  $('modal').style.display='flex'}
+ $('offOk').onclick=()=>{$('modal').style.display='none'};save();
+})();
+
+/* ========== 主迴圈 ========== */
+let lt=performance.now();
+function loop(n){
+ const dt=Math.min(.1,(n-lt)/1000);lt=n;time+=dt;
+ update(dt);renderer.render(scene,cam);
+ uiT+=dt;if(uiT>.1){uiT=0;ui()}
+ requestAnimationFrame(loop);
+}
+renderHand();ui();requestAnimationFrame(loop);
+setTimeout(()=>toast(fine
+ ?'🚚 你站在回收車的車斗上!<br>WASD 移動・點畫面後滑鼠轉頭<br>垃圾會從<b>車尾開口</b>丟進來<br>對準撿起(左鍵)→ 面對垃圾桶丟入(左鍵)'
+ :'🚚 你站在回收車的車斗上!<br>左半邊=走路 右半邊=轉頭<br>垃圾從<b>車尾開口</b>丟進來<br>準心對準垃圾按 ✋,面對垃圾桶按 🗑️',8000),500);
+</script>
+</body>
+</html>
